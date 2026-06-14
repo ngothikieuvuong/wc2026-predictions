@@ -146,15 +146,6 @@ export default function HomePage() {
           <p className="text-white/50">Chưa có ai trúng — hãy là người đầu tiên!</p>
         )}
       </section>
-
-      <div className="flex flex-wrap justify-center gap-3">
-        <Link href="/predict" className="btn">
-          Đoán ngay
-        </Link>
-        <Link href="/leaderboard" className="btn-ghost">
-          Tổng kết
-        </Link>
-      </div>
     </div>
   );
 }
