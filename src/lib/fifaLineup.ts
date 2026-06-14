@@ -1,85 +1,116 @@
-// Fetch lineups (starting XI + bench + coach + cards) for a match from FIFA.
-// Server-only (FIFA API is not CORS-friendly). Free, no key.
-
+// Fetch lineups + card suspensions for a match from FIFA (free, no key, server-only).
 import { viTeam } from "./fifa";
 
 const UA = { "User-Agent": "Mozilla/5.0" };
 const pairKey = (a: string, b: string) =>
   [a.toLowerCase(), b.toLowerCase()].sort().join("|");
 const nm = (arr: { Description?: string }[] | undefined) => arr?.[0]?.Description ?? "";
+const liveUrl = (stage: string, match: string) =>
+  `https://api.fifa.com/api/v3/live/football/17/285023/${stage}/${match}?language=en`;
 
 export type LineupPlayer = { num: number; name: string; captain: boolean };
 export type TeamLineup = {
   name: string;
-  coach: string;
   xi: LineupPlayer[];
   bench: LineupPlayer[];
-  squad: LineupPlayer[]; // full roster, fallback when XI not announced
-  cards: { name: string; card: string; minute: string }[];
+  suspended: { name: string; reason: string }[];
 };
-
-async function fetchSquad(idTeam: string): Promise<LineupPlayer[]> {
-  try {
-    const url = `https://api.fifa.com/api/v3/teams/${idTeam}/squad?idCompetition=17&idSeason=285023&language=en`;
-    const j = await (await fetch(url, { headers: UA, next: { revalidate: 3600 } })).json();
-    return (j.Players ?? [])
-      .map((p: any) => ({
-        num: p.JerseyNum ?? 0,
-        name: nm(p.PlayerName) || nm(p.ShortName) || "?",
-        captain: false,
-      }))
-      .sort((a: LineupPlayer, b: LineupPlayer) => a.num - b.num);
-  } catch {
-    return [];
-  }
-}
 export type MatchInfo =
   | { home: TeamLineup; away: TeamLineup; lineupReady: boolean }
   | { error: string };
+
+const playerName = (p: any) => nm(p.PlayerName) || nm(p.ShortName) || "?";
+
+// Players banned (by cards) for the upcoming match = red / second-yellow in the
+// team's most recent match, or a 2nd accumulated yellow there.
+async function teamSuspensions(
+  idTeam: string,
+  finished: { IdStage: string; IdMatch: string; Date: string }[]
+): Promise<{ name: string; reason: string }[]> {
+  if (finished.length === 0) return [];
+  const sorted = [...finished].sort((a, b) => (a.Date < b.Date ? -1 : 1));
+  const last = sorted[sorted.length - 1];
+
+  const sideOf = (d: any) =>
+    [d.HomeTeam, d.AwayTeam].find((t: any) => t?.IdTeam === idTeam);
+
+  // Yellows in earlier matches (for 2-yellow accumulation).
+  const priorYellow = new Map<string, number>();
+  for (const m of sorted.slice(0, -1)) {
+    const d = await (await fetch(liveUrl(m.IdStage, m.IdMatch), { headers: UA, next: { revalidate: 86400 } })).json();
+    const side = sideOf(d);
+    for (const bk of side?.Bookings ?? []) {
+      if (bk.Card === 1 && bk.IdPlayer)
+        priorYellow.set(bk.IdPlayer, (priorYellow.get(bk.IdPlayer) ?? 0) + 1);
+    }
+  }
+
+  const dLast = await (await fetch(liveUrl(last.IdStage, last.IdMatch), { headers: UA, next: { revalidate: 86400 } })).json();
+  const side = sideOf(dLast);
+  if (!side) return [];
+  const nameById = new Map<string, string>(
+    (side.Players ?? []).map((p: any) => [p.IdPlayer, playerName(p)])
+  );
+
+  const out = new Map<string, { name: string; reason: string }>();
+  for (const bk of side.Bookings ?? []) {
+    const id = bk.IdPlayer;
+    if (!id) continue;
+    const name = nameById.get(id) ?? "?";
+    if (bk.Card >= 2) {
+      out.set(id, { name, reason: "🟥 thẻ đỏ" });
+    } else if (bk.Card === 1 && (priorYellow.get(id) ?? 0) >= 1) {
+      if (!out.has(id)) out.set(id, { name, reason: "🟨🟨 2 thẻ vàng" });
+    }
+  }
+  return [...out.values()];
+}
 
 export async function getMatchInfo(team1: string, team2: string): Promise<MatchInfo> {
   const calUrl =
     "https://api.fifa.com/api/v3/calendar/matches?language=en&count=200" +
     "&idCompetition=17&idSeason=285023&from=2026-06-01T00:00:00Z&to=2026-07-31T00:00:00Z";
   const cal = await (await fetch(calUrl, { headers: UA, next: { revalidate: 600 } })).json();
+  const all: any[] = cal.Results ?? [];
   const want = pairKey(team1, team2);
-  const fm = (cal.Results ?? []).find((m: any) => {
+  const fm = all.find((m) => {
     const h = viTeam(m.Home?.IdCountry);
     const a = viTeam(m.Away?.IdCountry);
     return h && a && pairKey(h, a) === want;
   });
   if (!fm) return { error: "Không tìm thấy trận." };
 
-  const liveUrl = `https://api.fifa.com/api/v3/live/football/17/285023/${fm.IdStage}/${fm.IdMatch}?language=en`;
-  const live = await (await fetch(liveUrl, { headers: UA, next: { revalidate: 120 } })).json();
+  const live = await (await fetch(liveUrl(fm.IdStage, fm.IdMatch), { headers: UA, next: { revalidate: 120 } })).json();
 
-  const build = (t: any, viName: string): TeamLineup => {
+  const finishedOf = (idTeam: string) =>
+    all
+      .filter(
+        (m) =>
+          m.MatchStatus === 0 &&
+          (m.Home?.IdTeam === idTeam || m.Away?.IdTeam === idTeam)
+      )
+      .map((m) => ({ IdStage: m.IdStage, IdMatch: m.IdMatch, Date: m.Date }));
+
+  const build = async (t: any, fmSide: any, viName: string): Promise<TeamLineup> => {
     const players: any[] = t?.Players ?? [];
     const mk = (p: any): LineupPlayer => ({
       num: p.ShirtNumber ?? 0,
-      name: nm(p.PlayerName) || nm(p.ShortName) || "?",
+      name: playerName(p),
       captain: !!p.Captain,
     });
     const byNum = (a: LineupPlayer, b: LineupPlayer) => a.num - b.num;
     const xi = players.filter((p) => p.Status === 1).map(mk).sort(byNum);
     const bench = players.filter((p) => p.Status === 2).map(mk).sort(byNum);
-    const byId = new Map(players.map((p) => [p.IdPlayer, mk(p)]));
-    const coach =
-      nm(t?.Coaches?.[0]?.Name) || nm(t?.Coaches?.[0]?.Alias) || "";
-    const cards = (t?.Bookings ?? []).map((bk: any) => ({
-      name: byId.get(bk.IdPlayer)?.name ?? "?",
-      card: bk.Card === 1 ? "🟨" : "🟥",
-      minute: bk.Minute ?? "",
-    }));
-    return { name: viName, coach, xi, bench, squad: [], cards };
+    const suspended = fmSide?.IdTeam
+      ? await teamSuspensions(fmSide.IdTeam, finishedOf(fmSide.IdTeam))
+      : [];
+    return { name: viName, xi, bench, suspended };
   };
 
-  const home = build(live.HomeTeam, viTeam(fm.Home?.IdCountry));
-  const away = build(live.AwayTeam, viTeam(fm.Away?.IdCountry));
-
-  // No announced XI yet → fall back to the full squad list.
-  if (home.xi.length === 0 && fm.Home?.IdTeam) home.squad = await fetchSquad(fm.Home.IdTeam);
-  if (away.xi.length === 0 && fm.Away?.IdTeam) away.squad = await fetchSquad(fm.Away.IdTeam);
+  const [home, away] = await Promise.all([
+    build(live.HomeTeam, fm.Home, viTeam(fm.Home?.IdCountry)),
+    build(live.AwayTeam, fm.Away, viTeam(fm.Away?.IdCountry)),
+  ]);
 
   return { home, away, lineupReady: home.xi.length >= 11 && away.xi.length >= 11 };
 }

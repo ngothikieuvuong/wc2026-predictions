@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import LineupView from "@/components/LineupView";
+import MatchDetails from "@/components/MatchDetails";
 
 export default function MatchInfoButton({
   team1,
@@ -45,7 +45,7 @@ export default function MatchInfoButton({
                 </button>
               </div>
 
-              <LineupView team1={team1} team2={team2} />
+              <MatchDetails team1={team1} team2={team2} />
 
               <button className="btn mt-4 w-full" onClick={() => setOpen(false)}>
                 Đóng
