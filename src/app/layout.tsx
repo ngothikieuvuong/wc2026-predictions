@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import AdminLink from "@/components/AdminLink";
+import SyncLink from "@/components/SyncLink";
 
 export const metadata: Metadata = {
-  title: "Happy Corner",
-  description: "Trò chơi đoán vui cho gia đình",
+  title: "Nhà Tiên Tri WC",
+  description: "Trò chơi đoán tỉ số vui cho gia đình",
 };
 
 export default function RootLayout({
@@ -20,9 +21,9 @@ export default function RootLayout({
           <NavBar />
           <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
           <footer className="mx-auto max-w-3xl px-4 py-8 text-center text-xs text-white/30">
-            <p>🎯 Trò chơi gia đình · góp 20.000₫ mỗi lượt · đoán trúng nhận quỹ</p>
-            <p className="mt-2">
-              <AdminLink />
+            <p>🏆 Trò chơi gia đình · góp 20.000₫ mỗi lượt · đoán trúng nhận quỹ</p>
+            <p className="mt-2 flex items-center justify-center gap-2">
+              <SyncLink /> · <AdminLink />
             </p>
           </footer>
         </div>

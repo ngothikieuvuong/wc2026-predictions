@@ -10,7 +10,6 @@ import {
 } from "@/lib/queries";
 import { formatVND, formatKickoff } from "@/lib/format";
 import { dayLabel } from "@/lib/day";
-import RulesButton from "@/components/RulesButton";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
@@ -24,8 +23,6 @@ export default function HomePage() {
     ReturnType<typeof getLatestWinner>
   > | null>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   async function loadData() {
     const [j, f, s, w] = await Promise.all([
@@ -44,28 +41,6 @@ export default function HomePage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  async function syncResults() {
-    setSyncing(true);
-    setSyncMsg(null);
-    try {
-      const res = await fetch("/api/sync", { cache: "no-store" });
-      const j = await res.json();
-      if (j.ok) {
-        setSyncMsg(
-          j.updated.length > 0
-            ? `✅ Đã cập nhật ${j.updated.length} trận`
-            : "✓ Không có trận mới nào kết thúc"
-        );
-        await loadData();
-      } else {
-        setSyncMsg("Lỗi: " + (j.error ?? "không rõ"));
-      }
-    } catch {
-      setSyncMsg("Lỗi kết nối — thử lại sau.");
-    }
-    setSyncing(false);
-  }
 
   return (
     <div className="space-y-6">
@@ -87,12 +62,18 @@ export default function HomePage() {
               Quỹ theo ngày
             </p>
             {fundByDay.map((d) => (
-              <div key={d.date} className="flex items-baseline justify-between gap-2">
+              <div
+                key={d.date}
+                className={`flex items-baseline justify-between gap-2 ${
+                  d.counted ? "" : "opacity-40"
+                }`}
+              >
                 <span className="text-white/70">
-                  {d.date.slice(8, 10)}/{d.date.slice(5, 7)}{" "}
+                  {dayLabel(d.date)}{" "}
                   <span className="text-white/40">
                     ({d.participants.join(", ")})
                   </span>
+                  {!d.counted && <span className="text-white/30"> · chưa tính</span>}
                 </span>
                 <span className="shrink-0 font-semibold">{formatVND(d.pot)}</span>
               </div>
@@ -173,19 +154,6 @@ export default function HomePage() {
         <Link href="/leaderboard" className="btn-ghost">
           Tổng kết
         </Link>
-        <RulesButton />
-      </div>
-
-      {/* Manual results sync */}
-      <div className="flex flex-col items-center gap-2 pt-2">
-        <button
-          onClick={syncResults}
-          disabled={syncing}
-          className="btn-ghost text-sm"
-        >
-          {syncing ? "Đang cập nhật…" : "🔄 Cập nhật kết quả"}
-        </button>
-        {syncMsg && <p className="text-xs text-white/60">{syncMsg}</p>}
       </div>
     </div>
   );

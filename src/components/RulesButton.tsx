@@ -2,13 +2,19 @@
 
 import { useState } from "react";
 
-export default function RulesButton() {
+export default function RulesButton({
+  className = "btn-ghost",
+  children = "📖 Luật chơi",
+}: {
+  className?: string;
+  children?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button className="btn-ghost" onClick={() => setOpen(true)}>
-        📖 Luật chơi
+      <button className={className} onClick={() => setOpen(true)}>
+        {children}
       </button>
 
       {open && (

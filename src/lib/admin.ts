@@ -44,6 +44,7 @@ export async function computeSettlement(): Promise<SettleResult> {
   const matches = (matchesData as Match[]) ?? [];
   const preds = (predsData as Prediction[]) ?? [];
   const matchById = new Map(matches.map((m) => [m.id, m]));
+  const today = dayKey(new Date().toISOString()); // only settle up to today
 
   const matchesByDay = new Map<string, Match[]>();
   for (const m of matches) {
@@ -94,6 +95,7 @@ export async function computeSettlement(): Promise<SettleResult> {
   let settledDays = 0;
 
   for (const info of infos) {
+    if (info.date > today) break; // don't settle future days
     if (!info.finished) break; // chronological — wait for the full day's results
     settledDays++;
     settled.push(info);
@@ -239,6 +241,7 @@ export async function getPredictionCount(matchId: string): Promise<number> {
 }
 
 // All predictions joined with their match, for the admin manage list.
+// Sorted by match kickoff time (ascending).
 export async function getAllPredictionsDetailed(): Promise<
   {
     id: string;
@@ -249,6 +252,7 @@ export async function getAllPredictionsDetailed(): Promise<
     predicted_home: number;
     predicted_away: number;
     kickoff_time: string;
+    created_at: string;
   }[]
 > {
   const [{ data: preds }, { data: matches }] = await Promise.all([
@@ -268,13 +272,10 @@ export async function getAllPredictionsDetailed(): Promise<
         predicted_home: p.predicted_home,
         predicted_away: p.predicted_away,
         kickoff_time: m?.kickoff_time ?? "",
+        created_at: p.created_at,
       };
     })
-    .sort(
-      (a, b) =>
-        a.player_name.localeCompare(b.player_name) ||
-        (a.kickoff_time < b.kickoff_time ? -1 : 1)
-    );
+    .sort((a, b) => (a.kickoff_time < b.kickoff_time ? -1 : a.kickoff_time > b.kickoff_time ? 1 : 0));
 }
 
 export async function addPrediction(

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { DEMO } from "@/lib/supabase";
+import RulesButton from "@/components/RulesButton";
 
 const SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
 
@@ -33,8 +34,8 @@ export default function NavBar() {
             href="/"
             className="flex items-center gap-2 font-bold tracking-tight"
           >
-            <span className="text-xl">🎯</span>
-            <span>Happy Corner</span>
+            <span className="text-xl">🏆</span>
+            <span>Nhà Tiên Tri WC</span>
             {DEMO && (
               <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
                 Bản thử
@@ -67,6 +68,9 @@ export default function NavBar() {
               </Link>
             );
           })}
+          <RulesButton className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white/70 transition hover:bg-white/10">
+            📖 Luật
+          </RulesButton>
         </nav>
       </div>
     </header>

@@ -8,21 +8,14 @@ import {
   deleteLastSettlement,
   snapshotRewards,
   restoreRewards,
-  getAllMatches,
   getAllPredictionsDetailed,
-  addPrediction,
   updatePrediction,
   deletePrediction,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
-import {
-  getJackpot,
-  getCorrectPredictions,
-  getFundByDay,
-  getPlayers,
-} from "@/lib/queries";
-import type { Match, Reward } from "@/lib/types";
-import { formatKickoff, formatVND } from "@/lib/format";
+import { getJackpot, getCorrectPredictions, getFundByDay } from "@/lib/queries";
+import type { Reward } from "@/lib/types";
+import { formatKickoff, formatShort, formatVND } from "@/lib/format";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
 
@@ -172,10 +165,16 @@ function AdminPanel() {
               Quỹ theo ngày
             </p>
             {fundByDay.map((d) => (
-              <div key={d.date} className="flex items-baseline justify-between gap-2">
+              <div
+                key={d.date}
+                className={`flex items-baseline justify-between gap-2 ${
+                  d.counted ? "" : "opacity-40"
+                }`}
+              >
                 <span className="text-white/70">
                   {d.date.slice(8, 10)}/{d.date.slice(5, 7)}{" "}
                   <span className="text-white/40">({d.participants.join(", ")})</span>
+                  {!d.counted && <span className="text-white/30"> · chưa tính</span>}
                 </span>
                 <span className="shrink-0 font-semibold">{formatVND(d.pot)}</span>
               </div>
@@ -222,7 +221,7 @@ function AdminPanel() {
           onClick={runReview}
           disabled={settling || applying || correct.length === 0}
         >
-          {settling ? "Đang tính…" : "💰 Chia quỹ (xem trước)"}
+          {settling ? "Đang tính…" : "📒 Chốt sổ nào"}
         </button>
         {correct.length === 0 && (
           <p className="text-center text-xs text-white/40">
@@ -300,27 +299,10 @@ function ManagePredictions({ onChanged }: { onChanged: (text: string) => void })
   const [list, setList] = useState<
     Awaited<ReturnType<typeof getAllPredictionsDetailed>>
   >([]);
-  const [players, setPlayers] = useState<string[]>([]);
-  const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Add form
-  const [name, setName] = useState("");
-  const [matchId, setMatchId] = useState("");
-  const [home, setHome] = useState("");
-  const [away, setAway] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
   async function load() {
-    const [l, p, m] = await Promise.all([
-      getAllPredictionsDetailed(),
-      getPlayers(),
-      getAllMatches(),
-    ]);
-    setList(l);
-    setPlayers(p);
-    setMatches(m);
+    setList(await getAllPredictionsDetailed());
     setLoading(false);
   }
 
@@ -328,89 +310,10 @@ function ManagePredictions({ onChanged }: { onChanged: (text: string) => void })
     load();
   }, []);
 
-  async function add() {
-    setMsg(null);
-    if (!name || !matchId || home === "" || away === "") {
-      setMsg("Điền đủ tên, trận và tỉ số.");
-      return;
-    }
-    setBusy(true);
-    try {
-      await addPrediction(name, matchId, Number(home), Number(away));
-      setHome("");
-      setAway("");
-      setMatchId("");
-      setMsg("✅ Đã thêm.");
-      await load();
-    } catch (e) {
-      const m = (e as { code?: string; message?: string }) ?? {};
-      setMsg(
-        m.code === "23505" || /duplicate|unique/i.test(m.message ?? "")
-          ? "Người này đã đoán trận đó rồi."
-          : "Lỗi: " + (m.message ?? "không rõ")
-      );
-    }
-    setBusy(false);
-  }
-
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-4">
       <h2 className="font-bold">Quản lý lượt đoán</h2>
-
-      {/* Add (shown last) */}
-      <section className="order-2 card space-y-3">
-        <p className="text-sm font-semibold text-white/70">Thêm lượt đoán</p>
-        <select
-          className="input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        >
-          <option value="">Chọn tên…</option>
-          {players.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <select
-          className="input"
-          value={matchId}
-          onChange={(e) => setMatchId(e.target.value)}
-        >
-          <option value="">Chọn trận…</option>
-          {matches.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.team1} - {m.team2} — {formatKickoff(m.kickoff_time)}
-            </option>
-          ))}
-        </select>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={0}
-            className="input !w-16 px-1 text-center"
-            placeholder="0"
-            value={home}
-            onChange={(e) => setHome(e.target.value)}
-          />
-          <span className="text-white/40">:</span>
-          <input
-            type="number"
-            min={0}
-            className="input !w-16 px-1 text-center"
-            placeholder="0"
-            value={away}
-            onChange={(e) => setAway(e.target.value)}
-          />
-          <button className="btn ml-auto" onClick={add} disabled={busy}>
-            Thêm
-          </button>
-        </div>
-        {msg && <p className="text-xs text-white/60">{msg}</p>}
-      </section>
-
-      {/* List */}
-      <section className="order-1 card p-0 overflow-hidden">
+      <section className="card p-0 overflow-hidden">
         <div className="border-b border-white/10 px-4 py-3 font-bold">
           Tất cả lượt đoán ({list.length})
         </div>
@@ -482,6 +385,9 @@ function PredRow({
         <p className="truncate text-sm font-semibold">{item.player_name}</p>
         <p className="truncate text-xs text-white/50">
           {item.team1} - {item.team2}
+        </p>
+        <p className="truncate text-[10px] text-white/30">
+          ⏱ {formatKickoff(item.kickoff_time)} · đoán {formatShort(item.created_at)}
         </p>
       </div>
       <input

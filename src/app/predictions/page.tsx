@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getPredictionsByMatch } from "@/lib/queries";
 import type { Match, Prediction } from "@/lib/types";
 import { formatKickoff, formatShort } from "@/lib/format";
+import { dayKey, dayLabel } from "@/lib/day";
 
 function isWinner(m: Match, p: Prediction): boolean {
   return (
@@ -33,6 +34,15 @@ export default function PredictionsPage() {
     (r) => new Date(r.match.kickoff_time).getTime() >= cutoff
   );
 
+  // Group by game-day (21h rule); rows are already sorted by kickoff.
+  const byDay: { day: string; items: typeof visible }[] = [];
+  for (const r of visible) {
+    const d = dayKey(r.match.kickoff_time);
+    const last = byDay[byDay.length - 1];
+    if (!last || last.day !== d) byDay.push({ day: d, items: [r] });
+    else last.items.push(r);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -52,14 +62,19 @@ export default function PredictionsPage() {
           </Link>
         </div>
       ) : (
-        visible.map(({ match, predictions }) => (
-          <section key={match.id} className="card space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-lg font-bold">
-                  {match.team1}{" "}
-                  <span className="text-white/40">gặp</span> {match.team2}
-                </p>
+        byDay.map((group) => (
+          <div key={group.day} className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
+              Ngày {dayLabel(group.day)}
+            </h2>
+            {group.items.map(({ match, predictions }) => (
+              <section key={match.id} className="card space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-bold">
+                      {match.team1}{" "}
+                      <span className="text-white/40">gặp</span> {match.team2}
+                    </p>
                 <p className="text-xs text-white/50">
                   ⏱ {formatKickoff(match.kickoff_time)}
                 </p>
@@ -110,7 +125,9 @@ export default function PredictionsPage() {
             <p className="text-right text-xs text-white/40">
               {predictions.length} lượt đoán
             </p>
-          </section>
+              </section>
+            ))}
+          </div>
         ))
       )}
     </div>

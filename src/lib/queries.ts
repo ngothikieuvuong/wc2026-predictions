@@ -2,14 +2,26 @@ import { supabase, STAKE_VND } from "./supabase";
 import type { Match, Prediction, Reward } from "./types";
 import { dayKey } from "./day";
 
-// Current jackpot = total stakes from all predictions − total rewards paid out.
-// Carryover is automatic: unpaid matches leave the pool untouched.
+// Current jackpot: only counts days up to today (predictions for future days
+// aren't in the pot yet). After 21h with no winner the next day rolls in.
 export async function getJackpot(): Promise<number> {
-  const [{ count }, { data: rewards }] = await Promise.all([
-    supabase.from("predictions").select("*", { count: "exact", head: true }),
+  const today = dayKey(new Date().toISOString());
+  const [{ data: preds }, { data: matches }, { data: rewards }] = await Promise.all([
+    supabase.from("predictions").select("match_id"),
+    supabase.from("matches").select("id, kickoff_time"),
     supabase.from("rewards").select("amount"),
   ]);
-  const collected = (count ?? 0) * STAKE_VND;
+  const dayOf = new Map(
+    ((matches as { id: string; kickoff_time: string }[]) ?? []).map((m) => [
+      m.id,
+      dayKey(m.kickoff_time),
+    ])
+  );
+  let collected = 0;
+  for (const p of (preds as { match_id: string }[]) ?? []) {
+    const d = dayOf.get(p.match_id);
+    if (d && d <= today) collected += STAKE_VND;
+  }
   const paid = (rewards ?? []).reduce(
     (s: number, r: { amount: number }) => s + Number(r.amount),
     0
@@ -154,10 +166,12 @@ export async function getPredictionsByMatch(): Promise<
 }
 
 // Fund broken down by day: each day still "in play" (not yet won) with its pot
-// and who's in it — so players can see what they'd collect if they win.
+// and who's in it. `counted` = already part of the current fund (day ≤ today);
+// future days are shown but not yet counted.
 export async function getFundByDay(): Promise<
-  { date: string; participants: string[]; pot: number }[]
+  { date: string; participants: string[]; pot: number; counted: boolean }[]
 > {
+  const today = dayKey(new Date().toISOString());
   const [{ data: matches }, { data: preds }] = await Promise.all([
     supabase.from("matches").select("*"),
     supabase.from("predictions").select("*"),
@@ -208,6 +222,7 @@ export async function getFundByDay(): Promise<
       date,
       participants: [...a.names],
       pot: a.slots * STAKE_VND,
+      counted: date <= today,
     }))
     .sort((x, y) => (x.date < y.date ? -1 : 1));
 }
