@@ -25,6 +25,20 @@ function Team({ t }: { t: TeamLineup }) {
             ))}
           </ul>
         </>
+      ) : t.squad.length > 0 ? (
+        <>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+            Danh sách cầu thủ ({t.squad.length})
+          </p>
+          <ul className="mt-1 grid grid-cols-2 gap-x-3 text-sm">
+            {t.squad.map((p) => (
+              <li key={p.num} className="flex gap-2">
+                <span className="w-6 shrink-0 text-right text-white/40">{p.num}</span>
+                <span className="truncate">{p.name}</span>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : (
         <p className="mt-2 text-sm text-white/50">Đội hình chưa công bố.</p>
       )}

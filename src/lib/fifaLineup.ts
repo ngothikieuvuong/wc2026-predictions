@@ -14,8 +14,25 @@ export type TeamLineup = {
   coach: string;
   xi: LineupPlayer[];
   bench: LineupPlayer[];
+  squad: LineupPlayer[]; // full roster, fallback when XI not announced
   cards: { name: string; card: string; minute: string }[];
 };
+
+async function fetchSquad(idTeam: string): Promise<LineupPlayer[]> {
+  try {
+    const url = `https://api.fifa.com/api/v3/teams/${idTeam}/squad?idCompetition=17&idSeason=285023&language=en`;
+    const j = await (await fetch(url, { headers: UA, next: { revalidate: 3600 } })).json();
+    return (j.Players ?? [])
+      .map((p: any) => ({
+        num: p.JerseyNum ?? 0,
+        name: nm(p.PlayerName) || nm(p.ShortName) || "?",
+        captain: false,
+      }))
+      .sort((a: LineupPlayer, b: LineupPlayer) => a.num - b.num);
+  } catch {
+    return [];
+  }
+}
 export type MatchInfo =
   | { home: TeamLineup; away: TeamLineup; lineupReady: boolean }
   | { error: string };
@@ -54,10 +71,15 @@ export async function getMatchInfo(team1: string, team2: string): Promise<MatchI
       card: bk.Card === 1 ? "🟨" : "🟥",
       minute: bk.Minute ?? "",
     }));
-    return { name: viName, coach, xi, bench, cards };
+    return { name: viName, coach, xi, bench, squad: [], cards };
   };
 
   const home = build(live.HomeTeam, viTeam(fm.Home?.IdCountry));
   const away = build(live.AwayTeam, viTeam(fm.Away?.IdCountry));
+
+  // No announced XI yet → fall back to the full squad list.
+  if (home.xi.length === 0 && fm.Home?.IdTeam) home.squad = await fetchSquad(fm.Home.IdTeam);
+  if (away.xi.length === 0 && fm.Away?.IdTeam) away.squad = await fetchSquad(fm.Away.IdTeam);
+
   return { home, away, lineupReady: home.xi.length >= 11 && away.xi.length >= 11 };
 }

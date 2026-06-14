@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { getTeamInfo } from "@/lib/queries";
 import LineupView from "@/components/LineupView";
 
@@ -31,11 +32,13 @@ export default function TeamInfoButton({
         ℹ️ Thêm thông tin
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-4"
-          onClick={() => setOpen(false)}
-        >
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-4"
+            onClick={() => setOpen(false)}
+          >
           <div
             className="card max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-b-none sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
@@ -115,8 +118,9 @@ export default function TeamInfoButton({
               Đóng
             </button>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }
