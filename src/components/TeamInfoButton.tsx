@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getTeamInfo } from "@/lib/queries";
+import LineupView from "@/components/LineupView";
 
 type Info = Awaited<ReturnType<typeof getTeamInfo>>;
 
@@ -101,6 +102,14 @@ export default function TeamInfoButton({
                 </p>
               </div>
             )}
+
+            {/* Lineups */}
+            <div className="mt-4 border-t border-white/10 pt-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+                Đội hình
+              </p>
+              <LineupView team1={team1} team2={team2} />
+            </div>
 
             <button className="btn mt-4 w-full" onClick={() => setOpen(false)}>
               Đóng
