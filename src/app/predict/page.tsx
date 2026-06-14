@@ -7,6 +7,7 @@ import { getOpenMatches, getPlayers, addPlayer } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatKickoff, isClosed } from "@/lib/format";
 import { matchHint } from "@/lib/strength";
+import TeamInfoButton from "@/components/TeamInfoButton";
 
 const NEW_PLAYER = "__new__";
 
@@ -166,6 +167,9 @@ export default function PredictPage() {
                 <p className="mt-1 text-center font-semibold text-grass">
                   {hint.level === "cân sức" ? "⚖ Cân sức" : `💪 ${hint.level}`}
                 </p>
+                <div className="mt-2 text-center">
+                  <TeamInfoButton team1={selected.team1} team2={selected.team2} />
+                </div>
               </div>
             );
           })()}

@@ -196,6 +196,60 @@ export async function getFundByDay(): Promise<
     .sort((x, y) => (x.date < y.date ? -1 : 1));
 }
 
+// Quick info for two teams: FIFA rank + their results so far in the tournament.
+export async function getTeamInfo(
+  teamA: string,
+  teamB: string
+): Promise<
+  {
+    team: string;
+    rank: number | null;
+    played: number;
+    w: number;
+    d: number;
+    l: number;
+    gf: number;
+    ga: number;
+    results: { opp: string; gf: number; ga: number; res: "T" | "H" | "B" }[];
+  }[]
+> {
+  const { teamRank } = await import("./strength");
+  const { data } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("status", "finished");
+  const M = (data as Match[]) ?? [];
+
+  const build = (team: string) => {
+    const ms = M.filter(
+      (m) =>
+        (m.team1 === team || m.team2 === team) &&
+        m.home_score != null &&
+        m.away_score != null
+    ).sort((a, b) => (a.kickoff_time < b.kickoff_time ? 1 : -1));
+    let w = 0,
+      d = 0,
+      l = 0,
+      gf = 0,
+      ga = 0;
+    const results = ms.map((m) => {
+      const isHome = m.team1 === team;
+      const my = (isHome ? m.home_score : m.away_score) as number;
+      const opp = (isHome ? m.away_score : m.home_score) as number;
+      gf += my;
+      ga += opp;
+      const res: "T" | "H" | "B" = my > opp ? "T" : my === opp ? "H" : "B";
+      if (res === "T") w++;
+      else if (res === "H") d++;
+      else l++;
+      return { opp: isHome ? m.team2 : m.team1, gf: my, ga: opp, res };
+    });
+    return { team, rank: teamRank(team), played: ms.length, w, d, l, gf, ga, results };
+  };
+
+  return [build(teamA), build(teamB)];
+}
+
 // All finished matches with their result + names of anyone who nailed the
 // exact score (most recently played first).
 export async function getMatchResults(): Promise<

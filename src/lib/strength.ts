@@ -51,6 +51,11 @@ const RANK: Record<string, number> = {
   Canada: 27,
 };
 
+// Approx. FIFA rank for a team (null if unknown).
+export function teamRank(name: string): number | null {
+  return RANK[name] ?? null;
+}
+
 // Returns a short, neutral reference line for a match, or null if unknown.
 export function matchHint(team1: string, team2: string): {
   stronger: string;
