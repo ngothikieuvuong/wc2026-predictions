@@ -13,20 +13,46 @@ export default function HomePage() {
     ReturnType<typeof getLatestWinner>
   > | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  async function loadData() {
+    const [j, s, w] = await Promise.all([
+      getJackpot(),
+      getUpcomingSoon(),
+      getLatestWinner(),
+    ]);
+    setJackpot(j);
+    setSoon(s);
+    setWinner(w);
+    setLoading(false);
+  }
 
   useEffect(() => {
-    (async () => {
-      const [j, s, w] = await Promise.all([
-        getJackpot(),
-        getUpcomingSoon(),
-        getLatestWinner(),
-      ]);
-      setJackpot(j);
-      setSoon(s);
-      setWinner(w);
-      setLoading(false);
-    })();
+    loadData();
   }, []);
+
+  async function syncResults() {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/sync", { cache: "no-store" });
+      const j = await res.json();
+      if (j.ok) {
+        setSyncMsg(
+          j.updated.length > 0
+            ? `✅ Đã cập nhật ${j.updated.length} trận`
+            : "✓ Không có trận mới nào kết thúc"
+        );
+        await loadData();
+      } else {
+        setSyncMsg("Lỗi: " + (j.error ?? "không rõ"));
+      }
+    } catch {
+      setSyncMsg("Lỗi kết nối — thử lại sau.");
+    }
+    setSyncing(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -108,6 +134,18 @@ export default function HomePage() {
         <Link href="/leaderboard" className="btn-ghost">
           Bảng xếp hạng
         </Link>
+      </div>
+
+      {/* Manual results sync */}
+      <div className="flex flex-col items-center gap-2 pt-2">
+        <button
+          onClick={syncResults}
+          disabled={syncing}
+          className="btn-ghost text-sm"
+        >
+          {syncing ? "Đang cập nhật…" : "🔄 Cập nhật kết quả"}
+        </button>
+        {syncMsg && <p className="text-xs text-white/60">{syncMsg}</p>}
       </div>
     </div>
   );

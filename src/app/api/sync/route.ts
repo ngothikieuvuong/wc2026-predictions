@@ -5,17 +5,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // Pulls finished scores from FIFA into our matches table.
-// Called hourly by Vercel Cron (see vercel.json), or manually by opening the URL.
-// If CRON_SECRET is set in env, Vercel sends it as a Bearer token and we enforce it.
-export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-    }
-  }
-
+// Triggered by the "Cập nhật kết quả" button on the home page (or by opening
+// this URL directly). Only fills scores + marks finished — no payout.
+export async function GET() {
   try {
     const result = await syncFifaResults();
     return NextResponse.json({ ok: true, ...result });
