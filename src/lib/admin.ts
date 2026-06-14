@@ -188,6 +188,60 @@ export async function getPredictionCount(matchId: string): Promise<number> {
   return count ?? 0;
 }
 
+// All predictions joined with their match, for the admin manage list.
+export async function getAllPredictionsDetailed(): Promise<
+  {
+    id: string;
+    player_name: string;
+    match_id: string;
+    team1: string;
+    team2: string;
+    predicted_home: number;
+    predicted_away: number;
+    kickoff_time: string;
+  }[]
+> {
+  const [{ data: preds }, { data: matches }] = await Promise.all([
+    supabase.from("predictions").select("*"),
+    supabase.from("matches").select("*"),
+  ]);
+  const byId = new Map(((matches as Match[]) ?? []).map((m) => [m.id, m]));
+  return ((preds as Prediction[]) ?? [])
+    .map((p) => {
+      const m = byId.get(p.match_id);
+      return {
+        id: p.id,
+        player_name: p.player_name,
+        match_id: p.match_id,
+        team1: m?.team1 ?? "?",
+        team2: m?.team2 ?? "?",
+        predicted_home: p.predicted_home,
+        predicted_away: p.predicted_away,
+        kickoff_time: m?.kickoff_time ?? "",
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.player_name.localeCompare(b.player_name) ||
+        (a.kickoff_time < b.kickoff_time ? -1 : 1)
+    );
+}
+
+export async function addPrediction(
+  player: string,
+  matchId: string,
+  home: number,
+  away: number
+): Promise<void> {
+  const { error } = await supabase.from("predictions").insert({
+    player_name: player,
+    match_id: matchId,
+    predicted_home: home,
+    predicted_away: away,
+  });
+  if (error) throw error;
+}
+
 export async function getMatchPredictions(matchId: string): Promise<Prediction[]> {
   const { data } = await supabase
     .from("predictions")

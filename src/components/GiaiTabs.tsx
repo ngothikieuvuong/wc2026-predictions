@@ -7,11 +7,16 @@ import { formatKickoff } from "@/lib/format";
 
 type Results = Awaited<ReturnType<typeof getMatchResults>>;
 
-// "15/06" in Vietnam time from a FIFA UTC ISO string.
+// "15/06" / "01:00" in Vietnam time from a FIFA UTC ISO string.
 function viDay(iso: string): string {
   const v = new Date(new Date(iso).getTime() + 7 * 3600 * 1000);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(v.getUTCDate())}/${p(v.getUTCMonth() + 1)}`;
+}
+function viTime(iso: string): string {
+  const v = new Date(new Date(iso).getTime() + 7 * 3600 * 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(v.getUTCHours())}:${p(v.getUTCMinutes())}`;
 }
 
 const TABS = [
@@ -133,8 +138,11 @@ export default function GiaiTabs({
                   {g.items.map((m, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm"
+                      className="flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm"
                     >
+                      <span className="w-11 shrink-0 text-xs text-white/40">
+                        {viTime(m.date)}
+                      </span>
                       <span className="flex-1 text-right font-medium">{m.home}</span>
                       <span className="text-xs text-white/40">vs</span>
                       <span className="flex-1 font-medium">{m.away}</span>

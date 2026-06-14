@@ -1,22 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import {
-  saveScore,
   computeSettlement,
   applySettlement,
   snapshotRewards,
   restoreRewards,
   getAllMatches,
-  getPredictionCount,
-  getMatchPredictions,
+  getAllPredictionsDetailed,
+  addPrediction,
   updatePrediction,
   deletePrediction,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
-import { getJackpot, getCorrectPredictions } from "@/lib/queries";
-import type { Match, Prediction, Reward } from "@/lib/types";
+import {
+  getJackpot,
+  getCorrectPredictions,
+  getFundByDay,
+  getPlayers,
+} from "@/lib/queries";
+import type { Match, Reward } from "@/lib/types";
 import { formatKickoff, formatVND } from "@/lib/format";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
@@ -31,13 +34,8 @@ function perPerson(r: SettleResult): { name: string; amount: number }[] {
     .sort((a, b) => b.amount - a.amount);
 }
 
-export default function AdminPage({
-  params,
-}: {
-  params: { secret: string };
-}) {
+export default function AdminPage({ params }: { params: { secret: string } }) {
   const { secret } = params;
-
   if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
     return (
       <div className="card text-center">
@@ -46,31 +44,39 @@ export default function AdminPage({
       </div>
     );
   }
-
   return <AdminPanel />;
 }
 
 function AdminPanel() {
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
-  const [banner, setBanner] = useState<string | null>(null);
-
   const [jackpot, setJackpot] = useState<number | null>(null);
+  const [fundByDay, setFundByDay] = useState<
+    Awaited<ReturnType<typeof getFundByDay>>
+  >([]);
   const [correct, setCorrect] = useState<
     Awaited<ReturnType<typeof getCorrectPredictions>>
   >([]);
-  const [showManage, setShowManage] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-
-  // Create form
-  const [team1, setTeam1] = useState("");
-  const [team2, setTeam2] = useState("");
-  const [kickoff, setKickoff] = useState("");
   const [settling, setSettling] = useState(false);
   const [review, setReview] = useState<SettleResult | null>(null);
   const [applying, setApplying] = useState(false);
   const [snapshot, setSnapshot] = useState<Reward[] | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  async function refresh() {
+    const [j, f, c] = await Promise.all([
+      getJackpot(),
+      getFundByDay(),
+      getCorrectPredictions(),
+    ]);
+    setJackpot(j);
+    setFundByDay(f);
+    setCorrect(c);
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
 
   async function syncResults() {
     setSyncing(true);
@@ -102,7 +108,7 @@ function AdminPanel() {
     if (!review) return;
     setApplying(true);
     try {
-      const prev = await snapshotRewards(); // keep for Undo
+      const prev = await snapshotRewards();
       await applySettlement(review.payouts);
       setSnapshot(prev);
       setBanner(
@@ -130,43 +136,6 @@ function AdminPanel() {
     setApplying(false);
   }
 
-  async function refresh() {
-    const [m, j, c] = await Promise.all([
-      getAllMatches(),
-      getJackpot(),
-      getCorrectPredictions(),
-    ]);
-    setMatches(m);
-    setJackpot(j);
-    setCorrect(c);
-    const entries = await Promise.all(
-      m.map(async (x) => [x.id, await getPredictionCount(x.id)] as const)
-    );
-    setCounts(Object.fromEntries(entries));
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  async function createMatch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!team1.trim() || !team2.trim() || !kickoff) return;
-    const { error } = await supabase.from("matches").insert({
-      team1: team1.trim(),
-      team2: team2.trim(),
-      kickoff_time: new Date(kickoff).toISOString(),
-      status: "upcoming",
-    });
-    if (error) return setBanner("Lỗi: " + error.message);
-    setTeam1("");
-    setTeam2("");
-    setKickoff("");
-    setBanner("✅ Đã tạo trận.");
-    refresh();
-  }
-
   const correctNames = [...new Set(correct.map((c) => c.player_name))];
 
   return (
@@ -177,7 +146,7 @@ function AdminPanel() {
         <div className="card border-grass/40 text-sm text-grass">{banner}</div>
       )}
 
-      {/* Current fund */}
+      {/* Current fund + per-day breakdown */}
       <section className="card text-center">
         <p className="text-sm uppercase tracking-widest text-white/50">
           Tổng quỹ hiện tại
@@ -192,6 +161,23 @@ function AdminPanel() {
         >
           {syncing ? "Đang cập nhật…" : "🔄 Cập nhật kết quả từ FIFA"}
         </button>
+
+        {fundByDay.length > 0 && (
+          <div className="mt-4 space-y-1 border-t border-white/10 pt-3 text-left text-sm">
+            <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
+              Quỹ theo ngày
+            </p>
+            {fundByDay.map((d) => (
+              <div key={d.date} className="flex items-baseline justify-between gap-2">
+                <span className="text-white/70">
+                  {d.date.slice(8, 10)}/{d.date.slice(5, 7)}{" "}
+                  <span className="text-white/40">({d.participants.join(", ")})</span>
+                </span>
+                <span className="shrink-0 font-semibold">{formatVND(d.pot)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Correct predictors (most recent match first) */}
@@ -199,17 +185,12 @@ function AdminPanel() {
         <div className="border-b border-white/10 px-4 py-3 font-bold">
           Người đoán đúng ({correct.length})
         </div>
-        {loading ? (
-          <p className="p-4 text-white/40">Đang tải…</p>
-        ) : correct.length === 0 ? (
+        {correct.length === 0 ? (
           <p className="p-4 text-white/50">Chưa có ai đoán đúng.</p>
         ) : (
           <ul className="divide-y divide-white/5">
             {correct.map((c, i) => (
-              <li
-                key={i}
-                className="flex items-center justify-between gap-3 px-4 py-2.5"
-              >
+              <li key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
                 <div>
                   <p className="font-semibold">🎯 {c.player_name}</p>
                   <p className="text-xs text-white/50">
@@ -273,11 +254,7 @@ function AdminPanel() {
               </p>
             )}
             <div className="flex gap-2">
-              <button
-                className="btn flex-1"
-                onClick={confirmSettle}
-                disabled={applying}
-              >
+              <button className="btn flex-1" onClick={confirmSettle} disabled={applying}>
                 {applying ? "Đang chia…" : "Xác nhận chia"}
               </button>
               <button
@@ -302,185 +279,112 @@ function AdminPanel() {
         )}
       </div>
 
-      {/* Manage matches / edit predictions (collapsible) */}
-      <button
-        className="pt-2 text-left font-bold text-white/70 hover:text-white"
-        onClick={() => setShowManage((v) => !v)}
-      >
-        {showManage ? "▾" : "▸"} Quản lý trận đấu / sửa lượt đoán
-      </button>
-
-      {showManage && (
-        <>
-          {/* Create match */}
-          <section className="card space-y-4">
-            <h2 className="font-bold">Tạo trận</h2>
-        <form onSubmit={createMatch} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              className="input"
-              placeholder="Đội 1"
-              value={team1}
-              onChange={(e) => setTeam1(e.target.value)}
-            />
-            <input
-              className="input"
-              placeholder="Đội 2"
-              value={team2}
-              onChange={(e) => setTeam2(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="label">Giờ bóng lăn</label>
-            <input
-              type="datetime-local"
-              className="input"
-              value={kickoff}
-              onChange={(e) => setKickoff(e.target.value)}
-            />
-          </div>
-          <button className="btn">Tạo trận</button>
-        </form>
-      </section>
-
-      {/* Matches list */}
-      <section className="space-y-4">
-        <h2 className="font-bold">Danh sách trận</h2>
-        {loading ? (
-          <p className="text-white/40">Đang tải…</p>
-        ) : matches.length === 0 ? (
-          <p className="text-white/50">Chưa có trận nào.</p>
-        ) : (
-          matches.map((m) => (
-            <AdminMatchCard
-              key={m.id}
-              match={m}
-              count={counts[m.id] ?? 0}
-              onChanged={(text) => {
-                setBanner(text);
-                refresh();
-              }}
-            />
-          ))
-        )}
-          </section>
-        </>
-      )}
+      {/* Manage predictions */}
+      <ManagePredictions
+        key={reloadKey}
+        onChanged={(text) => {
+          setBanner(text);
+          refresh();
+          setReloadKey((k) => k + 1);
+        }}
+      />
     </div>
   );
 }
 
-function AdminMatchCard({
-  match,
-  count,
-  onChanged,
-}: {
-  match: Match;
-  count: number;
-  onChanged: (text: string) => void;
-}) {
-  const [team1, setTeam1] = useState(match.team1);
-  const [team2, setTeam2] = useState(match.team2);
-  const [kickoff, setKickoff] = useState(toLocalInput(match.kickoff_time));
-  const [home, setHome] = useState(match.home_score?.toString() ?? "");
-  const [away, setAway] = useState(match.away_score?.toString() ?? "");
-  const [busy, setBusy] = useState(false);
+function ManagePredictions({ onChanged }: { onChanged: (text: string) => void }) {
+  const [list, setList] = useState<
+    Awaited<ReturnType<typeof getAllPredictionsDetailed>>
+  >([]);
+  const [players, setPlayers] = useState<string[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  async function saveEdits() {
-    setBusy(true);
-    const { error } = await supabase
-      .from("matches")
-      .update({
-        team1: team1.trim(),
-        team2: team2.trim(),
-        kickoff_time: new Date(kickoff).toISOString(),
-      })
-      .eq("id", match.id);
-    setBusy(false);
-    onChanged(error ? "Lỗi: " + error.message : "✅ Đã cập nhật trận.");
+  // Add form
+  const [name, setName] = useState("");
+  const [matchId, setMatchId] = useState("");
+  const [home, setHome] = useState("");
+  const [away, setAway] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function load() {
+    const [l, p, m] = await Promise.all([
+      getAllPredictionsDetailed(),
+      getPlayers(),
+      getAllMatches(),
+    ]);
+    setList(l);
+    setPlayers(p);
+    setMatches(m);
+    setLoading(false);
   }
 
-  async function saveFinalScore() {
-    if (home === "" || away === "") {
-      onChanged("Hãy nhập đủ hai tỉ số.");
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function add() {
+    setMsg(null);
+    if (!name || !matchId || home === "" || away === "") {
+      setMsg("Điền đủ tên, trận và tỉ số.");
       return;
     }
     setBusy(true);
     try {
-      await saveScore(match.id, Number(home), Number(away));
-      onChanged(
-        `✅ Đã lưu: ${match.team1} ${home}–${away} ${match.team2}. Bấm “Tính lại quỹ” để chia tiền.`
-      );
+      await addPrediction(name, matchId, Number(home), Number(away));
+      setHome("");
+      setAway("");
+      setMatchId("");
+      setMsg("✅ Đã thêm.");
+      await load();
     } catch (e) {
-      onChanged("Lỗi: " + (e as Error).message);
+      const m = (e as { code?: string; message?: string }) ?? {};
+      setMsg(
+        m.code === "23505" || /duplicate|unique/i.test(m.message ?? "")
+          ? "Người này đã đoán trận đó rồi."
+          : "Lỗi: " + (m.message ?? "không rõ")
+      );
     }
     setBusy(false);
   }
 
-  async function remove() {
-    if (
-      !confirm(
-        `Xóa trận ${match.team1} - ${match.team2}? Toàn bộ lượt đoán của trận cũng bị xóa.`
-      )
-    )
-      return;
-    setBusy(true);
-    const { error } = await supabase.from("matches").delete().eq("id", match.id);
-    setBusy(false);
-    onChanged(error ? "Lỗi: " + error.message : "🗑 Đã xóa trận.");
-  }
-
   return (
-    <div className="card space-y-4">
-      <div className="flex items-center justify-between">
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-            match.status === "finished"
-              ? "bg-white/10 text-white/60"
-              : "bg-grass/20 text-grass"
-          }`}
-        >
-          {match.status === "finished" ? "Đã kết thúc" : "Sắp diễn ra"}
-        </span>
-        <span className="text-xs text-white/40">{count} lượt đoán</span>
-      </div>
+    <div className="space-y-4">
+      <h2 className="font-bold">Quản lý lượt đoán</h2>
 
-      {/* Edit fields */}
-      <div className="grid grid-cols-2 gap-3">
-        <input className="input" value={team1} onChange={(e) => setTeam1(e.target.value)} />
-        <input className="input" value={team2} onChange={(e) => setTeam2(e.target.value)} />
-      </div>
-      <div>
-        <label className="label">Bóng lăn — {formatKickoff(match.kickoff_time)}</label>
-        <input
-          type="datetime-local"
+      {/* Add */}
+      <section className="card space-y-3">
+        <p className="text-sm font-semibold text-white/70">Thêm lượt đoán</p>
+        <select
           className="input"
-          value={kickoff}
-          onChange={(e) => setKickoff(e.target.value)}
-        />
-      </div>
-
-      <div className="flex gap-2">
-        <button className="btn-ghost" onClick={saveEdits} disabled={busy}>
-          Lưu thay đổi
-        </button>
-        <button
-          className="btn-ghost text-red-300 hover:bg-red-500/10"
-          onClick={remove}
-          disabled={busy}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
         >
-          Xóa
-        </button>
-      </div>
-
-      {/* Final score + payout */}
-      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-        <p className="mb-2 text-sm font-semibold text-white/70">Tỉ số cuối</p>
-        <div className="flex items-center gap-3">
+          <option value="">Chọn tên…</option>
+          {players.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select
+          className="input"
+          value={matchId}
+          onChange={(e) => setMatchId(e.target.value)}
+        >
+          <option value="">Chọn trận…</option>
+          {matches.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.team1} - {m.team2} — {formatKickoff(m.kickoff_time)}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center gap-2">
           <input
             type="number"
             min={0}
-            className="input w-20 text-center text-lg"
+            className="input !w-16 px-1 text-center"
             placeholder="0"
             value={home}
             onChange={(e) => setHome(e.target.value)}
@@ -489,105 +393,66 @@ function AdminMatchCard({
           <input
             type="number"
             min={0}
-            className="input w-20 text-center text-lg"
+            className="input !w-16 px-1 text-center"
             placeholder="0"
             value={away}
             onChange={(e) => setAway(e.target.value)}
           />
-          <button
-            className="btn-ghost ml-auto whitespace-nowrap"
-            onClick={saveFinalScore}
-            disabled={busy}
-          >
-            {busy ? "…" : "Lưu tỉ số"}
+          <button className="btn ml-auto" onClick={add} disabled={busy}>
+            Thêm
           </button>
         </div>
-        {match.status === "finished" && (
-          <p className="mt-2 text-xs text-white/40">
-            Đã ghi: {match.team1} {match.home_score}–{match.away_score} {match.team2}.
-          </p>
-        )}
-      </div>
+        {msg && <p className="text-xs text-white/60">{msg}</p>}
+      </section>
 
-      {/* Edit individual predictions */}
-      <MatchPredictions matchId={match.id} onChanged={onChanged} />
-    </div>
-  );
-}
-
-function MatchPredictions({
-  matchId,
-  onChanged,
-}: {
-  matchId: string;
-  onChanged: (text: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [preds, setPreds] = useState<Prediction[] | null>(null);
-
-  async function toggle() {
-    const next = !open;
-    setOpen(next);
-    if (next && preds === null) setPreds(await getMatchPredictions(matchId));
-  }
-
-  async function reload() {
-    setPreds(await getMatchPredictions(matchId));
-  }
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-      <button
-        onClick={toggle}
-        className="text-sm font-semibold text-white/70 hover:text-white"
-      >
-        {open ? "▾" : "▸"} Sửa lượt đoán
-      </button>
-
-      {open && (
-        <div className="mt-3 space-y-2">
-          {preds === null ? (
-            <p className="text-xs text-white/40">Đang tải…</p>
-          ) : preds.length === 0 ? (
-            <p className="text-xs text-white/40">Chưa có ai đoán trận này.</p>
-          ) : (
-            preds.map((p) => (
-              <PredictionRow
+      {/* List */}
+      <section className="card p-0 overflow-hidden">
+        <div className="border-b border-white/10 px-4 py-3 font-bold">
+          Tất cả lượt đoán ({list.length})
+        </div>
+        {loading ? (
+          <p className="p-4 text-white/40">Đang tải…</p>
+        ) : list.length === 0 ? (
+          <p className="p-4 text-white/50">Chưa có lượt đoán nào.</p>
+        ) : (
+          <ul className="divide-y divide-white/5 px-4">
+            {list.map((p) => (
+              <PredRow
                 key={p.id}
-                pred={p}
+                item={p}
                 onSaved={onChanged}
                 onDeleted={async (text) => {
                   onChanged(text);
-                  await reload();
+                  await load();
                 }}
               />
-            ))
-          )}
-        </div>
-      )}
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
 
-function PredictionRow({
-  pred,
+function PredRow({
+  item,
   onSaved,
   onDeleted,
 }: {
-  pred: Prediction;
+  item: Awaited<ReturnType<typeof getAllPredictionsDetailed>>[number];
   onSaved: (text: string) => void;
   onDeleted: (text: string) => void | Promise<void>;
 }) {
-  const [h, setH] = useState(String(pred.predicted_home));
-  const [a, setA] = useState(String(pred.predicted_away));
+  const [h, setH] = useState(String(item.predicted_home));
+  const [a, setA] = useState(String(item.predicted_away));
   const [busy, setBusy] = useState(false);
 
   async function save() {
     if (h === "" || a === "") return;
     setBusy(true);
     try {
-      await updatePrediction(pred.id, Number(h), Number(a));
-      onSaved(`✅ Đã sửa lượt đoán của ${pred.player_name}.`);
+      await updatePrediction(item.id, Number(h), Number(a));
+      onSaved(`✅ Đã sửa lượt đoán của ${item.player_name}.`);
     } catch (e) {
       onSaved("Lỗi: " + (e as Error).message);
     }
@@ -595,11 +460,12 @@ function PredictionRow({
   }
 
   async function del() {
-    if (!confirm(`Xóa lượt đoán của ${pred.player_name}?`)) return;
+    if (!confirm(`Xoá lượt đoán của ${item.player_name} (${item.team1} - ${item.team2})?`))
+      return;
     setBusy(true);
     try {
-      await deletePrediction(pred.id);
-      await onDeleted(`🗑 Đã xóa lượt đoán của ${pred.player_name}.`);
+      await deletePrediction(item.id);
+      await onDeleted(`🗑 Đã xoá lượt đoán của ${item.player_name}.`);
     } catch (e) {
       onSaved("Lỗi: " + (e as Error).message);
     }
@@ -607,14 +473,17 @@ function PredictionRow({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="min-w-0 flex-1 truncate text-sm font-medium">
-        {pred.player_name}
-      </span>
+    <li className="flex items-center gap-2 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">{item.player_name}</p>
+        <p className="truncate text-xs text-white/50">
+          {item.team1} - {item.team2}
+        </p>
+      </div>
       <input
         type="number"
         min={0}
-        className="input !w-14 shrink-0 px-1 text-center"
+        className="input !w-12 shrink-0 px-1 text-center"
         value={h}
         onChange={(e) => setH(e.target.value)}
       />
@@ -622,32 +491,21 @@ function PredictionRow({
       <input
         type="number"
         min={0}
-        className="input !w-14 shrink-0 px-1 text-center"
+        className="input !w-12 shrink-0 px-1 text-center"
         value={a}
         onChange={(e) => setA(e.target.value)}
       />
-      <button
-        className="btn-ghost shrink-0 px-3 py-1.5 text-xs"
-        onClick={save}
-        disabled={busy}
-      >
+      <button className="btn-ghost shrink-0 px-3 py-1.5 text-xs" onClick={save} disabled={busy}>
         Lưu
       </button>
       <button
         className="shrink-0 px-1 text-lg text-red-300 hover:text-red-200 disabled:opacity-40"
         onClick={del}
         disabled={busy}
-        title="Xóa"
+        title="Xoá"
       >
         ✕
       </button>
-    </div>
+    </li>
   );
-}
-
-// ISO → value for <input type="datetime-local"> in local time.
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  const off = d.getTimezoneOffset();
-  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
 }
