@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 export default function RulesButton({
   className = "btn-ghost",
@@ -17,8 +18,10 @@ export default function RulesButton({
         {children}
       </button>
 
-      {open && (
-        <div
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4"
           onClick={() => setOpen(false)}
         >
@@ -155,8 +158,9 @@ export default function RulesButton({
               Đã hiểu
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </>
   );
 }
