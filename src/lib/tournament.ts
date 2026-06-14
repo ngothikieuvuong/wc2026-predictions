@@ -31,8 +31,16 @@ export type BracketMatch = {
 };
 export type BracketRound = { name: string; matches: BracketMatch[] };
 
+export type Fixture = {
+  date: string;
+  group: string;
+  home: string;
+  away: string;
+};
+
 export type Tournament = {
   groups: GroupTable[];
+  groupFixtures: Fixture[];
   rounds: BracketRound[];
   error?: string;
 };
@@ -86,11 +94,28 @@ export async function getTournament(): Promise<Tournament> {
     const json = await res.json();
     matches = json.Results ?? [];
   } catch (e) {
-    return { groups: [], rounds: [], error: (e as Error).message };
+    return { groups: [], groupFixtures: [], rounds: [], error: (e as Error).message };
   }
 
   const stageOf = (m: any) => m.StageName?.[0]?.Description as string | undefined;
   const groupOf = (m: any) => m.GroupName?.[0]?.Description as string | undefined;
+
+  // --- Upcoming group-stage fixtures (not yet played) ---
+  const groupFixtures: Fixture[] = matches
+    .filter(
+      (m: any) =>
+        stageOf(m) === "First Stage" &&
+        m.MatchStatus !== 0 &&
+        m.Home?.IdCountry &&
+        m.Away?.IdCountry
+    )
+    .sort((a: any, b: any) => (a.Date < b.Date ? -1 : a.Date > b.Date ? 1 : 0))
+    .map((m: any) => ({
+      date: m.Date ?? "",
+      group: (groupOf(m) ?? "").replace("Group ", ""),
+      home: viTeam(m.Home.IdCountry),
+      away: viTeam(m.Away.IdCountry),
+    }));
 
   // --- Group standings ---
   const groupMap = new Map<string, Map<string, StandingRow>>();
@@ -140,5 +165,5 @@ export async function getTournament(): Promise<Tournament> {
       })),
   })).filter((r) => r.matches.length > 0);
 
-  return { groups, rounds };
+  return { groups, groupFixtures, rounds };
 }

@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { GroupTable, BracketRound } from "@/lib/tournament";
+import type { GroupTable, BracketRound, Fixture } from "@/lib/tournament";
 import { getMatchResults } from "@/lib/queries";
 import { formatKickoff } from "@/lib/format";
 
 type Results = Awaited<ReturnType<typeof getMatchResults>>;
+
+// "15/06" in Vietnam time from a FIFA UTC ISO string.
+function viDay(iso: string): string {
+  const v = new Date(new Date(iso).getTime() + 7 * 3600 * 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(v.getUTCDate())}/${p(v.getUTCMonth() + 1)}`;
+}
 
 const TABS = [
   { key: "bang", label: "Bảng xếp hạng" },
@@ -15,10 +22,12 @@ const TABS = [
 
 export default function GiaiTabs({
   groups,
+  groupFixtures,
   rounds,
   error,
 }: {
   groups: GroupTable[];
+  groupFixtures: Fixture[];
   rounds: BracketRound[];
   error?: string;
 }) {
@@ -28,6 +37,15 @@ export default function GiaiTabs({
   useEffect(() => {
     if (tab === "ketqua" && results === null) getMatchResults().then(setResults);
   }, [tab, results]);
+
+  // Group upcoming group-stage fixtures by day (already sorted by date).
+  const fxGroups: { day: string; items: Fixture[] }[] = [];
+  for (const f of groupFixtures) {
+    const day = viDay(f.date);
+    const last = fxGroups[fxGroups.length - 1];
+    if (!last || last.day !== day) fxGroups.push({ day, items: [f] });
+    else last.items.push(f);
+  }
 
   return (
     <div className="space-y-5">
@@ -104,6 +122,34 @@ export default function GiaiTabs({
       {/* Bracket */}
       {tab === "nhanh" && (
         <div className="space-y-4">
+          {fxGroups.length > 0 && (
+            <div className="card space-y-3">
+              <h3 className="font-bold">Vòng bảng — sắp tới</h3>
+              {fxGroups.map((g) => (
+                <div key={g.day} className="space-y-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                    {g.day}
+                  </p>
+                  {g.items.map((m, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm"
+                    >
+                      <span className="flex-1 text-right font-medium">{m.home}</span>
+                      <span className="text-xs text-white/40">vs</span>
+                      <span className="flex-1 font-medium">{m.away}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {rounds.length > 0 && (
+            <p className="px-1 pt-1 text-xs font-semibold uppercase tracking-wider text-white/40">
+              Vòng loại trực tiếp
+            </p>
+          )}
           {rounds.map((round) => (
             <div key={round.name} className="card space-y-2">
               <h3 className="font-bold">{round.name}</h3>
