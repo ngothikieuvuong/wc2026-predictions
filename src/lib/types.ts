@@ -1,0 +1,27 @@
+export type Match = {
+  id: string;
+  team1: string;
+  team2: string;
+  kickoff_time: string;
+  home_score: number | null;
+  away_score: number | null;
+  status: "upcoming" | "finished";
+  created_at: string;
+};
+
+export type Prediction = {
+  id: string;
+  player_name: string;
+  match_id: string;
+  predicted_home: number;
+  predicted_away: number;
+  created_at: string;
+};
+
+export type Reward = {
+  id: string;
+  player_name: string;
+  match_id: string;
+  amount: number;
+  created_at: string;
+};
