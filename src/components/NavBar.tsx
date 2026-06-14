@@ -7,6 +7,7 @@ import { DEMO } from "@/lib/supabase";
 const links = [
   { href: "/", label: "Trang chủ" },
   { href: "/predict", label: "Dự đoán" },
+  { href: "/predictions", label: "Mọi người" },
   { href: "/leaderboard", label: "Xếp hạng" },
 ];
 

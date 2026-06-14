@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getJackpot, getNextMatch, getLatestWinner } from "@/lib/queries";
+import { getJackpot, getUpcomingSoon, getLatestWinner } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatVND, formatKickoff } from "@/lib/format";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
-  const [next, setNext] = useState<Match | null>(null);
+  const [soon, setSoon] = useState<Match[]>([]);
   const [winner, setWinner] = useState<Awaited<
     ReturnType<typeof getLatestWinner>
   > | null>(null);
@@ -16,13 +16,13 @@ export default function HomePage() {
 
   useEffect(() => {
     (async () => {
-      const [j, n, w] = await Promise.all([
+      const [j, s, w] = await Promise.all([
         getJackpot(),
-        getNextMatch(),
+        getUpcomingSoon(),
         getLatestWinner(),
       ]);
       setJackpot(j);
-      setNext(n);
+      setSoon(s);
       setWinner(w);
       setLoading(false);
     })();
@@ -43,27 +43,34 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Next match */}
+      {/* Upcoming matches: today & tomorrow */}
       <section className="card">
         <h2 className="mb-3 text-sm uppercase tracking-widest text-white/50">
-          Trận kế tiếp
+          Trận sắp tới
         </h2>
         {loading ? (
           <p className="text-white/40">Đang tải…</p>
-        ) : next ? (
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex items-center justify-center gap-4 text-2xl font-bold">
-              <span>{next.team1}</span>
-              <span className="text-white/40">gặp</span>
-              <span>{next.team2}</span>
-            </div>
-            <p className="text-white/60">⏱ {formatKickoff(next.kickoff_time)}</p>
-            <Link href="/predict" className="btn mt-1">
+        ) : soon.length === 0 ? (
+          <p className="text-white/50">Chưa có trận nào sắp diễn ra.</p>
+        ) : (
+          <div className="space-y-2">
+            {soon.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3"
+              >
+                <div className="font-bold">
+                  {m.team1} <span className="text-white/40">gặp</span> {m.team2}
+                </div>
+                <div className="whitespace-nowrap text-sm text-white/60">
+                  ⏱ {formatKickoff(m.kickoff_time)}
+                </div>
+              </div>
+            ))}
+            <Link href="/predict" className="btn mt-2 w-full">
               Dự đoán ngay
             </Link>
           </div>
-        ) : (
-          <p className="text-white/50">Chưa có trận nào sắp diễn ra.</p>
         )}
       </section>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getOpenMatches } from "@/lib/queries";
 import type { Match } from "@/lib/types";
@@ -141,13 +142,23 @@ export default function PredictPage() {
         )}
 
         {msg && (
-          <p
-            className={`text-sm ${
-              msg.type === "ok" ? "text-grass" : "text-red-400"
-            }`}
-          >
-            {msg.text}
-          </p>
+          <div className="space-y-1">
+            <p
+              className={`text-sm ${
+                msg.type === "ok" ? "text-grass" : "text-red-400"
+              }`}
+            >
+              {msg.text}
+            </p>
+            {msg.type === "ok" && (
+              <Link
+                href="/predictions"
+                className="inline-block text-sm font-semibold text-neon underline"
+              >
+                Xem dự đoán của mọi người →
+              </Link>
+            )}
+          </div>
         )}
 
         <button className="btn w-full" disabled={submitting || closed}>

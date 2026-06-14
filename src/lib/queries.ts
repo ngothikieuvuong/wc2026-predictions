@@ -56,6 +56,35 @@ export async function getLatestWinner(): Promise<{
   };
 }
 
+// Upcoming matches kicking off from now through the end of tomorrow (viewer's
+// local day). Falls back to the single next match if nothing in that window.
+export async function getUpcomingSoon(): Promise<Match[]> {
+  const now = new Date();
+  const endOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    23,
+    59,
+    59,
+    999
+  );
+
+  const { data } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("status", "upcoming")
+    .gte("kickoff_time", now.toISOString())
+    .lte("kickoff_time", endOfTomorrow.toISOString())
+    .order("kickoff_time", { ascending: true });
+
+  const list = (data as Match[]) ?? [];
+  if (list.length > 0) return list;
+
+  const next = await getNextMatch();
+  return next ? [next] : [];
+}
+
 export async function getOpenMatches(): Promise<Match[]> {
   const { data } = await supabase
     .from("matches")
@@ -81,6 +110,28 @@ export async function getLeaderboard(): Promise<
   }
 
   return [...map.values()].sort((a, b) => b.total - a.total || b.wins - a.wins);
+}
+
+// All predictions grouped by match (for the "everyone's predictions" view).
+// Only includes matches that have at least one prediction, newest match first.
+export async function getPredictionsByMatch(): Promise<
+  { match: Match; predictions: Prediction[] }[]
+> {
+  const [{ data: matches }, { data: preds }] = await Promise.all([
+    supabase.from("matches").select("*").order("kickoff_time", { ascending: false }),
+    supabase.from("predictions").select("*").order("created_at", { ascending: true }),
+  ]);
+
+  const byMatch = new Map<string, Prediction[]>();
+  for (const p of (preds as Prediction[]) ?? []) {
+    const list = byMatch.get(p.match_id) ?? [];
+    list.push(p);
+    byMatch.set(p.match_id, list);
+  }
+
+  return ((matches as Match[]) ?? [])
+    .filter((m) => byMatch.has(m.id))
+    .map((m) => ({ match: m, predictions: byMatch.get(m.id)! }));
 }
 
 export type { Match, Prediction, Reward };
