@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { getOpenMatches, getPlayers, addPlayer } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatKickoff, isClosed } from "@/lib/format";
+import { matchHint } from "@/lib/strength";
 
 const NEW_PLAYER = "__new__";
 
@@ -142,6 +143,32 @@ export default function PredictPage() {
             </select>
           )}
         </div>
+
+        {selected &&
+          (() => {
+            const hint = matchHint(selected.team1, selected.team2);
+            if (!hint) return null;
+            return (
+              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm">
+                <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
+                  Tham khảo
+                </p>
+                <div className="flex items-center justify-between text-white/70">
+                  <span>
+                    {selected.team1}{" "}
+                    <span className="text-white/40">(hạng ~{hint.rank1})</span>
+                  </span>
+                  <span>
+                    <span className="text-white/40">(hạng ~{hint.rank2})</span>{" "}
+                    {selected.team2}
+                  </span>
+                </div>
+                <p className="mt-1 text-center font-semibold text-grass">
+                  {hint.level === "cân sức" ? "⚖ Cân sức" : `💪 ${hint.level}`}
+                </p>
+              </div>
+            );
+          })()}
 
         {selected && (
           <div className="grid grid-cols-2 gap-3">
