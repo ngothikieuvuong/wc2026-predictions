@@ -106,9 +106,24 @@ export default function RulesButton() {
                       Nếu ngày 1 Chương <b>không chơi</b> → chỉ nhận 60.000đ, còn
                       100.000đ ngày 1 <b>tiếp tục treo</b>.
                     </li>
-                    <li className="text-white/50">
-                      Nếu một ngày có 2 người trúng → chia theo <b>số trận trúng</b>:
-                      ai trúng nhiều hơn nhận nhiều hơn.
+                  </ul>
+
+                  <p className="mb-1 mt-3 font-bold text-grass">
+                    📌 Trúng nhiều tỉ số = chia nhiều hơn
+                  </p>
+                  <p className="mb-1.5">
+                    Mỗi tỉ số đoán trúng tính là <b>1 slot trúng</b>. Quỹ của ngày
+                    chia theo <b>tổng số slot trúng</b>.
+                  </p>
+                  <ul className="space-y-1.5">
+                    <li>
+                      VD ngày đó quỹ <b>90.000đ</b>. Chương trúng <b>2 trận</b> (2
+                      slot), Vương trúng <b>1 trận</b> (1 slot) → tổng <b>3 slot</b>.
+                    </li>
+                    <li>
+                      → Chương = 90.000 × 2/3 ={" "}
+                      <b className="text-neon">60.000đ</b>; Vương = 90.000 × 1/3 ={" "}
+                      <b className="text-neon">30.000đ</b>.
                     </li>
                   </ul>
                 </div>
