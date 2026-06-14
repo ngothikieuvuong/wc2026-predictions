@@ -27,6 +27,12 @@ export default function PredictionsPage() {
     })();
   }, []);
 
+  // Show matches up to 2 days after kickoff (review window), then hide.
+  const cutoff = Date.now() - 2 * 24 * 3600 * 1000;
+  const visible = rows.filter(
+    (r) => new Date(r.match.kickoff_time).getTime() >= cutoff
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -38,15 +44,15 @@ export default function PredictionsPage() {
 
       {loading ? (
         <p className="text-white/40">Đang tải…</p>
-      ) : rows.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="card text-center">
-          <p className="text-white/50">Chưa có ai đoán.</p>
+          <p className="text-white/50">Chưa có lượt đoán nào gần đây.</p>
           <Link href="/predict" className="btn mt-3">
             Đoán ngay
           </Link>
         </div>
       ) : (
-        rows.map(({ match, predictions }) => (
+        visible.map(({ match, predictions }) => (
           <section key={match.id} className="card space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -72,15 +78,20 @@ export default function PredictionsPage() {
             <ul className="divide-y divide-white/5">
               {predictions.map((p) => {
                 const win = isWinner(match, p);
+                const finished = match.status === "finished";
+                // Correct → red & bold; finished but wrong → dimmed; upcoming → normal.
+                const tone = win
+                  ? "text-red-400 font-bold"
+                  : finished
+                  ? "text-white/35"
+                  : "";
                 return (
                   <li
                     key={p.id}
-                    className={`flex items-center justify-between py-2 ${
-                      win ? "text-neon" : ""
-                    }`}
+                    className={`flex items-center justify-between py-2 ${tone}`}
                   >
                     <span className="font-medium">
-                      {win && "🏆 "}
+                      {win && "🎯 "}
                       {p.player_name}
                     </span>
                     <span className="font-mono text-lg font-bold">
