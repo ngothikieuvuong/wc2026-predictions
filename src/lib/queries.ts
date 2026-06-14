@@ -130,6 +130,48 @@ export async function getPredictionsByMatch(): Promise<
     .map((m) => ({ match: m, predictions: byMatch.get(m.id)! }));
 }
 
+// Correct predictions across finished matches (most recently played first).
+export async function getCorrectPredictions(): Promise<
+  {
+    player_name: string;
+    team1: string;
+    team2: string;
+    home_score: number;
+    away_score: number;
+    kickoff_time: string;
+  }[]
+> {
+  const [{ data: matches }, { data: preds }] = await Promise.all([
+    supabase.from("matches").select("*").eq("status", "finished"),
+    supabase.from("predictions").select("*"),
+  ]);
+  const byId = new Map(((matches as Match[]) ?? []).map((m) => [m.id, m]));
+  const out: {
+    player_name: string;
+    team1: string;
+    team2: string;
+    home_score: number;
+    away_score: number;
+    kickoff_time: string;
+  }[] = [];
+  for (const p of (preds as Prediction[]) ?? []) {
+    const m = byId.get(p.match_id);
+    if (!m || m.home_score == null || m.away_score == null) continue;
+    if (p.predicted_home === m.home_score && p.predicted_away === m.away_score) {
+      out.push({
+        player_name: p.player_name,
+        team1: m.team1,
+        team2: m.team2,
+        home_score: m.home_score,
+        away_score: m.away_score,
+        kickoff_time: m.kickoff_time,
+      });
+    }
+  }
+  out.sort((a, b) => (a.kickoff_time < b.kickoff_time ? 1 : -1));
+  return out;
+}
+
 // Roster of player names (for the predict dropdown), in the order added.
 export async function getPlayers(): Promise<string[]> {
   const { data } = await supabase

@@ -15,6 +15,7 @@ import {
   deletePrediction,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
+import { getJackpot, getCorrectPredictions } from "@/lib/queries";
 import type { Match, Prediction, Reward } from "@/lib/types";
 import { formatKickoff, formatVND } from "@/lib/format";
 
@@ -55,6 +56,13 @@ function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState<string | null>(null);
 
+  const [jackpot, setJackpot] = useState<number | null>(null);
+  const [correct, setCorrect] = useState<
+    Awaited<ReturnType<typeof getCorrectPredictions>>
+  >([]);
+  const [showManage, setShowManage] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
   // Create form
   const [team1, setTeam1] = useState("");
   const [team2, setTeam2] = useState("");
@@ -63,6 +71,21 @@ function AdminPanel() {
   const [review, setReview] = useState<SettleResult | null>(null);
   const [applying, setApplying] = useState(false);
   const [snapshot, setSnapshot] = useState<Reward[] | null>(null);
+
+  async function syncResults() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/sync", { cache: "no-store" });
+      const j = await res.json();
+      setBanner(
+        j.ok ? `✅ Đã cập nhật ${j.updated.length} trận từ FIFA.` : "Lỗi: " + (j.error ?? "")
+      );
+      if (j.ok) refresh();
+    } catch {
+      setBanner("Lỗi kết nối FIFA.");
+    }
+    setSyncing(false);
+  }
 
   async function runReview() {
     setSettling(true);
@@ -108,8 +131,14 @@ function AdminPanel() {
   }
 
   async function refresh() {
-    const m = await getAllMatches();
+    const [m, j, c] = await Promise.all([
+      getAllMatches(),
+      getJackpot(),
+      getCorrectPredictions(),
+    ]);
     setMatches(m);
+    setJackpot(j);
+    setCorrect(c);
     const entries = await Promise.all(
       m.map(async (x) => [x.id, await getPredictionCount(x.id)] as const)
     );
@@ -140,24 +169,68 @@ function AdminPanel() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">⚙️ Quản trị</h1>
-        <p className="text-sm text-white/50">
-          Nhập tỉ số từng trận, rồi bấm “Tính lại quỹ” để chia tiền theo ngày.
-        </p>
-      </div>
+      <h1 className="text-2xl font-bold">⚙️ Quản trị</h1>
 
       {banner && (
         <div className="card border-grass/40 text-sm text-grass">{banner}</div>
       )}
 
+      {/* Current fund */}
+      <section className="card text-center">
+        <p className="text-sm uppercase tracking-widest text-white/50">
+          Tổng quỹ hiện tại
+        </p>
+        <p className="mt-2 text-4xl font-extrabold text-neon">
+          {jackpot === null ? "…" : formatVND(jackpot)}
+        </p>
+        <button
+          className="btn-ghost mt-3 text-sm"
+          onClick={syncResults}
+          disabled={syncing}
+        >
+          {syncing ? "Đang cập nhật…" : "🔄 Cập nhật kết quả từ FIFA"}
+        </button>
+      </section>
+
+      {/* Correct predictors (most recent match first) */}
+      <section className="card p-0 overflow-hidden">
+        <div className="border-b border-white/10 px-4 py-3 font-bold">
+          Người đoán đúng ({correct.length})
+        </div>
+        {loading ? (
+          <p className="p-4 text-white/40">Đang tải…</p>
+        ) : correct.length === 0 ? (
+          <p className="p-4 text-white/50">Chưa có ai đoán đúng.</p>
+        ) : (
+          <ul className="divide-y divide-white/5">
+            {correct.map((c, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between gap-3 px-4 py-2.5"
+              >
+                <div>
+                  <p className="font-semibold">🎯 {c.player_name}</p>
+                  <p className="text-xs text-white/50">
+                    {c.team1} {c.home_score}–{c.away_score} {c.team2}
+                  </p>
+                </div>
+                <span className="whitespace-nowrap text-xs text-white/40">
+                  {formatKickoff(c.kickoff_time)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Divide the fund */}
       <div className="space-y-3">
         <button
           className="btn w-full"
           onClick={runReview}
           disabled={settling || applying}
         >
-          {settling ? "Đang tính…" : "💰 Tính lại quỹ (xem trước)"}
+          {settling ? "Đang tính…" : "💰 Chia quỹ (xem trước)"}
         </button>
 
         {review && (
@@ -217,9 +290,19 @@ function AdminPanel() {
         )}
       </div>
 
-      {/* Create match */}
-      <section className="card space-y-4">
-        <h2 className="font-bold">Tạo trận</h2>
+      {/* Manage matches / edit predictions (collapsible) */}
+      <button
+        className="pt-2 text-left font-bold text-white/70 hover:text-white"
+        onClick={() => setShowManage((v) => !v)}
+      >
+        {showManage ? "▾" : "▸"} Quản lý trận đấu / sửa lượt đoán
+      </button>
+
+      {showManage && (
+        <>
+          {/* Create match */}
+          <section className="card space-y-4">
+            <h2 className="font-bold">Tạo trận</h2>
         <form onSubmit={createMatch} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <input
@@ -268,7 +351,9 @@ function AdminPanel() {
             />
           ))
         )}
-      </section>
+          </section>
+        </>
+      )}
     </div>
   );
 }
