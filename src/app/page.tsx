@@ -10,6 +10,7 @@ import {
 } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatVND, formatKickoff } from "@/lib/format";
+import RulesButton from "@/components/RulesButton";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
@@ -155,13 +156,14 @@ export default function HomePage() {
         )}
       </section>
 
-      <div className="flex justify-center gap-3">
+      <div className="flex flex-wrap justify-center gap-3">
         <Link href="/predict" className="btn">
           Đoán ngay
         </Link>
         <Link href="/leaderboard" className="btn-ghost">
-          Thống kê
+          Tổng kết
         </Link>
+        <RulesButton />
       </div>
 
       {/* Manual results sync */}
