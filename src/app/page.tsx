@@ -10,6 +10,7 @@ import {
 } from "@/lib/queries";
 import { formatVND, formatKickoff } from "@/lib/format";
 import { dayLabel } from "@/lib/day";
+import MatchInfoButton from "@/components/MatchInfoButton";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
@@ -99,18 +100,17 @@ export default function HomePage() {
                   Ngày {dayLabel(g.day)}
                 </p>
                 {g.matches.map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3"
-                  >
-                    <div className="font-bold">
-                      {m.team1} <span className="text-white/40">gặp</span>{" "}
-                      {m.team2}
+                  <MatchInfoButton key={m.id} team1={m.team1} team2={m.team2}>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/25">
+                      <div className="font-bold">
+                        {m.team1} <span className="text-white/40">gặp</span>{" "}
+                        {m.team2}
+                      </div>
+                      <div className="whitespace-nowrap text-sm text-white/60">
+                        ⏱ {formatKickoff(m.kickoff_time)}
+                      </div>
                     </div>
-                    <div className="whitespace-nowrap text-sm text-white/60">
-                      ⏱ {formatKickoff(m.kickoff_time)}
-                    </div>
-                  </div>
+                  </MatchInfoButton>
                 ))}
               </div>
             ))}
