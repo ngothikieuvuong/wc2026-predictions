@@ -61,6 +61,12 @@ const CODE_TO_VI: Record<string, string> = {
   UZB: "Uzbekistan",
 };
 
+// FIFA country code → Vietnamese display name (falls back to the code).
+export function viTeam(code: string | null | undefined): string {
+  if (!code) return "";
+  return CODE_TO_VI[code] ?? code;
+}
+
 type FifaMatch = {
   MatchStatus: number; // 0 = finished, 1 = scheduled, 3 = live
   Home?: { IdCountry?: string; Score?: number | null };

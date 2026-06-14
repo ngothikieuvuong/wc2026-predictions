@@ -30,9 +30,9 @@ export default function PredictionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Dự đoán mọi người</h1>
+        <h1 className="text-2xl font-bold">Lượt đoán của mọi người</h1>
         <p className="text-sm text-white/50">
-          Tất cả lượt dự đoán của cả nhà, theo từng trận.
+          Tất cả lượt đoán của cả nhà, theo từng trận.
         </p>
       </div>
 
@@ -40,9 +40,9 @@ export default function PredictionsPage() {
         <p className="text-white/40">Đang tải…</p>
       ) : rows.length === 0 ? (
         <div className="card text-center">
-          <p className="text-white/50">Chưa có ai dự đoán.</p>
+          <p className="text-white/50">Chưa có ai đoán.</p>
           <Link href="/predict" className="btn mt-3">
-            Dự đoán ngay
+            Đoán ngay
           </Link>
         </div>
       ) : (
@@ -92,7 +92,7 @@ export default function PredictionsPage() {
             </ul>
 
             <p className="text-right text-xs text-white/40">
-              {predictions.length} lượt dự đoán
+              {predictions.length} lượt đoán
             </p>
           </section>
         ))

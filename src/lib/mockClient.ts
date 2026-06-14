@@ -91,7 +91,11 @@ function seed(): Store {
     { id: uid(), player_name: "Trang", match_id: f2.id, amount: 60000, created_at: hours(-50) },
   ];
 
-  return { matches, predictions, rewards };
+  const players: Row[] = ["Minh", "Linh", "Khoa", "Trang", "Huy", "An", "Bố", "Mẹ"].map(
+    (name, i) => ({ id: uid(), name, created_at: hours(-300 + i) })
+  );
+
+  return { matches, predictions, rewards, players };
 }
 
 // ---- Query builder ----------------------------------------------------------

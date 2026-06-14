@@ -3,13 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { getOpenMatches } from "@/lib/queries";
+import { getOpenMatches, getPlayers, addPlayer } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatKickoff, isClosed } from "@/lib/format";
 
+const NEW_PLAYER = "__new__";
+
 export default function PredictPage() {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [name, setName] = useState("");
+  const [players, setPlayers] = useState<string[]>([]);
+  const [picked, setPicked] = useState(""); // dropdown value (a name, or NEW_PLAYER)
+  const [newName, setNewName] = useState("");
   const [matchId, setMatchId] = useState("");
   const [home, setHome] = useState("");
   const [away, setAway] = useState("");
@@ -17,10 +21,14 @@ export default function PredictPage() {
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
+  // Effective player name: typed (new) or picked from the roster.
+  const name = picked === NEW_PLAYER ? newName : picked;
+
   useEffect(() => {
     (async () => {
-      const m = await getOpenMatches();
+      const [m, p] = await Promise.all([getOpenMatches(), getPlayers()]);
       setMatches(m);
+      setPlayers(p);
       setLoading(false);
     })();
   }, []);
@@ -37,7 +45,7 @@ export default function PredictPage() {
       return;
     }
     if (selected && isClosed(selected.kickoff_time)) {
-      setMsg({ type: "err", text: "Dự đoán đã đóng — trận đã bắt đầu." });
+      setMsg({ type: "err", text: "Lượt đoán đã đóng — trận đã bắt đầu." });
       return;
     }
 
@@ -55,13 +63,22 @@ export default function PredictPage() {
       setMsg({
         type: "err",
         text: dup
-          ? "Bạn đã dự đoán trận này rồi. Mỗi người chỉ dự đoán một lần mỗi trận."
+          ? "Bạn đã đoán trận này rồi. Mỗi người chỉ đoán một lần mỗi trận."
           : error.message,
       });
       return;
     }
 
-    setMsg({ type: "ok", text: "✅ Đã lưu dự đoán. Chúc may mắn!" });
+    // New name → add to the roster so it appears in the dropdown next time.
+    const finalName = name.trim();
+    if (!players.some((p) => p.toLowerCase() === finalName.toLowerCase())) {
+      await addPlayer(finalName);
+      setPlayers((prev) => [...prev, finalName]);
+    }
+    setPicked(finalName);
+    setNewName("");
+
+    setMsg({ type: "ok", text: "✅ Đã lưu. Chúc may mắn!" });
     setHome("");
     setAway("");
     setMatchId("");
@@ -70,21 +87,37 @@ export default function PredictPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Dự đoán tỉ số</h1>
+        <h1 className="text-2xl font-bold">Đoán tỉ số</h1>
         <p className="text-sm text-white/50">
-          20.000₫ vào hũ thưởng. Đoán đúng tỉ số thắng. Mỗi trận một lượt.
+          Góp 20.000₫ vào quỹ. Đoán trúng tỉ số nhận quỹ. Mỗi trận một lượt.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="card space-y-4">
         <div>
           <label className="label">Tên của bạn</label>
-          <input
+          <select
             className="input"
-            placeholder="VD: Minh"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+            value={picked}
+            onChange={(e) => setPicked(e.target.value)}
+          >
+            <option value="">Chọn tên…</option>
+            {players.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+            <option value={NEW_PLAYER}>+ Người mới…</option>
+          </select>
+          {picked === NEW_PLAYER && (
+            <input
+              className="input mt-2"
+              placeholder="Gõ tên mới"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              autoFocus
+            />
+          )}
         </div>
 
         <div>
@@ -155,14 +188,14 @@ export default function PredictPage() {
                 href="/predictions"
                 className="inline-block text-sm font-semibold text-neon underline"
               >
-                Xem dự đoán của mọi người →
+                Xem lượt đoán của mọi người →
               </Link>
             )}
           </div>
         )}
 
         <button className="btn w-full" disabled={submitting || closed}>
-          {submitting ? "Đang gửi…" : "Chốt dự đoán"}
+          {submitting ? "Đang gửi…" : "Chốt lượt đoán"}
         </button>
       </form>
     </div>

@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { DEMO } from "@/lib/supabase";
 
 const links = [
-  { href: "/", label: "Trang chủ" },
-  { href: "/predict", label: "Dự đoán" },
+  { href: "/predict", label: "Đoán" },
   { href: "/predictions", label: "Mọi người" },
-  { href: "/leaderboard", label: "Xếp hạng" },
+  { href: "/leaderboard", label: "Thống kê" },
+  { href: "/giai", label: "Giải đấu" },
 ];
 
 export default function NavBar() {
@@ -18,8 +18,8 @@ export default function NavBar() {
     <header className="sticky top-0 z-20 border-b border-white/10 bg-black/30 backdrop-blur">
       <nav className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
-          <span className="text-xl">⚽</span>
-          <span>Dự đoán WC2026</span>
+          <span className="text-xl">🎯</span>
+          <span>Happy Corner</span>
           {DEMO && (
             <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
               Bản thử

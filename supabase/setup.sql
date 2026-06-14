@@ -42,10 +42,23 @@ create table if not exists rewards (
 create unique index if not exists rewards_one_per_player_per_match
   on rewards (match_id, lower(player_name));
 
+-- Players roster (for the name dropdown so stats don't split on typos)
+create table if not exists players (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  created_at  timestamptz not null default now()
+);
+create unique index if not exists players_name_unique on players (lower(name));
+
+insert into players (name) values
+  ('Chương'),('Vương'),('ba Hiến'),('ba Đức'),('Quốc'),('Linh'),('Ny'),('Ly'),('Trà')
+on conflict do nothing;
+
 -- Disable RLS so the public anon key can read/write (private game, no security).
 alter table matches     disable row level security;
 alter table predictions disable row level security;
 alter table rewards     disable row level security;
+alter table players     disable row level security;
 
 
 -- World Cup 2026 group-stage matches (72 trận). Kickoff in Vietnam time (UTC+7).

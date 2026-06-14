@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
+import AdminLink from "@/components/AdminLink";
 
 export const metadata: Metadata = {
-  title: "Dự đoán World Cup 2026",
-  description: "Game dự đoán tỉ số World Cup 2026 cho gia đình",
+  title: "Happy Corner",
+  description: "Trò chơi đoán vui cho gia đình",
 };
 
 export default function RootLayout({
@@ -19,7 +20,10 @@ export default function RootLayout({
           <NavBar />
           <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
           <footer className="mx-auto max-w-3xl px-4 py-8 text-center text-xs text-white/30">
-            ⚽ Game gia đình · 20.000₫ mỗi lượt dự đoán · đoán đúng tỉ số thắng
+            <p>🎯 Trò chơi gia đình · góp 20.000₫ mỗi lượt · đoán trúng nhận quỹ</p>
+            <p className="mt-2">
+              <AdminLink />
+            </p>
           </footer>
         </div>
       </body>

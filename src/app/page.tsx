@@ -59,13 +59,13 @@ export default function HomePage() {
       {/* Jackpot */}
       <section className="card text-center">
         <p className="text-sm uppercase tracking-widest text-white/50">
-          Hũ thưởng hiện tại
+          Quỹ hiện tại
         </p>
         <p className="mt-2 text-4xl font-extrabold text-neon drop-shadow sm:text-5xl">
           {loading || jackpot === null ? "…" : formatVND(jackpot)}
         </p>
         <p className="mt-2 text-xs text-white/40">
-          +20.000₫ mỗi lượt dự đoán · người thắng nhận hết
+          Mỗi lượt góp 20.000₫ · người đoán trúng nhận quỹ
         </p>
       </section>
 
@@ -94,7 +94,7 @@ export default function HomePage() {
               </div>
             ))}
             <Link href="/predict" className="btn mt-2 w-full">
-              Dự đoán ngay
+              Đoán ngay
             </Link>
           </div>
         )}
@@ -103,7 +103,7 @@ export default function HomePage() {
       {/* Latest winner */}
       <section className="card">
         <h2 className="mb-3 text-sm uppercase tracking-widest text-white/50">
-          Người thắng gần nhất
+          Người trúng gần nhất
         </h2>
         {loading ? (
           <p className="text-white/40">Đang tải…</p>
@@ -123,16 +123,16 @@ export default function HomePage() {
             </p>
           </div>
         ) : (
-          <p className="text-white/50">Chưa có ai thắng — hãy là người đầu tiên!</p>
+          <p className="text-white/50">Chưa có ai trúng — hãy là người đầu tiên!</p>
         )}
       </section>
 
       <div className="flex justify-center gap-3">
         <Link href="/predict" className="btn">
-          Dự đoán
+          Đoán ngay
         </Link>
         <Link href="/leaderboard" className="btn-ghost">
-          Bảng xếp hạng
+          Thống kê
         </Link>
       </div>
 

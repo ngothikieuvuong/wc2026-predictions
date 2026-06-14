@@ -25,3 +25,9 @@ export type Reward = {
   amount: number;
   created_at: string;
 };
+
+export type Player = {
+  id: string;
+  name: string;
+  created_at: string;
+};

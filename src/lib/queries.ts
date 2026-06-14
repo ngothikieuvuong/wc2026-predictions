@@ -134,4 +134,53 @@ export async function getPredictionsByMatch(): Promise<
     .map((m) => ({ match: m, predictions: byMatch.get(m.id)! }));
 }
 
+// Roster of player names (for the predict dropdown), in the order added.
+export async function getPlayers(): Promise<string[]> {
+  const { data } = await supabase
+    .from("players")
+    .select("name")
+    .order("created_at", { ascending: true });
+  return ((data as { name: string }[]) ?? []).map((p) => p.name);
+}
+
+// Add a new name to the roster (ignores if it already exists).
+export async function addPlayer(name: string): Promise<void> {
+  await supabase.from("players").insert({ name: name.trim() });
+}
+
+// Per-player money stats: Chi (staked) vs Thu (received) → Lời/Lỗ (profit).
+export async function getStats(): Promise<
+  { name: string; chi: number; thu: number; loiLo: number }[]
+> {
+  const [{ data: players }, { data: preds }, { data: rewards }] = await Promise.all([
+    supabase.from("players").select("name"),
+    supabase.from("predictions").select("player_name"),
+    supabase.from("rewards").select("player_name, amount"),
+  ]);
+
+  const chiByName = new Map<string, number>(); // count of predictions
+  for (const p of (preds as { player_name: string }[]) ?? []) {
+    chiByName.set(p.player_name, (chiByName.get(p.player_name) ?? 0) + 1);
+  }
+  const thuByName = new Map<string, number>();
+  for (const r of (rewards as { player_name: string; amount: number }[]) ?? []) {
+    thuByName.set(r.player_name, (thuByName.get(r.player_name) ?? 0) + Number(r.amount));
+  }
+
+  // Union of roster + anyone who has activity.
+  const names = new Set<string>([
+    ...((players as { name: string }[]) ?? []).map((p) => p.name),
+    ...chiByName.keys(),
+    ...thuByName.keys(),
+  ]);
+
+  return [...names]
+    .map((name) => {
+      const chi = (chiByName.get(name) ?? 0) * STAKE_VND;
+      const thu = thuByName.get(name) ?? 0;
+      return { name, chi, thu, loiLo: thu - chi };
+    })
+    .sort((a, b) => b.loiLo - a.loiLo);
+}
+
 export type { Match, Prediction, Reward };

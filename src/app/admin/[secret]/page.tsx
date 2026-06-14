@@ -74,7 +74,7 @@ function AdminPanel() {
       <div>
         <h1 className="text-2xl font-bold">⚙️ Quản trị</h1>
         <p className="text-sm text-white/50">
-          Tạo trận, nhập tỉ số cuối, và chia hũ thưởng.
+          Tạo trận, nhập tỉ số cuối, và chia quỹ.
         </p>
       </div>
 
@@ -179,12 +179,12 @@ function AdminMatchCard({
       setBusy(false);
       if (res.carriedOver) {
         onChanged(
-          `Không ai đoán đúng tỉ số ${match.team1} - ${match.team2}. Hũ thưởng cộng dồn.`
+          `Không ai đoán trúng tỉ số ${match.team1} - ${match.team2}. Quỹ cộng dồn.`
         );
       } else {
         onChanged(
-          `🏆 ${res.winners.join(", ")} thắng ${formatVND(res.amountEach)} mỗi người ` +
-            `(hũ ${formatVND(res.jackpotUsed)} chia ${res.winners.length} người).`
+          `🏆 ${res.winners.join(", ")} trúng ${formatVND(res.amountEach)} mỗi người ` +
+            `(quỹ ${formatVND(res.jackpotUsed)} chia ${res.winners.length} người).`
         );
       }
     } catch (e) {
@@ -196,7 +196,7 @@ function AdminMatchCard({
   async function remove() {
     if (
       !confirm(
-        `Xóa trận ${match.team1} - ${match.team2}? Toàn bộ dự đoán của trận cũng bị xóa.`
+        `Xóa trận ${match.team1} - ${match.team2}? Toàn bộ lượt đoán của trận cũng bị xóa.`
       )
     )
       return;
@@ -218,7 +218,7 @@ function AdminMatchCard({
         >
           {match.status === "finished" ? "Đã kết thúc" : "Sắp diễn ra"}
         </span>
-        <span className="text-xs text-white/40">{count} lượt dự đoán</span>
+        <span className="text-xs text-white/40">{count} lượt đoán</span>
       </div>
 
       {/* Edit fields */}
@@ -271,13 +271,13 @@ function AdminMatchCard({
             onChange={(e) => setAway(e.target.value)}
           />
           <button className="btn ml-auto whitespace-nowrap" onClick={payout} disabled={busy}>
-            {busy ? "…" : "Chia thưởng 💰"}
+            {busy ? "…" : "Chia quỹ 💰"}
           </button>
         </div>
         {match.status === "finished" && (
           <p className="mt-2 text-xs text-white/40">
             Đã ghi: {match.team1} {match.home_score}–{match.away_score} {match.team2}.
-            Chạy lại sẽ tính lại tiền thưởng.
+            Chạy lại sẽ tính lại quỹ.
           </p>
         )}
       </div>
