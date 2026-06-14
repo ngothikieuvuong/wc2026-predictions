@@ -2,12 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getJackpot, getUpcomingSoon, getLatestWinner } from "@/lib/queries";
+import {
+  getJackpot,
+  getUpcomingSoon,
+  getLatestWinner,
+  getFundByDay,
+} from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatVND, formatKickoff } from "@/lib/format";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
+  const [fundByDay, setFundByDay] = useState<
+    Awaited<ReturnType<typeof getFundByDay>>
+  >([]);
   const [soon, setSoon] = useState<Match[]>([]);
   const [winner, setWinner] = useState<Awaited<
     ReturnType<typeof getLatestWinner>
@@ -17,12 +25,14 @@ export default function HomePage() {
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   async function loadData() {
-    const [j, s, w] = await Promise.all([
+    const [j, f, s, w] = await Promise.all([
       getJackpot(),
+      getFundByDay(),
       getUpcomingSoon(),
       getLatestWinner(),
     ]);
     setJackpot(j);
+    setFundByDay(f);
     setSoon(s);
     setWinner(w);
     setLoading(false);
@@ -67,6 +77,25 @@ export default function HomePage() {
         <p className="mt-2 text-xs text-white/40">
           Mỗi lượt góp 20.000₫ · người đoán trúng nhận quỹ
         </p>
+
+        {fundByDay.length > 0 && (
+          <div className="mt-4 space-y-1 border-t border-white/10 pt-3 text-left text-sm">
+            <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
+              Quỹ theo ngày
+            </p>
+            {fundByDay.map((d) => (
+              <div key={d.date} className="flex items-baseline justify-between gap-2">
+                <span className="text-white/70">
+                  {d.date.slice(8, 10)}/{d.date.slice(5, 7)}{" "}
+                  <span className="text-white/40">
+                    ({d.participants.join(", ")})
+                  </span>
+                </span>
+                <span className="shrink-0 font-semibold">{formatVND(d.pot)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Upcoming matches: today & tomorrow */}

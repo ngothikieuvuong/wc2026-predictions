@@ -130,6 +130,72 @@ export async function getPredictionsByMatch(): Promise<
     .map((m) => ({ match: m, predictions: byMatch.get(m.id)! }));
 }
 
+// VN-date (UTC+7) key, e.g. "2026-06-15".
+function dayKey(iso: string): string {
+  return new Date(new Date(iso).getTime() + 7 * 3600 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+// Fund broken down by day: each day still "in play" (not yet won) with its pot
+// and who's in it — so players can see what they'd collect if they win.
+export async function getFundByDay(): Promise<
+  { date: string; participants: string[]; pot: number }[]
+> {
+  const [{ data: matches }, { data: preds }] = await Promise.all([
+    supabase.from("matches").select("*"),
+    supabase.from("predictions").select("*"),
+  ]);
+  const M = (matches as Match[]) ?? [];
+  const P = (preds as Prediction[]) ?? [];
+  const byId = new Map(M.map((m) => [m.id, m]));
+
+  const matchesByDay = new Map<string, Match[]>();
+  for (const m of M) {
+    const d = dayKey(m.kickoff_time);
+    if (!matchesByDay.has(d)) matchesByDay.set(d, []);
+    matchesByDay.get(d)!.push(m);
+  }
+
+  type Agg = { slots: number; names: Set<string>; hasWinner: boolean };
+  const agg = new Map<string, Agg>();
+  for (const p of P) {
+    const m = byId.get(p.match_id);
+    if (!m) continue;
+    const d = dayKey(m.kickoff_time);
+    let a = agg.get(d);
+    if (!a) {
+      a = { slots: 0, names: new Set(), hasWinner: false };
+      agg.set(d, a);
+    }
+    a.slots++;
+    a.names.add(p.player_name);
+    if (
+      m.home_score != null &&
+      m.away_score != null &&
+      p.predicted_home === m.home_score &&
+      p.predicted_away === m.away_score
+    ) {
+      a.hasWinner = true;
+    }
+  }
+
+  return [...agg.entries()]
+    .filter(([d, a]) => {
+      const dms = matchesByDay.get(d) ?? [];
+      const finished =
+        dms.length > 0 &&
+        dms.every((m) => m.status === "finished" && m.home_score != null);
+      return !(finished && a.hasWinner); // drop days already won/paid
+    })
+    .map(([date, a]) => ({
+      date,
+      participants: [...a.names],
+      pot: a.slots * STAKE_VND,
+    }))
+    .sort((x, y) => (x.date < y.date ? -1 : 1));
+}
+
 // All finished matches with their result + names of anyone who nailed the
 // exact score (most recently played first).
 export async function getMatchResults(): Promise<
