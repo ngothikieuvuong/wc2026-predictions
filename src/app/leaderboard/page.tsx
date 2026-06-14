@@ -20,7 +20,7 @@ export default function StatsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Thống kê</h1>
+        <h1 className="text-2xl font-bold">Tổng kết</h1>
         <p className="text-sm text-white/50">
           Xếp từ người lời nhiều nhất đến lỗ nhiều nhất.
         </p>

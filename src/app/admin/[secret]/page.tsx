@@ -350,11 +350,11 @@ function ManagePredictions({ onChanged }: { onChanged: (text: string) => void })
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <h2 className="font-bold">Quản lý lượt đoán</h2>
 
-      {/* Add */}
-      <section className="card space-y-3">
+      {/* Add (shown last) */}
+      <section className="order-2 card space-y-3">
         <p className="text-sm font-semibold text-white/70">Thêm lượt đoán</p>
         <select
           className="input"
@@ -406,7 +406,7 @@ function ManagePredictions({ onChanged }: { onChanged: (text: string) => void })
       </section>
 
       {/* List */}
-      <section className="card p-0 overflow-hidden">
+      <section className="order-1 card p-0 overflow-hidden">
         <div className="border-b border-white/10 px-4 py-3 font-bold">
           Tất cả lượt đoán ({list.length})
         </div>
@@ -483,7 +483,7 @@ function PredRow({
       <input
         type="number"
         min={0}
-        className="input !w-12 shrink-0 px-1 text-center"
+        className="input !w-14 shrink-0 px-1 text-center"
         value={h}
         onChange={(e) => setH(e.target.value)}
       />
@@ -491,7 +491,7 @@ function PredRow({
       <input
         type="number"
         min={0}
-        className="input !w-12 shrink-0 px-1 text-center"
+        className="input !w-14 shrink-0 px-1 text-center"
         value={a}
         onChange={(e) => setA(e.target.value)}
       />

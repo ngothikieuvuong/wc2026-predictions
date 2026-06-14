@@ -20,9 +20,9 @@ function viTime(iso: string): string {
 }
 
 const TABS = [
-  { key: "bang", label: "Bảng xếp hạng" },
-  { key: "nhanh", label: "Nhánh đấu" },
+  { key: "nhanh", label: "Lịch thi đấu" },
   { key: "ketqua", label: "Kết quả" },
+  { key: "bang", label: "Bảng xếp hạng" },
 ] as const;
 
 export default function GiaiTabs({
@@ -36,7 +36,7 @@ export default function GiaiTabs({
   rounds: BracketRound[];
   error?: string;
 }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("bang");
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("nhanh");
   const [results, setResults] = useState<Results | null>(null);
 
   useEffect(() => {
@@ -55,9 +55,9 @@ export default function GiaiTabs({
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Giải đấu</h1>
+        <h1 className="text-2xl font-bold">Lịch và kết quả</h1>
         <p className="text-sm text-white/50">
-          Bảng xếp hạng, nhánh đấu tới chung kết và kết quả các trận.
+          Lịch thi đấu, kết quả các trận và bảng xếp hạng.
         </p>
       </div>
 

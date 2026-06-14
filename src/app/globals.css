@@ -6,6 +6,16 @@
   color-scheme: dark;
 }
 
+/* Hide number-input spinners so narrow score boxes show their value. */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 body {
   background:
     radial-gradient(1200px 600px at 50% -10%, rgba(29, 185, 84, 0.12), transparent),
