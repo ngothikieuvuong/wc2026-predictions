@@ -85,6 +85,33 @@ export default function RulesButton() {
                     cho lần sau.
                   </li>
                 </ul>
+
+                <div className="mt-2 rounded-xl border border-grass/30 bg-grass/5 p-3 text-[13px]">
+                  <p className="mb-1 font-bold text-grass">📌 Ví dụ cho dễ hiểu</p>
+                  <ul className="space-y-1.5">
+                    <li>
+                      <b>Ngày 1:</b> cả nhà góp <b>100.000đ</b> nhưng{" "}
+                      <b>không ai trúng</b> → 100.000đ <b>treo</b> lại.
+                    </li>
+                    <li>
+                      <b>Ngày 2:</b> cả nhà góp thêm <b>60.000đ</b>. Chương{" "}
+                      <b>đoán trúng</b> (Chương có chơi cả ngày 1 và 2).
+                    </li>
+                    <li>
+                      → Chương nhận <b>60.000đ</b> (quỹ ngày 2) <b>+ 100.000đ</b>{" "}
+                      (quỹ treo ngày 1 vì Chương có chơi ngày 1) ={" "}
+                      <b className="text-neon">160.000đ</b> 🎉
+                    </li>
+                    <li className="text-white/50">
+                      Nếu ngày 1 Chương <b>không chơi</b> → chỉ nhận 60.000đ, còn
+                      100.000đ ngày 1 <b>tiếp tục treo</b>.
+                    </li>
+                    <li className="text-white/50">
+                      Nếu một ngày có 2 người trúng → chia theo <b>số trận trúng</b>:
+                      ai trúng nhiều hơn nhận nhiều hơn.
+                    </li>
+                  </ul>
+                </div>
               </section>
 
               <section>
