@@ -111,10 +111,9 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-lg font-bold">🏆 {winner.player_name}</p>
-              {winner.match && (
+              {winner.pay_date && (
                 <p className="text-sm text-white/50">
-                  {winner.match.team1} {winner.match.home_score}–
-                  {winner.match.away_score} {winner.match.team2}
+                  Ngày {winner.pay_date.slice(8, 10)}/{winner.pay_date.slice(5, 7)}
                 </p>
               )}
             </div>

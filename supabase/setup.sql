@@ -29,18 +29,17 @@ create table if not exists predictions (
 create unique index if not exists predictions_one_per_player_per_match
   on predictions (match_id, lower(player_name));
 
--- Rewards: created when admin calculates winners for a finished match
+-- Rewards: one row per player per settled DAY (day-based payout).
+-- pay_date = the day whose settlement produced this payout (YYYY-MM-DD, VN date).
+-- match_id kept (nullable) for backward compatibility; not used by day-based logic.
 create table if not exists rewards (
   id           uuid primary key default gen_random_uuid(),
   player_name  text not null,
-  match_id     uuid not null references matches(id) on delete cascade,
+  match_id     uuid references matches(id) on delete cascade,
+  pay_date     text,
   amount       numeric not null,
   created_at   timestamptz not null default now()
 );
-
--- Prevent paying out the same match twice
-create unique index if not exists rewards_one_per_player_per_match
-  on rewards (match_id, lower(player_name));
 
 -- Players roster (for the name dropdown so stats don't split on typos)
 create table if not exists players (

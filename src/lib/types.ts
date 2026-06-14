@@ -21,7 +21,8 @@ export type Prediction = {
 export type Reward = {
   id: string;
   player_name: string;
-  match_id: string;
+  match_id: string | null;
+  pay_date: string | null;
   amount: number;
   created_at: string;
 };

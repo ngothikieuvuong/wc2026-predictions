@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  calculateWinners,
+  saveScore,
+  settleAll,
   getAllMatches,
   getPredictionCount,
   getMatchPredictions,
@@ -11,7 +12,7 @@ import {
   deletePrediction,
 } from "@/lib/admin";
 import type { Match, Prediction } from "@/lib/types";
-import { formatKickoff, formatVND } from "@/lib/format";
+import { formatKickoff } from "@/lib/format";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
 
@@ -44,6 +45,21 @@ function AdminPanel() {
   const [team1, setTeam1] = useState("");
   const [team2, setTeam2] = useState("");
   const [kickoff, setKickoff] = useState("");
+  const [settling, setSettling] = useState(false);
+
+  async function runSettle() {
+    setSettling(true);
+    try {
+      const r = await settleAll();
+      const paid = new Intl.NumberFormat("vi-VN").format(r.totalPaid);
+      setBanner(
+        `✅ Đã chốt ${r.settledDays} ngày · chia ${paid}₫ · ${r.pending.length} ngày treo.`
+      );
+    } catch (e) {
+      setBanner("Lỗi: " + (e as Error).message);
+    }
+    setSettling(false);
+  }
 
   async function refresh() {
     const m = await getAllMatches();
@@ -81,13 +97,17 @@ function AdminPanel() {
       <div>
         <h1 className="text-2xl font-bold">⚙️ Quản trị</h1>
         <p className="text-sm text-white/50">
-          Tạo trận, nhập tỉ số cuối, và chia quỹ.
+          Nhập tỉ số từng trận, rồi bấm “Tính lại quỹ” để chia tiền theo ngày.
         </p>
       </div>
 
       {banner && (
         <div className="card border-grass/40 text-sm text-grass">{banner}</div>
       )}
+
+      <button className="btn w-full" onClick={runSettle} disabled={settling}>
+        {settling ? "Đang tính…" : "💰 Tính lại quỹ (chia theo ngày)"}
+      </button>
 
       {/* Create match */}
       <section className="card space-y-4">
@@ -175,29 +195,21 @@ function AdminMatchCard({
     onChanged(error ? "Lỗi: " + error.message : "✅ Đã cập nhật trận.");
   }
 
-  async function payout() {
+  async function saveFinalScore() {
     if (home === "" || away === "") {
       onChanged("Hãy nhập đủ hai tỉ số.");
       return;
     }
     setBusy(true);
     try {
-      const res = await calculateWinners(match.id, Number(home), Number(away));
-      setBusy(false);
-      if (res.carriedOver) {
-        onChanged(
-          `Không ai đoán trúng tỉ số ${match.team1} - ${match.team2}. Quỹ cộng dồn.`
-        );
-      } else {
-        onChanged(
-          `🏆 ${res.winners.join(", ")} trúng ${formatVND(res.amountEach)} mỗi người ` +
-            `(quỹ ${formatVND(res.jackpotUsed)} chia ${res.winners.length} người).`
-        );
-      }
+      await saveScore(match.id, Number(home), Number(away));
+      onChanged(
+        `✅ Đã lưu: ${match.team1} ${home}–${away} ${match.team2}. Bấm “Tính lại quỹ” để chia tiền.`
+      );
     } catch (e) {
-      setBusy(false);
       onChanged("Lỗi: " + (e as Error).message);
     }
+    setBusy(false);
   }
 
   async function remove() {
@@ -277,14 +289,17 @@ function AdminMatchCard({
             value={away}
             onChange={(e) => setAway(e.target.value)}
           />
-          <button className="btn ml-auto whitespace-nowrap" onClick={payout} disabled={busy}>
-            {busy ? "…" : "Chia quỹ 💰"}
+          <button
+            className="btn-ghost ml-auto whitespace-nowrap"
+            onClick={saveFinalScore}
+            disabled={busy}
+          >
+            {busy ? "…" : "Lưu tỉ số"}
           </button>
         </div>
         {match.status === "finished" && (
           <p className="mt-2 text-xs text-white/40">
             Đã ghi: {match.team1} {match.home_score}–{match.away_score} {match.team2}.
-            Chạy lại sẽ tính lại quỹ.
           </p>
         )}
       </div>

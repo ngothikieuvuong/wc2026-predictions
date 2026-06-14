@@ -31,28 +31,24 @@ export async function getNextMatch(): Promise<Match | null> {
 export async function getLatestWinner(): Promise<{
   player_name: string;
   amount: number;
-  match: Match | null;
+  pay_date: string | null;
 } | null> {
+  // Highest payout of the most recently settled day.
   const { data } = await supabase
     .from("rewards")
     .select("*")
-    .order("created_at", { ascending: false })
+    .order("pay_date", { ascending: false })
+    .order("amount", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (!data) return null;
-  const reward = data as Reward;
-
-  const { data: match } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("id", reward.match_id)
-    .maybeSingle();
+  const reward = data as Reward & { pay_date: string | null };
 
   return {
     player_name: reward.player_name,
     amount: Number(reward.amount),
-    match: (match as Match) ?? null,
+    pay_date: reward.pay_date ?? null,
   };
 }
 
