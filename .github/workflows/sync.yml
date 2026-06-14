@@ -1,0 +1,19 @@
+name: Sync FIFA results
+
+# Pulls finished match scores from FIFA into the app every hour.
+# Free: just curls the deployed /api/sync endpoint. Runs on GitHub's schedule
+# (best-effort; may be delayed a few minutes under load).
+on:
+  schedule:
+    - cron: "0 * * * *" # every hour, on the hour (UTC)
+  workflow_dispatch: {} # allow manual run from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call sync endpoint
+        run: |
+          curl -fsS -m 90 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://wc2026-predictions-teal.vercel.app/api/sync"
