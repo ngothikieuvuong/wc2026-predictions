@@ -4,17 +4,31 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   saveScore,
-  settleAll,
+  computeSettlement,
+  applySettlement,
+  snapshotRewards,
+  restoreRewards,
   getAllMatches,
   getPredictionCount,
   getMatchPredictions,
   updatePrediction,
   deletePrediction,
 } from "@/lib/admin";
-import type { Match, Prediction } from "@/lib/types";
-import { formatKickoff } from "@/lib/format";
+import type { SettleResult } from "@/lib/admin";
+import type { Match, Prediction, Reward } from "@/lib/types";
+import { formatKickoff, formatVND } from "@/lib/format";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
+
+// Aggregate a settlement's per-day payouts into per-person totals (desc).
+function perPerson(r: SettleResult): { name: string; amount: number }[] {
+  const m = new Map<string, number>();
+  for (const p of r.payouts)
+    m.set(p.player_name, (m.get(p.player_name) ?? 0) + p.amount);
+  return [...m.entries()]
+    .map(([name, amount]) => ({ name, amount }))
+    .sort((a, b) => b.amount - a.amount);
+}
 
 export default function AdminPage({
   params,
@@ -46,19 +60,51 @@ function AdminPanel() {
   const [team2, setTeam2] = useState("");
   const [kickoff, setKickoff] = useState("");
   const [settling, setSettling] = useState(false);
+  const [review, setReview] = useState<SettleResult | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [snapshot, setSnapshot] = useState<Reward[] | null>(null);
 
-  async function runSettle() {
+  async function runReview() {
     setSettling(true);
+    setReview(null);
     try {
-      const r = await settleAll();
-      const paid = new Intl.NumberFormat("vi-VN").format(r.totalPaid);
-      setBanner(
-        `✅ Đã chốt ${r.settledDays} ngày · chia ${paid}₫ · ${r.pending.length} ngày treo.`
-      );
+      setReview(await computeSettlement());
     } catch (e) {
       setBanner("Lỗi: " + (e as Error).message);
     }
     setSettling(false);
+  }
+
+  async function confirmSettle() {
+    if (!review) return;
+    setApplying(true);
+    try {
+      const prev = await snapshotRewards(); // keep for Undo
+      await applySettlement(review.payouts);
+      setSnapshot(prev);
+      setBanner(
+        `✅ Đã chia ${formatVND(review.totalPaid)} cho ${perPerson(review).length} người.`
+      );
+      setReview(null);
+      refresh();
+    } catch (e) {
+      setBanner("Lỗi: " + (e as Error).message);
+    }
+    setApplying(false);
+  }
+
+  async function undo() {
+    if (!snapshot) return;
+    setApplying(true);
+    try {
+      await restoreRewards(snapshot);
+      setSnapshot(null);
+      setBanner("↩ Đã hoàn tác lần chia gần nhất.");
+      refresh();
+    } catch (e) {
+      setBanner("Lỗi: " + (e as Error).message);
+    }
+    setApplying(false);
   }
 
   async function refresh() {
@@ -105,9 +151,71 @@ function AdminPanel() {
         <div className="card border-grass/40 text-sm text-grass">{banner}</div>
       )}
 
-      <button className="btn w-full" onClick={runSettle} disabled={settling}>
-        {settling ? "Đang tính…" : "💰 Tính lại quỹ (chia theo ngày)"}
-      </button>
+      <div className="space-y-3">
+        <button
+          className="btn w-full"
+          onClick={runReview}
+          disabled={settling || applying}
+        >
+          {settling ? "Đang tính…" : "💰 Tính lại quỹ (xem trước)"}
+        </button>
+
+        {review && (
+          <div className="card space-y-3 border-grass/40">
+            <p className="font-bold">Xem trước kết quả chia</p>
+            <p className="text-xs text-white/50">
+              {review.settledDays} ngày đã chốt · {review.pending.length} ngày treo
+              · tổng chia {formatVND(review.totalPaid)}
+            </p>
+            {perPerson(review).length === 0 ? (
+              <p className="text-sm text-white/60">Chưa ai trúng — không chia gì.</p>
+            ) : (
+              <ul className="divide-y divide-white/10">
+                {perPerson(review).map((p) => (
+                  <li key={p.name} className="flex justify-between py-1.5 text-sm">
+                    <span className="font-medium">{p.name}</span>
+                    <span className="font-bold text-neon">{formatVND(p.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {review.pending.length > 0 && (
+              <p className="text-xs text-white/40">
+                Quỹ treo:{" "}
+                {review.pending
+                  .map((d) => `${d.date.slice(8, 10)}/${d.date.slice(5, 7)}`)
+                  .join(", ")}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                className="btn flex-1"
+                onClick={confirmSettle}
+                disabled={applying}
+              >
+                {applying ? "Đang chia…" : "Xác nhận chia"}
+              </button>
+              <button
+                className="btn-ghost"
+                onClick={() => setReview(null)}
+                disabled={applying}
+              >
+                Huỷ
+              </button>
+            </div>
+          </div>
+        )}
+
+        {snapshot && (
+          <button
+            className="btn-ghost w-full text-amber-300"
+            onClick={undo}
+            disabled={applying}
+          >
+            ↩ Hoàn tác lần chia gần nhất
+          </button>
+        )}
+      </div>
 
       {/* Create match */}
       <section className="card space-y-4">

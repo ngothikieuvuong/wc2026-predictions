@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { Match, Prediction } from "./types";
+import type { Match, Prediction, Reward } from "./types";
 
 const STAKE = 20000;
 
@@ -31,14 +31,15 @@ export type SettleResult = {
   pending: { date: string; pot: number }[];
 };
 
-// Day-based settlement, recomputed from scratch (idempotent). Rules:
+// Day-based settlement, computed from scratch (no DB writes — call
+// applySettlement to persist). Rules:
 //  - Each prediction = 1 slot (20k). A day's pot = its slots × 20k.
 //  - Process days chronologically; stop at the first day not fully finished.
 //  - Day with winners: split the day pot by each winner's CORRECT slots. Then
 //    take the combined pot of earlier no-winner days that any winner joined,
 //    split by each winner's TOTAL slots across those days. No-winner days that
 //    none of the winners joined stay pending (money stays in the quỹ).
-export async function settleAll(): Promise<SettleResult> {
+export async function computeSettlement(): Promise<SettleResult> {
   const [{ data: matchesData }, { data: predsData }] = await Promise.all([
     supabase.from("matches").select("*"),
     supabase.from("predictions").select("*"),
@@ -134,17 +135,41 @@ export async function settleAll(): Promise<SettleResult> {
     return { player_name, pay_date, amount: Math.round(amount) };
   });
 
-  // Rewrite the rewards table (delete all → insert fresh) for idempotency.
+  const totalPaid = payouts.reduce((s, p) => s + p.amount, 0);
+  const pendingOut = pending.map((e) => ({ date: e.date, pot: e.totalSlots * STAKE }));
+  return { settledDays, totalPaid, payouts, pending: pendingOut };
+}
+
+// Persist a settlement: rewrite the rewards table (delete all → insert fresh).
+export async function applySettlement(
+  payouts: SettleResult["payouts"]
+): Promise<void> {
   await supabase.from("rewards").delete().gte("amount", 0);
   if (payouts.length > 0) {
     await supabase
       .from("rewards")
       .insert(payouts.map((p) => ({ ...p, match_id: null })));
   }
+}
 
-  const totalPaid = payouts.reduce((s, p) => s + p.amount, 0);
-  const pendingOut = pending.map((e) => ({ date: e.date, pot: e.totalSlots * STAKE }));
-  return { settledDays, totalPaid, payouts, pending: pendingOut };
+// Snapshot current rewards (for Undo) and restore them.
+export async function snapshotRewards(): Promise<Reward[]> {
+  const { data } = await supabase.from("rewards").select("*");
+  return (data as Reward[]) ?? [];
+}
+
+export async function restoreRewards(rows: Reward[]): Promise<void> {
+  await supabase.from("rewards").delete().gte("amount", 0);
+  if (rows.length > 0) {
+    await supabase.from("rewards").insert(
+      rows.map((r) => ({
+        player_name: r.player_name,
+        match_id: r.match_id,
+        pay_date: r.pay_date,
+        amount: r.amount,
+      }))
+    );
+  }
 }
 
 export async function getAllMatches(): Promise<Match[]> {
