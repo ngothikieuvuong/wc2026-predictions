@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { Match, Prediction, Reward } from "./types";
+import { dayKey } from "./day";
 
 const STAKE = 20000;
 
@@ -17,18 +18,14 @@ export async function saveScore(
   if (error) throw error;
 }
 
-// VN-date (UTC+7) key for a kickoff timestamp, e.g. "2026-06-15".
-function dayKey(iso: string): string {
-  return new Date(new Date(iso).getTime() + 7 * 3600 * 1000)
-    .toISOString()
-    .slice(0, 10);
-}
-
 export type SettleResult = {
   settledDays: number;
   totalPaid: number;
   payouts: { player_name: string; pay_date: string; amount: number }[];
   pending: { date: string; pot: number }[];
+  // Cumulative net per person from days whose money has been distributed:
+  // received − stake in those resolved days. Zero-sum.
+  net: { name: string; value: number }[];
 };
 
 // Day-based settlement, computed from scratch (no DB writes — call
@@ -93,11 +90,13 @@ export async function computeSettlement(): Promise<SettleResult> {
     pay.set(name + "|" + date, (pay.get(name + "|" + date) ?? 0) + amount);
 
   let pending: DayInfo[] = [];
+  const settled: DayInfo[] = [];
   let settledDays = 0;
 
   for (const info of infos) {
     if (!info.finished) break; // chronological — wait for the full day's results
     settledDays++;
+    settled.push(info);
     const winners = [...info.correct.entries()].filter(([, c]) => c > 0);
     if (winners.length === 0) {
       pending.push(info);
@@ -137,7 +136,26 @@ export async function computeSettlement(): Promise<SettleResult> {
 
   const totalPaid = payouts.reduce((s, p) => s + p.amount, 0);
   const pendingOut = pending.map((e) => ({ date: e.date, pot: e.totalSlots * STAKE }));
-  return { settledDays, totalPaid, payouts, pending: pendingOut };
+
+  // Net per person from resolved days (settled days whose money was distributed,
+  // i.e. settled days no longer pending). net = received − stake in those days.
+  const pendingDates = new Set(pending.map((e) => e.date));
+  const received = new Map<string, number>();
+  for (const p of payouts)
+    received.set(p.player_name, (received.get(p.player_name) ?? 0) + p.amount);
+  const resolvedStake = new Map<string, number>();
+  for (const info of settled) {
+    if (pendingDates.has(info.date)) continue; // still treo → not resolved
+    for (const [name, slots] of info.slots)
+      resolvedStake.set(name, (resolvedStake.get(name) ?? 0) + slots * STAKE);
+  }
+  const names = new Set([...received.keys(), ...resolvedStake.keys()]);
+  const net = [...names].map((name) => ({
+    name,
+    value: (received.get(name) ?? 0) - (resolvedStake.get(name) ?? 0),
+  }));
+
+  return { settledDays, totalPaid, payouts, pending: pendingOut, net };
 }
 
 // Persist a settlement: rewrite the rewards table (delete all → insert fresh).
@@ -150,6 +168,38 @@ export async function applySettlement(
       .from("rewards")
       .insert(payouts.map((p) => ({ ...p, match_id: null })));
   }
+}
+
+const normNet = (arr: { name: string; value: number }[]) =>
+  JSON.stringify(
+    [...arr].map((x) => [x.name, Math.round(x.value)]).sort((a, b) =>
+      String(a[0]).localeCompare(String(b[0]))
+    )
+  );
+
+// Log a settlement event (cumulative net snapshot) — skips if unchanged.
+export async function logSettlement(net: SettleResult["net"]): Promise<void> {
+  const { data: last } = await supabase
+    .from("settlements")
+    .select("cum")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const lastCum =
+    ((last?.cum as { name: string; value: number }[] | undefined) ?? []);
+  const rounded = net.map((n) => ({ name: n.name, value: Math.round(n.value) }));
+  if (normNet(lastCum) === normNet(rounded)) return; // no change → no event
+  await supabase.from("settlements").insert({ cum: rounded });
+}
+
+export async function deleteLastSettlement(): Promise<void> {
+  const { data: last } = await supabase
+    .from("settlements")
+    .select("id")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (last?.id) await supabase.from("settlements").delete().eq("id", last.id);
 }
 
 // Snapshot current rewards (for Undo) and restore them.

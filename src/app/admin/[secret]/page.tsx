@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import {
   computeSettlement,
   applySettlement,
+  logSettlement,
+  deleteLastSettlement,
   snapshotRewards,
   restoreRewards,
   getAllMatches,
@@ -110,6 +112,7 @@ function AdminPanel() {
     try {
       const prev = await snapshotRewards();
       await applySettlement(review.payouts);
+      await logSettlement(review.net);
       setSnapshot(prev);
       setBanner(
         `✅ Đã chia ${formatVND(review.totalPaid)} cho ${perPerson(review).length} người.`
@@ -127,6 +130,7 @@ function AdminPanel() {
     setApplying(true);
     try {
       await restoreRewards(snapshot);
+      await deleteLastSettlement();
       setSnapshot(null);
       setBanner("↩ Đã hoàn tác lần chia gần nhất.");
       refresh();

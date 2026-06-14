@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   getJackpot,
-  getUpcomingSoon,
+  getUpcomingByDay,
   getLatestWinner,
   getFundByDay,
 } from "@/lib/queries";
-import type { Match } from "@/lib/types";
 import { formatVND, formatKickoff } from "@/lib/format";
+import { dayLabel } from "@/lib/day";
 import RulesButton from "@/components/RulesButton";
 
 export default function HomePage() {
@@ -17,7 +17,9 @@ export default function HomePage() {
   const [fundByDay, setFundByDay] = useState<
     Awaited<ReturnType<typeof getFundByDay>>
   >([]);
-  const [soon, setSoon] = useState<Match[]>([]);
+  const [soon, setSoon] = useState<
+    Awaited<ReturnType<typeof getUpcomingByDay>>
+  >([]);
   const [winner, setWinner] = useState<Awaited<
     ReturnType<typeof getLatestWinner>
   > | null>(null);
@@ -29,7 +31,7 @@ export default function HomePage() {
     const [j, f, s, w] = await Promise.all([
       getJackpot(),
       getFundByDay(),
-      getUpcomingSoon(),
+      getUpcomingByDay(),
       getLatestWinner(),
     ]);
     setJackpot(j);
@@ -99,7 +101,7 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Upcoming matches: today & tomorrow */}
+      {/* Upcoming matches, grouped by game-day */}
       <section className="card">
         <h2 className="mb-3 text-sm uppercase tracking-widest text-white/50">
           Trận sắp tới
@@ -109,18 +111,26 @@ export default function HomePage() {
         ) : soon.length === 0 ? (
           <p className="text-white/50">Chưa có trận nào sắp diễn ra.</p>
         ) : (
-          <div className="space-y-2">
-            {soon.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3"
-              >
-                <div className="font-bold">
-                  {m.team1} <span className="text-white/40">gặp</span> {m.team2}
-                </div>
-                <div className="whitespace-nowrap text-sm text-white/60">
-                  ⏱ {formatKickoff(m.kickoff_time)}
-                </div>
+          <div className="space-y-3">
+            {soon.map((g) => (
+              <div key={g.day} className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  Ngày {dayLabel(g.day)}
+                </p>
+                {g.matches.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3"
+                  >
+                    <div className="font-bold">
+                      {m.team1} <span className="text-white/40">gặp</span>{" "}
+                      {m.team2}
+                    </div>
+                    <div className="whitespace-nowrap text-sm text-white/60">
+                      ⏱ {formatKickoff(m.kickoff_time)}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
             <Link href="/predict" className="btn mt-2 w-full">

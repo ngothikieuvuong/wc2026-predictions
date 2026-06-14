@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getPredictionsByMatch } from "@/lib/queries";
 import type { Match, Prediction } from "@/lib/types";
-import { formatKickoff } from "@/lib/format";
+import { formatKickoff, formatShort } from "@/lib/format";
 
 function isWinner(m: Match, p: Prediction): boolean {
   return (
@@ -88,13 +88,18 @@ export default function PredictionsPage() {
                 return (
                   <li
                     key={p.id}
-                    className={`flex items-center justify-between py-2 ${tone}`}
+                    className={`flex items-center justify-between gap-2 py-2 ${tone}`}
                   >
-                    <span className="font-medium">
-                      {win && "🎯 "}
-                      {p.player_name}
+                    <span className="min-w-0">
+                      <span className="font-medium">
+                        {win && "🎯 "}
+                        {p.player_name}
+                      </span>
+                      <span className="block text-[11px] text-white/30">
+                        đoán lúc {formatShort(p.created_at)}
+                      </span>
                     </span>
-                    <span className="font-mono text-lg font-bold">
+                    <span className="shrink-0 font-mono text-lg font-bold">
                       {p.predicted_home}–{p.predicted_away}
                     </span>
                   </li>

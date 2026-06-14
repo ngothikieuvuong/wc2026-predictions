@@ -1,5 +1,6 @@
 import { supabase, STAKE_VND } from "./supabase";
 import type { Match, Prediction, Reward } from "./types";
+import { dayKey } from "./day";
 
 // Current jackpot = total stakes from all predictions − total rewards paid out.
 // Carryover is automatic: unpaid matches leave the pool untouched.
@@ -81,6 +82,27 @@ export async function getUpcomingSoon(): Promise<Match[]> {
   return next ? [next] : [];
 }
 
+// Upcoming matches grouped by game-day (21h rule), the next 2 days.
+export async function getUpcomingByDay(): Promise<
+  { day: string; matches: Match[] }[]
+> {
+  const { data } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("status", "upcoming")
+    .gte("kickoff_time", new Date().toISOString())
+    .order("kickoff_time", { ascending: true });
+
+  const groups: { day: string; matches: Match[] }[] = [];
+  for (const m of (data as Match[]) ?? []) {
+    const d = dayKey(m.kickoff_time);
+    const last = groups[groups.length - 1];
+    if (!last || last.day !== d) groups.push({ day: d, matches: [m] });
+    else last.matches.push(m);
+  }
+  return groups.slice(0, 2);
+}
+
 export async function getOpenMatches(): Promise<Match[]> {
   const { data } = await supabase
     .from("matches")
@@ -114,7 +136,8 @@ export async function getPredictionsByMatch(): Promise<
   { match: Match; predictions: Prediction[] }[]
 > {
   const [{ data: matches }, { data: preds }] = await Promise.all([
-    supabase.from("matches").select("*").order("kickoff_time", { ascending: false }),
+    // Sort by match time (soonest/most-recent first).
+    supabase.from("matches").select("*").order("kickoff_time", { ascending: true }),
     supabase.from("predictions").select("*").order("created_at", { ascending: true }),
   ]);
 
@@ -128,13 +151,6 @@ export async function getPredictionsByMatch(): Promise<
   return ((matches as Match[]) ?? [])
     .filter((m) => byMatch.has(m.id))
     .map((m) => ({ match: m, predictions: byMatch.get(m.id)! }));
-}
-
-// VN-date (UTC+7) key, e.g. "2026-06-15".
-function dayKey(iso: string): string {
-  return new Date(new Date(iso).getTime() + 7 * 3600 * 1000)
-    .toISOString()
-    .slice(0, 10);
 }
 
 // Fund broken down by day: each day still "in play" (not yet won) with its pot
@@ -348,6 +364,19 @@ export async function getPlayers(): Promise<string[]> {
 // Add a new name to the roster (ignores if it already exists).
 export async function addPlayer(name: string): Promise<void> {
   await supabase.from("players").insert({ name: name.trim() });
+}
+
+// Settlement events (cumulative net snapshots), oldest first.
+export async function getSettlements(): Promise<
+  { created_at: string; cum: { name: string; value: number }[] }[]
+> {
+  const { data } = await supabase
+    .from("settlements")
+    .select("created_at, cum")
+    .order("created_at", { ascending: true });
+  return (
+    (data as { created_at: string; cum: { name: string; value: number }[] }[]) ?? []
+  );
 }
 
 // Per-player money stats: Chi (staked) vs Thu (received) → Lời/Lỗ (profit).
