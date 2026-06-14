@@ -80,3 +80,29 @@ export async function getPredictionCount(matchId: string): Promise<number> {
     .eq("match_id", matchId);
   return count ?? 0;
 }
+
+export async function getMatchPredictions(matchId: string): Promise<Prediction[]> {
+  const { data } = await supabase
+    .from("predictions")
+    .select("*")
+    .eq("match_id", matchId)
+    .order("player_name", { ascending: true });
+  return (data as Prediction[]) ?? [];
+}
+
+export async function updatePrediction(
+  id: string,
+  home: number,
+  away: number
+): Promise<void> {
+  const { error } = await supabase
+    .from("predictions")
+    .update({ predicted_home: home, predicted_away: away })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deletePrediction(id: string): Promise<void> {
+  const { error } = await supabase.from("predictions").delete().eq("id", id);
+  if (error) throw error;
+}

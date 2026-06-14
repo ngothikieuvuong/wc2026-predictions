@@ -2,8 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { calculateWinners, getAllMatches, getPredictionCount } from "@/lib/admin";
-import type { Match } from "@/lib/types";
+import {
+  calculateWinners,
+  getAllMatches,
+  getPredictionCount,
+  getMatchPredictions,
+  updatePrediction,
+  deletePrediction,
+} from "@/lib/admin";
+import type { Match, Prediction } from "@/lib/types";
 import { formatKickoff, formatVND } from "@/lib/format";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
@@ -281,6 +288,139 @@ function AdminMatchCard({
           </p>
         )}
       </div>
+
+      {/* Edit individual predictions */}
+      <MatchPredictions matchId={match.id} onChanged={onChanged} />
+    </div>
+  );
+}
+
+function MatchPredictions({
+  matchId,
+  onChanged,
+}: {
+  matchId: string;
+  onChanged: (text: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [preds, setPreds] = useState<Prediction[] | null>(null);
+
+  async function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && preds === null) setPreds(await getMatchPredictions(matchId));
+  }
+
+  async function reload() {
+    setPreds(await getMatchPredictions(matchId));
+  }
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+      <button
+        onClick={toggle}
+        className="text-sm font-semibold text-white/70 hover:text-white"
+      >
+        {open ? "▾" : "▸"} Sửa lượt đoán
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-2">
+          {preds === null ? (
+            <p className="text-xs text-white/40">Đang tải…</p>
+          ) : preds.length === 0 ? (
+            <p className="text-xs text-white/40">Chưa có ai đoán trận này.</p>
+          ) : (
+            preds.map((p) => (
+              <PredictionRow
+                key={p.id}
+                pred={p}
+                onSaved={onChanged}
+                onDeleted={async (text) => {
+                  onChanged(text);
+                  await reload();
+                }}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PredictionRow({
+  pred,
+  onSaved,
+  onDeleted,
+}: {
+  pred: Prediction;
+  onSaved: (text: string) => void;
+  onDeleted: (text: string) => void | Promise<void>;
+}) {
+  const [h, setH] = useState(String(pred.predicted_home));
+  const [a, setA] = useState(String(pred.predicted_away));
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (h === "" || a === "") return;
+    setBusy(true);
+    try {
+      await updatePrediction(pred.id, Number(h), Number(a));
+      onSaved(`✅ Đã sửa lượt đoán của ${pred.player_name}.`);
+    } catch (e) {
+      onSaved("Lỗi: " + (e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  async function del() {
+    if (!confirm(`Xóa lượt đoán của ${pred.player_name}?`)) return;
+    setBusy(true);
+    try {
+      await deletePrediction(pred.id);
+      await onDeleted(`🗑 Đã xóa lượt đoán của ${pred.player_name}.`);
+    } catch (e) {
+      onSaved("Lỗi: " + (e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="min-w-0 flex-1 truncate text-sm font-medium">
+        {pred.player_name}
+      </span>
+      <input
+        type="number"
+        min={0}
+        className="input !w-14 shrink-0 px-1 text-center"
+        value={h}
+        onChange={(e) => setH(e.target.value)}
+      />
+      <span className="text-white/40">:</span>
+      <input
+        type="number"
+        min={0}
+        className="input !w-14 shrink-0 px-1 text-center"
+        value={a}
+        onChange={(e) => setA(e.target.value)}
+      />
+      <button
+        className="btn-ghost shrink-0 px-3 py-1.5 text-xs"
+        onClick={save}
+        disabled={busy}
+      >
+        Lưu
+      </button>
+      <button
+        className="shrink-0 px-1 text-lg text-red-300 hover:text-red-200 disabled:opacity-40"
+        onClick={del}
+        disabled={busy}
+        title="Xóa"
+      >
+        ✕
+      </button>
     </div>
   );
 }
