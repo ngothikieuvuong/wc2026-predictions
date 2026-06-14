@@ -167,6 +167,8 @@ function AdminPanel() {
     refresh();
   }
 
+  const correctNames = [...new Set(correct.map((c) => c.player_name))];
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">⚙️ Quản trị</h1>
@@ -225,13 +227,23 @@ function AdminPanel() {
 
       {/* Divide the fund */}
       <div className="space-y-3">
+        {correctNames.length > 0 && (
+          <p className="text-center text-sm font-semibold text-neon">
+            🎉 Chúc mừng {correctNames.join(", ")} đã đoán trúng!
+          </p>
+        )}
         <button
           className="btn w-full"
           onClick={runReview}
-          disabled={settling || applying}
+          disabled={settling || applying || correct.length === 0}
         >
           {settling ? "Đang tính…" : "💰 Chia quỹ (xem trước)"}
         </button>
+        {correct.length === 0 && (
+          <p className="text-center text-xs text-white/40">
+            Nút chia quỹ bật khi có người đoán trúng.
+          </p>
+        )}
 
         {review && (
           <div className="card space-y-3 border-grass/40">

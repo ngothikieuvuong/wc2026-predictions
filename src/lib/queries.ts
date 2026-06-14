@@ -130,6 +130,50 @@ export async function getPredictionsByMatch(): Promise<
     .map((m) => ({ match: m, predictions: byMatch.get(m.id)! }));
 }
 
+// All finished matches with their result + names of anyone who nailed the
+// exact score (most recently played first).
+export async function getMatchResults(): Promise<
+  {
+    id: string;
+    team1: string;
+    team2: string;
+    home_score: number;
+    away_score: number;
+    kickoff_time: string;
+    winners: string[];
+  }[]
+> {
+  const [{ data: matches }, { data: preds }] = await Promise.all([
+    supabase
+      .from("matches")
+      .select("*")
+      .eq("status", "finished")
+      .order("kickoff_time", { ascending: false }),
+    supabase.from("predictions").select("*"),
+  ]);
+  const M = (matches as Match[]) ?? [];
+  const byId = new Map(M.map((m) => [m.id, m]));
+  const winnersByMatch = new Map<string, string[]>();
+  for (const p of (preds as Prediction[]) ?? []) {
+    const m = byId.get(p.match_id);
+    if (!m || m.home_score == null || m.away_score == null) continue;
+    if (p.predicted_home === m.home_score && p.predicted_away === m.away_score) {
+      const arr = winnersByMatch.get(m.id) ?? [];
+      arr.push(p.player_name);
+      winnersByMatch.set(m.id, arr);
+    }
+  }
+  return M.map((m) => ({
+    id: m.id,
+    team1: m.team1,
+    team2: m.team2,
+    home_score: m.home_score!,
+    away_score: m.away_score!,
+    kickoff_time: m.kickoff_time,
+    winners: winnersByMatch.get(m.id) ?? [],
+  }));
+}
+
 // Correct predictions across finished matches (most recently played first).
 export async function getCorrectPredictions(): Promise<
   {
