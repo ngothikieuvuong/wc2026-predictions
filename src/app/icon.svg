@@ -1,26 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="14" fill="#0d2a1a"/>
-  <g fill="#f5c542">
-    <!-- globe held aloft at the top -->
-    <circle cx="32" cy="14" r="7"/>
-    <!-- spiralling twin-figure body of the FIFA World Cup trophy -->
-    <path d="M32 20
-             C 35 23 43 26 43 35
-             C 43 42 37 46 33 48
-             L 33 49
-             C 38 49 41 50 42 52
-             L 22 52
-             C 23 50 26 49 31 49
-             L 31 48
-             C 27 46 21 42 21 35
-             C 21 26 29 23 32 20 Z"/>
-    <!-- two-tier round base -->
-    <rect x="23" y="52" width="18" height="4" rx="2"/>
-    <rect x="26.5" y="56" width="11" height="3.5" rx="1.75"/>
+  <rect width="64" height="64" rx="12" fill="#0a0a0a"/>
+
+  <!-- big "26" behind the trophy -->
+  <g fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="38">
+    <text x="1" y="44">2</text>
+    <text x="37" y="44">6</text>
   </g>
-  <!-- globe meridians (cut out in the background colour) -->
-  <g fill="none" stroke="#0d2a1a" stroke-width="1.1" opacity="0.65">
-    <ellipse cx="32" cy="14" rx="3" ry="7"/>
-    <line x1="25.5" y1="14" x2="38.5" y2="14"/>
+
+  <!-- FIFA World Cup trophy, gold, centred over the numbers -->
+  <g fill="#e7b53b">
+    <circle cx="32" cy="13" r="6.2"/>
+    <path d="M32 18
+             C 34.5 20.5 41 23 41 31
+             C 41 37 36 40.5 33 42.5
+             L 33 44
+             C 37 44 39.5 45 40.5 47
+             L 23.5 47
+             C 24.5 45 27 44 31 44
+             L 31 42.5
+             C 28 40.5 23 37 23 31
+             C 23 23 29.5 20.5 32 18 Z"/>
+    <rect x="24.5" y="47" width="15" height="3.4" rx="1.7"/>
+    <rect x="27.5" y="50.5" width="9" height="3" rx="1.5"/>
   </g>
+  <!-- globe meridians cut out -->
+  <g fill="none" stroke="#0a0a0a" stroke-width="1" opacity="0.6">
+    <ellipse cx="32" cy="13" rx="2.6" ry="6.2"/>
+    <line x1="26" y1="13" x2="38" y2="13"/>
+  </g>
+
+  <!-- FIFA wordmark -->
+  <text x="32" y="61" text-anchor="middle" fill="#ffffff"
+        font-family="Arial, Helvetica, sans-serif" font-weight="900"
+        font-size="7" letter-spacing="0.5">FIFA</text>
 </svg>
