@@ -102,6 +102,7 @@ export async function getUpcomingByDay(): Promise<
     .from("matches")
     .select("*")
     .eq("status", "upcoming")
+    .eq("is_open", true)
     .gte("kickoff_time", new Date().toISOString())
     .order("kickoff_time", { ascending: true });
 
@@ -115,11 +116,13 @@ export async function getUpcomingByDay(): Promise<
   return groups.slice(0, 2);
 }
 
+// Matches open for prediction (admin-selected), for the predict dropdown.
 export async function getOpenMatches(): Promise<Match[]> {
   const { data } = await supabase
     .from("matches")
     .select("*")
     .eq("status", "upcoming")
+    .eq("is_open", true)
     .order("kickoff_time", { ascending: true });
   return (data as Match[]) ?? [];
 }

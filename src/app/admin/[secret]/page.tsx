@@ -11,10 +11,12 @@ import {
   getAllPredictionsDetailed,
   updatePrediction,
   deletePrediction,
+  getUpcomingMatches,
+  setMatchOpen,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
 import { getJackpot, getCorrectPredictions, getFundByDay } from "@/lib/queries";
-import type { Reward } from "@/lib/types";
+import type { Match, Reward } from "@/lib/types";
 import { formatKickoff, formatShort, formatVND } from "@/lib/format";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
@@ -183,6 +185,9 @@ function AdminPanel() {
         )}
       </section>
 
+      {/* Pick matches open for prediction */}
+      <OpenMatchesPicker onChanged={(text) => setBanner(text)} />
+
       {/* Correct predictors (most recent match first) */}
       <section className="card p-0 overflow-hidden">
         <div className="border-b border-white/10 px-4 py-3 font-bold">
@@ -292,6 +297,80 @@ function AdminPanel() {
         }}
       />
     </div>
+  );
+}
+
+function OpenMatchesPicker({ onChanged }: { onChanged: (text: string) => void }) {
+  const [list, setList] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function load() {
+    setList(await getUpcomingMatches());
+    setLoading(false);
+  }
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function toggle(m: Match) {
+    setBusyId(m.id);
+    try {
+      await setMatchOpen(m.id, !m.is_open);
+      await load();
+      onChanged(
+        !m.is_open
+          ? `✅ Mở cho đoán: ${m.team1} - ${m.team2}`
+          : `Đã đóng: ${m.team1} - ${m.team2}`
+      );
+    } catch (e) {
+      onChanged("Lỗi: " + (e as Error).message);
+    }
+    setBusyId(null);
+  }
+
+  const openCount = list.filter((m) => m.is_open).length;
+
+  return (
+    <section className="card space-y-3">
+      <div>
+        <h2 className="font-bold">Chọn trận cho đoán ({openCount} đang mở)</h2>
+        <p className="text-xs text-white/40">
+          Chỉ trận bật xanh mới hiện cho mọi người đoán.
+        </p>
+      </div>
+      {loading ? (
+        <p className="text-white/40">Đang tải…</p>
+      ) : list.length === 0 ? (
+        <p className="text-white/50">Không có trận sắp tới.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {list.map((m) => (
+            <li key={m.id} className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {m.team1} - {m.team2}
+                </p>
+                <p className="truncate text-xs text-white/40">
+                  {formatKickoff(m.kickoff_time)}
+                </p>
+              </div>
+              <button
+                onClick={() => toggle(m)}
+                disabled={busyId === m.id}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                  m.is_open
+                    ? "bg-grass text-black"
+                    : "border border-white/15 text-white/60 hover:bg-white/10"
+                }`}
+              >
+                {m.is_open ? "✓ Cho đoán" : "Đóng"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

@@ -224,6 +224,26 @@ export async function restoreRewards(rows: Reward[]): Promise<void> {
   }
 }
 
+// Upcoming matches for the admin "open for prediction" picker.
+export async function getUpcomingMatches(): Promise<Match[]> {
+  const { data } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("status", "upcoming")
+    .gte("kickoff_time", new Date().toISOString())
+    .order("kickoff_time", { ascending: true })
+    .limit(40);
+  return (data as Match[]) ?? [];
+}
+
+export async function setMatchOpen(matchId: string, open: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("matches")
+    .update({ is_open: open })
+    .eq("id", matchId);
+  if (error) throw error;
+}
+
 export async function getAllMatches(): Promise<Match[]> {
   const { data } = await supabase
     .from("matches")

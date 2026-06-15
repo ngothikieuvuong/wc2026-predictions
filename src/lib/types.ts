@@ -6,6 +6,7 @@ export type Match = {
   home_score: number | null;
   away_score: number | null;
   status: "upcoming" | "finished";
+  is_open: boolean;
   created_at: string;
 };
 

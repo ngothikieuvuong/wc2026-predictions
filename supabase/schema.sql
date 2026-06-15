@@ -13,6 +13,7 @@ create table if not exists matches (
   home_score    int,
   away_score    int,
   status        text not null default 'upcoming', -- 'upcoming' | 'finished'
+  is_open       boolean not null default false,   -- admin opened it for predictions
   created_at    timestamptz not null default now()
 );
 

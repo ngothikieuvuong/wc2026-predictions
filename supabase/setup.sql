@@ -13,6 +13,7 @@ create table if not exists matches (
   home_score    int,
   away_score    int,
   status        text not null default 'upcoming', -- 'upcoming' | 'finished'
+  is_open       boolean not null default false,   -- admin opened it for predictions
   created_at    timestamptz not null default now()
 );
 
@@ -53,11 +54,20 @@ insert into players (name) values
   ('Chương'),('Vương'),('ba Hiến'),('ba Đức'),('Quốc'),('Linh'),('Ny'),('Ly'),('Trà')
 on conflict do nothing;
 
+-- Settlement history: one row per "Chia quỹ" event, storing the cumulative
+-- net per person (received − stake in resolved days) at that moment.
+create table if not exists settlements (
+  id          uuid primary key default gen_random_uuid(),
+  created_at  timestamptz not null default now(),
+  cum         jsonb not null
+);
+
 -- Disable RLS so the public anon key can read/write (private game, no security).
 alter table matches     disable row level security;
 alter table predictions disable row level security;
 alter table rewards     disable row level security;
 alter table players     disable row level security;
+alter table settlements disable row level security;
 
 
 -- World Cup 2026 group-stage matches (72 trận). Kickoff in Vietnam time (UTC+7).

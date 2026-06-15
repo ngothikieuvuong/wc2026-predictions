@@ -29,6 +29,7 @@ function seed(): Store {
     home_score: null,
     away_score: null,
     status: "upcoming",
+    is_open: true,
     created_at: hours(-400),
   }));
 
