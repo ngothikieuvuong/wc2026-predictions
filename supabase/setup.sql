@@ -62,8 +62,9 @@ create table if not exists settlements (
   cum         jsonb not null
 );
 
--- Reactions (emoji) on predictions. One emoji per person per prediction
--- (picking again replaces). player_name is chosen from the roster on react.
+-- Reactions (emoji) on predictions. A person can place several different
+-- emojis on one prediction, but not the same emoji twice (unique below).
+-- player_name is chosen from the roster when reacting.
 create table if not exists reactions (
   id             uuid primary key default gen_random_uuid(),
   prediction_id  uuid not null references predictions(id) on delete cascade,
@@ -71,8 +72,8 @@ create table if not exists reactions (
   emoji          text not null,
   created_at     timestamptz not null default now()
 );
-create unique index if not exists reactions_one_per_player_per_pred
-  on reactions (prediction_id, lower(player_name));
+create unique index if not exists reactions_one_per_player_emoji
+  on reactions (prediction_id, lower(player_name), emoji);
 
 -- Disable RLS so the public anon key can read/write (private game, no security).
 alter table matches     disable row level security;

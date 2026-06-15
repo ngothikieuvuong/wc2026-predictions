@@ -459,9 +459,10 @@ export async function getReactionsByPrediction(): Promise<
   return map;
 }
 
-// Set one person's reaction on a prediction (replaces any previous one, since
-// it's one emoji per person per prediction).
-export async function setReaction(
+// Add one emoji reaction for a person on a prediction. A person can have many
+// different emojis on the same prediction, but not the same emoji twice — so
+// we clear that exact (person, emoji) first to stay idempotent.
+export async function addReaction(
   predictionId: string,
   playerName: string,
   emoji: string
@@ -470,7 +471,8 @@ export async function setReaction(
     .from("reactions")
     .delete()
     .eq("prediction_id", predictionId)
-    .eq("player_name", playerName);
+    .eq("player_name", playerName)
+    .eq("emoji", emoji);
   const { error } = await supabase.from("reactions").insert({
     prediction_id: predictionId,
     player_name: playerName,
@@ -479,16 +481,18 @@ export async function setReaction(
   if (error) throw new Error(error.message ?? "Không lưu được cảm xúc");
 }
 
-// Remove one person's reaction from a prediction.
+// Remove one specific emoji reaction of a person from a prediction.
 export async function removeReaction(
   predictionId: string,
-  playerName: string
+  playerName: string,
+  emoji: string
 ): Promise<void> {
   await supabase
     .from("reactions")
     .delete()
     .eq("prediction_id", predictionId)
-    .eq("player_name", playerName);
+    .eq("player_name", playerName)
+    .eq("emoji", emoji);
 }
 
 export type { Match, Prediction, Reward, Reaction };

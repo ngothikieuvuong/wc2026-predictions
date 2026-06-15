@@ -7,7 +7,7 @@ import {
   getPredictionsByMatch,
   getReactionsByPrediction,
   getPlayers,
-  setReaction,
+  addReaction,
   removeReaction,
 } from "@/lib/queries";
 import type { Match, Prediction, Reaction } from "@/lib/types";
@@ -201,30 +201,35 @@ function ReactionSheet({
   onChanged: () => void | Promise<void>;
 }) {
   const { pred, matchLabel } = target;
-  const [emoji, setEmoji] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const save = async () => {
-    if (!emoji || !name) return;
+  // Emojis the selected person has already placed on this prediction.
+  const mine = new Set(
+    existing.filter((r) => r.player_name === name).map((r) => r.emoji)
+  );
+
+  // Tap an emoji to toggle the selected person's reaction on/off.
+  const toggle = async (emoji: string) => {
+    if (!name) return;
     setBusy(true);
     setErr(null);
     try {
-      await setReaction(pred.id, name, emoji);
+      if (mine.has(emoji)) await removeReaction(pred.id, name, emoji);
+      else await addReaction(pred.id, name, emoji);
       await onChanged();
-      onClose();
     } catch (e) {
       setErr((e as Error).message);
     }
     setBusy(false);
   };
 
-  const remove = async (who: string) => {
+  const removeOne = async (who: string, emoji: string) => {
     setBusy(true);
     setErr(null);
     try {
-      await removeReaction(pred.id, who);
+      await removeReaction(pred.id, who, emoji);
       await onChanged();
     } catch (e) {
       setErr((e as Error).message);
@@ -263,7 +268,7 @@ function ReactionSheet({
               <button
                 key={r.id}
                 disabled={busy}
-                onClick={() => remove(r.player_name)}
+                onClick={() => removeOne(r.player_name, r.emoji)}
                 className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-xs hover:bg-red-500/20"
                 title="Bấm để gỡ"
               >
@@ -275,55 +280,49 @@ function ReactionSheet({
           </div>
         )}
 
-        {!emoji ? (
+        <select
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="input"
+        >
+          <option value="">— Ai thả? (chọn tên) —</option>
+          {players.map((pl) => (
+            <option key={pl} value={pl}>
+              {pl}
+            </option>
+          ))}
+        </select>
+
+        {name && (
           <>
-            <p className="text-sm font-semibold text-white/70">Chọn biểu cảm</p>
+            <p className="text-sm font-semibold text-white/70">
+              Chạm để thả / gỡ — chọn được nhiều
+            </p>
             <div className="grid grid-cols-5 gap-2">
-              {EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  onClick={() => setEmoji(e)}
-                  className="rounded-xl bg-white/5 py-2.5 text-2xl hover:bg-white/15 active:scale-95"
-                >
-                  {e}
-                </button>
-              ))}
+              {EMOJIS.map((e) => {
+                const on = mine.has(e);
+                return (
+                  <button
+                    key={e}
+                    onClick={() => toggle(e)}
+                    disabled={busy}
+                    className={`rounded-xl py-2.5 text-2xl transition active:scale-95 ${
+                      on
+                        ? "bg-grass/30 ring-2 ring-grass"
+                        : "bg-white/5 hover:bg-white/15"
+                    }`}
+                  >
+                    {e}
+                  </button>
+                );
+              })}
             </div>
           </>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">{emoji}</span>
-              <select
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="input flex-1"
-              >
-                <option value="">— Ai thả? —</option>
-                {players.map((pl) => (
-                  <option key={pl} value={pl}>
-                    {pl}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setEmoji(null)}
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm hover:bg-white/20"
-              >
-                ← Đổi
-              </button>
-              <button
-                onClick={save}
-                disabled={!name || busy}
-                className="btn flex-1 disabled:opacity-40"
-              >
-                {busy ? "Đang lưu…" : "Lưu"}
-              </button>
-            </div>
-          </div>
         )}
+
+        <button onClick={onClose} className="btn w-full">
+          Xong
+        </button>
       </div>
     </div>,
     document.body
