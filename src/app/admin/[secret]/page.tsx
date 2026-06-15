@@ -59,16 +59,19 @@ function AdminPanel() {
   const [applying, setApplying] = useState(false);
   const [snapshot, setSnapshot] = useState<Reward[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [preview, setPreview] = useState<SettleResult | null>(null);
 
   async function refresh() {
-    const [j, f, c] = await Promise.all([
+    const [j, f, c, pv] = await Promise.all([
       getJackpot(),
       getFundByDay(),
       getCorrectPredictions(),
+      computeSettlement(),
     ]);
     setJackpot(j);
     setFundByDay(f);
     setCorrect(c);
+    setPreview(pv);
   }
 
   useEffect(() => {
@@ -135,7 +138,9 @@ function AdminPanel() {
     setApplying(false);
   }
 
-  const correctNames = [...new Set(correct.map((c) => c.player_name))];
+  // Settle-able = the settlement (only fully-finished days) actually pays someone.
+  const canSettle = !!preview && preview.payouts.length > 0;
+  const settleWinners = preview ? perPerson(preview).map((p) => p.name) : [];
 
   return (
     <div className="space-y-6">
@@ -216,21 +221,21 @@ function AdminPanel() {
 
       {/* Divide the fund */}
       <div className="space-y-3">
-        {correctNames.length > 0 && (
+        {canSettle && (
           <p className="text-center text-sm font-semibold text-neon">
-            🎉 Chúc mừng {correctNames.join(", ")} đã đoán trúng!
+            🎉 Chúc mừng {settleWinners.join(", ")} đã đoán trúng!
           </p>
         )}
         <button
           className="btn w-full"
           onClick={runReview}
-          disabled={settling || applying || correct.length === 0}
+          disabled={settling || applying || !canSettle}
         >
           {settling ? "Đang tính…" : "📒 Chốt sổ nào"}
         </button>
-        {correct.length === 0 && (
+        {!canSettle && (
           <p className="text-center text-xs text-white/40">
-            Nút chia quỹ bật khi có người đoán trúng.
+            Nút chốt sổ bật khi trận đã kết thúc và có người đoán trúng.
           </p>
         )}
 

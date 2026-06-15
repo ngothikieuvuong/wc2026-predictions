@@ -44,7 +44,6 @@ export async function computeSettlement(): Promise<SettleResult> {
   const matches = (matchesData as Match[]) ?? [];
   const preds = (predsData as Prediction[]) ?? [];
   const matchById = new Map(matches.map((m) => [m.id, m]));
-  const today = dayKey(new Date().toISOString()); // only settle up to today
 
   const matchesByDay = new Map<string, Match[]>();
   for (const m of matches) {
@@ -95,7 +94,6 @@ export async function computeSettlement(): Promise<SettleResult> {
   let settledDays = 0;
 
   for (const info of infos) {
-    if (info.date > today) break; // don't settle future days
     if (!info.finished) break; // chronological — wait for the full day's results
     settledDays++;
     settled.push(info);
