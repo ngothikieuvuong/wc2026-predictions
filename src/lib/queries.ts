@@ -368,6 +368,52 @@ export async function getCorrectPredictions(): Promise<
   return out;
 }
 
+// One person's full prediction history (most recent match first), with the
+// match result and whether they nailed the exact score.
+export async function getPlayerHistory(name: string): Promise<
+  {
+    team1: string;
+    team2: string;
+    predicted_home: number;
+    predicted_away: number;
+    home_score: number | null;
+    away_score: number | null;
+    finished: boolean;
+    win: boolean;
+    kickoff_time: string;
+    created_at: string;
+  }[]
+> {
+  const [{ data: preds }, { data: matches }] = await Promise.all([
+    supabase.from("predictions").select("*").eq("player_name", name),
+    supabase.from("matches").select("*"),
+  ]);
+  const byId = new Map(((matches as Match[]) ?? []).map((m) => [m.id, m]));
+  return ((preds as Prediction[]) ?? [])
+    .map((p) => {
+      const m = byId.get(p.match_id);
+      const finished =
+        m?.status === "finished" && m.home_score != null && m.away_score != null;
+      const win =
+        finished &&
+        p.predicted_home === m!.home_score &&
+        p.predicted_away === m!.away_score;
+      return {
+        team1: m?.team1 ?? "?",
+        team2: m?.team2 ?? "?",
+        predicted_home: p.predicted_home,
+        predicted_away: p.predicted_away,
+        home_score: m?.home_score ?? null,
+        away_score: m?.away_score ?? null,
+        finished: !!finished,
+        win: !!win,
+        kickoff_time: m?.kickoff_time ?? "",
+        created_at: p.created_at,
+      };
+    })
+    .sort((a, b) => (a.kickoff_time < b.kickoff_time ? 1 : -1));
+}
+
 // Existing predictions for one match (to show others' picks on the predict form).
 export async function getPredictionsForMatch(
   matchId: string

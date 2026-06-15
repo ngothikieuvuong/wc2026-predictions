@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getStats, getSettlements } from "@/lib/queries";
 import { formatVND, formatShort } from "@/lib/format";
+import PlayerHistoryModal from "@/components/PlayerHistoryModal";
 
 type Event = { time: string; lines: { name: string; delta: number }[] };
 
@@ -12,6 +13,7 @@ export default function StatsPage() {
   >([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyName, setHistoryName] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -71,7 +73,14 @@ export default function StatsPage() {
                     key={r.name}
                     className="border-b border-white/5 last:border-0 hover:bg-white/5"
                   >
-                    <td className="px-3 py-3 font-semibold">{r.name}</td>
+                    <td className="px-3 py-3 font-semibold">
+                      <button
+                        onClick={() => setHistoryName(r.name)}
+                        className="text-left underline decoration-white/20 underline-offset-2 hover:decoration-white"
+                      >
+                        {r.name}
+                      </button>
+                    </td>
                     <td className="px-3 py-3 text-right text-white/70">
                       {formatVND(r.chi)}
                     </td>
@@ -123,6 +132,13 @@ export default function StatsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {historyName && (
+        <PlayerHistoryModal
+          name={historyName}
+          onClose={() => setHistoryName(null)}
+        />
       )}
     </div>
   );
