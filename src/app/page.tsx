@@ -11,6 +11,7 @@ import {
 import { formatVND, formatKickoff } from "@/lib/format";
 import { dayLabel } from "@/lib/day";
 import { getLive, type LiveScore } from "@/lib/liveClient";
+import { autoSync } from "@/lib/syncClient";
 import MatchInfoButton from "@/components/MatchInfoButton";
 
 export default function HomePage() {
@@ -45,6 +46,10 @@ export default function HomePage() {
 
   useEffect(() => {
     loadData();
+    // Pull fresh FIFA scores on load; reload if anything changed.
+    autoSync().then((changed) => {
+      if (changed) loadData();
+    });
   }, []);
 
   return (

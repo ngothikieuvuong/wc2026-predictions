@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { GroupTable, BracketRound, Fixture } from "@/lib/tournament";
 import { getMatchResults } from "@/lib/queries";
+import { autoSync } from "@/lib/syncClient";
 import { formatKickoff } from "@/lib/format";
 
 type Results = Awaited<ReturnType<typeof getMatchResults>>;
@@ -40,7 +41,13 @@ export default function GiaiTabs({
   const [results, setResults] = useState<Results | null>(null);
 
   useEffect(() => {
-    if (tab === "ketqua" && results === null) getMatchResults().then(setResults);
+    if (tab === "ketqua" && results === null) {
+      getMatchResults().then(setResults);
+      // Pull fresh FIFA scores; reload results if anything changed.
+      autoSync().then((changed) => {
+        if (changed) getMatchResults().then(setResults);
+      });
+    }
   }, [tab, results]);
 
   // Group upcoming group-stage fixtures by day (already sorted by date).

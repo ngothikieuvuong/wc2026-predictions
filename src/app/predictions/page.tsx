@@ -12,6 +12,7 @@ import {
 } from "@/lib/queries";
 import type { Match, Prediction, Reaction } from "@/lib/types";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
+import { autoSync } from "@/lib/syncClient";
 import { formatKickoff, formatShort, isClosed } from "@/lib/format";
 import { dayKey, dayLabel } from "@/lib/day";
 
@@ -361,20 +362,26 @@ export default function PredictionsPage() {
   const loadReactions = async () =>
     setReactionsByPred(await getReactionsByPrediction());
 
+  const loadAll = async () => {
+    const [r, rx, pl, lv] = await Promise.all([
+      getPredictionsByMatch(),
+      getReactionsByPrediction(),
+      getPlayers(),
+      getLive(),
+    ]);
+    setRows(r);
+    setReactionsByPred(rx);
+    setPlayers(pl);
+    setLiveScores(lv);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    (async () => {
-      const [r, rx, pl, lv] = await Promise.all([
-        getPredictionsByMatch(),
-        getReactionsByPrediction(),
-        getPlayers(),
-        getLive(),
-      ]);
-      setRows(r);
-      setReactionsByPred(rx);
-      setPlayers(pl);
-      setLiveScores(lv);
-      setLoading(false);
-    })();
+    loadAll();
+    // Pull fresh FIFA scores on load; reload if anything changed.
+    autoSync().then((changed) => {
+      if (changed) loadAll();
+    });
   }, []);
 
   // Group by game-day (rows already sorted by kickoff asc).
