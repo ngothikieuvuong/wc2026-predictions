@@ -33,3 +33,11 @@ export type Player = {
   name: string;
   created_at: string;
 };
+
+export type Reaction = {
+  id: string;
+  prediction_id: string;
+  player_name: string;
+  emoji: string;
+  created_at: string;
+};

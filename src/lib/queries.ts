@@ -1,5 +1,5 @@
 import { supabase, STAKE_VND } from "./supabase";
-import type { Match, Prediction, Reward } from "./types";
+import type { Match, Prediction, Reward, Reaction } from "./types";
 import { dayKey, activeDay } from "./day";
 
 // Current jackpot: counts days up to the active day (the day currently in
@@ -442,4 +442,52 @@ export async function getStats(): Promise<
     .sort((a, b) => b.loiLo - a.loiLo);
 }
 
-export type { Match, Prediction, Reward };
+// All emoji reactions, grouped by the prediction they belong to.
+export async function getReactionsByPrediction(): Promise<
+  Map<string, Reaction[]>
+> {
+  const { data } = await supabase
+    .from("reactions")
+    .select("*")
+    .order("created_at", { ascending: true });
+  const map = new Map<string, Reaction[]>();
+  for (const r of (data as Reaction[]) ?? []) {
+    const list = map.get(r.prediction_id) ?? [];
+    list.push(r);
+    map.set(r.prediction_id, list);
+  }
+  return map;
+}
+
+// Set one person's reaction on a prediction (replaces any previous one, since
+// it's one emoji per person per prediction).
+export async function setReaction(
+  predictionId: string,
+  playerName: string,
+  emoji: string
+): Promise<void> {
+  await supabase
+    .from("reactions")
+    .delete()
+    .eq("prediction_id", predictionId)
+    .eq("player_name", playerName);
+  await supabase.from("reactions").insert({
+    prediction_id: predictionId,
+    player_name: playerName,
+    emoji,
+  });
+}
+
+// Remove one person's reaction from a prediction.
+export async function removeReaction(
+  predictionId: string,
+  playerName: string
+): Promise<void> {
+  await supabase
+    .from("reactions")
+    .delete()
+    .eq("prediction_id", predictionId)
+    .eq("player_name", playerName);
+}
+
+export type { Match, Prediction, Reward, Reaction };

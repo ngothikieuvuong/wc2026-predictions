@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type { Match, Prediction, Reward } from "./types";
-import { dayKey } from "./day";
+import { dayKey, activeDay } from "./day";
 
 const STAKE = 20000;
 
@@ -259,9 +259,12 @@ export async function getPredictionCount(matchId: string): Promise<number> {
 }
 
 // All predictions joined with their match, for the admin manage list.
-// Sorted by match kickoff time (ascending).
-export async function getAllPredictionsDetailed(): Promise<
-  {
+// Sorted by match kickoff time (ascending). Includes match status/score so the
+// UI can lock finished matches, and an `active` day so it can surface the
+// day currently in play first.
+export async function getAllPredictionsDetailed(): Promise<{
+  active: string;
+  items: {
     id: string;
     player_name: string;
     match_id: string;
@@ -271,29 +274,42 @@ export async function getAllPredictionsDetailed(): Promise<
     predicted_away: number;
     kickoff_time: string;
     created_at: string;
-  }[]
-> {
+    finished: boolean;
+    home_score: number | null;
+    away_score: number | null;
+  }[];
+}> {
   const [{ data: preds }, { data: matches }] = await Promise.all([
     supabase.from("predictions").select("*"),
     supabase.from("matches").select("*"),
   ]);
-  const byId = new Map(((matches as Match[]) ?? []).map((m) => [m.id, m]));
-  return ((preds as Prediction[]) ?? [])
-    .map((p) => {
-      const m = byId.get(p.match_id);
-      return {
-        id: p.id,
-        player_name: p.player_name,
-        match_id: p.match_id,
-        team1: m?.team1 ?? "?",
-        team2: m?.team2 ?? "?",
-        predicted_home: p.predicted_home,
-        predicted_away: p.predicted_away,
-        kickoff_time: m?.kickoff_time ?? "",
-        created_at: p.created_at,
-      };
-    })
-    .sort((a, b) => (a.kickoff_time < b.kickoff_time ? -1 : a.kickoff_time > b.kickoff_time ? 1 : 0));
+  const M = (matches as Match[]) ?? [];
+  const P = (preds as Prediction[]) ?? [];
+  const byId = new Map(M.map((m) => [m.id, m]));
+  const active = activeDay(M, P);
+
+  const items = P.map((p) => {
+    const m = byId.get(p.match_id);
+    return {
+      id: p.id,
+      player_name: p.player_name,
+      match_id: p.match_id,
+      team1: m?.team1 ?? "?",
+      team2: m?.team2 ?? "?",
+      predicted_home: p.predicted_home,
+      predicted_away: p.predicted_away,
+      kickoff_time: m?.kickoff_time ?? "",
+      created_at: p.created_at,
+      finished:
+        m?.status === "finished" && m.home_score != null && m.away_score != null,
+      home_score: m?.home_score ?? null,
+      away_score: m?.away_score ?? null,
+    };
+  }).sort((a, b) =>
+    a.kickoff_time < b.kickoff_time ? -1 : a.kickoff_time > b.kickoff_time ? 1 : 0
+  );
+
+  return { active, items };
 }
 
 export async function addPrediction(

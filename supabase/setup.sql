@@ -62,12 +62,25 @@ create table if not exists settlements (
   cum         jsonb not null
 );
 
+-- Reactions (emoji) on predictions. One emoji per person per prediction
+-- (picking again replaces). player_name is chosen from the roster on react.
+create table if not exists reactions (
+  id             uuid primary key default gen_random_uuid(),
+  prediction_id  uuid not null references predictions(id) on delete cascade,
+  player_name    text not null,
+  emoji          text not null,
+  created_at     timestamptz not null default now()
+);
+create unique index if not exists reactions_one_per_player_per_pred
+  on reactions (prediction_id, lower(player_name));
+
 -- Disable RLS so the public anon key can read/write (private game, no security).
 alter table matches     disable row level security;
 alter table predictions disable row level security;
 alter table rewards     disable row level security;
 alter table players     disable row level security;
 alter table settlements disable row level security;
+alter table reactions   disable row level security;
 
 
 -- World Cup 2026 group-stage matches (72 trận). Kickoff in Vietnam time (UTC+7).

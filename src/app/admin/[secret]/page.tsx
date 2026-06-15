@@ -18,6 +18,7 @@ import type { SettleResult } from "@/lib/admin";
 import { getJackpot, getCorrectPredictions, getFundByDay } from "@/lib/queries";
 import type { Match, Reward } from "@/lib/types";
 import { formatKickoff, formatShort, formatVND } from "@/lib/format";
+import { dayKey } from "@/lib/day";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
 
@@ -150,76 +151,7 @@ function AdminPanel() {
         <div className="card border-grass/40 text-sm text-grass">{banner}</div>
       )}
 
-      {/* Current fund + per-day breakdown */}
-      <section className="card text-center">
-        <p className="text-sm uppercase tracking-widest text-white/50">
-          Tổng quỹ hiện tại
-        </p>
-        <p className="mt-2 text-4xl font-extrabold text-neon">
-          {jackpot === null ? "…" : formatVND(jackpot)}
-        </p>
-        <button
-          className="btn-ghost mt-3 text-sm"
-          onClick={syncResults}
-          disabled={syncing}
-        >
-          {syncing ? "Đang cập nhật…" : "🔄 Cập nhật kết quả từ FIFA"}
-        </button>
-
-        {fundByDay.length > 0 && (
-          <div className="mt-4 space-y-1 border-t border-white/10 pt-3 text-left text-sm">
-            <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
-              Quỹ theo ngày
-            </p>
-            {fundByDay.map((d) => (
-              <div
-                key={d.date}
-                className={`flex items-baseline justify-between gap-2 ${
-                  d.counted ? "" : "opacity-40"
-                }`}
-              >
-                <span className="text-white/70">
-                  {d.date.slice(8, 10)}/{d.date.slice(5, 7)}{" "}
-                  <span className="text-white/40">({d.participants.join(", ")})</span>
-                  {!d.counted && <span className="text-white/30"> · chưa tính</span>}
-                </span>
-                <span className="shrink-0 font-semibold">{formatVND(d.pot)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Pick matches open for prediction */}
-      <OpenMatchesPicker onChanged={(text) => setBanner(text)} />
-
-      {/* Correct predictors (most recent match first) */}
-      <section className="card p-0 overflow-hidden">
-        <div className="border-b border-white/10 px-4 py-3 font-bold">
-          Người đoán đúng ({correct.length})
-        </div>
-        {correct.length === 0 ? (
-          <p className="p-4 text-white/50">Chưa có ai đoán đúng.</p>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {correct.map((c, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <div>
-                  <p className="font-semibold">🎯 {c.player_name}</p>
-                  <p className="text-xs text-white/50">
-                    {c.team1} {c.home_score}–{c.away_score} {c.team2}
-                  </p>
-                </div>
-                <span className="whitespace-nowrap text-xs text-white/40">
-                  {formatKickoff(c.kickoff_time)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Divide the fund */}
+      {/* Settle the fund — top priority */}
       <div className="space-y-3">
         {canSettle && (
           <p className="text-center text-sm font-semibold text-neon">
@@ -291,6 +223,75 @@ function AdminPanel() {
           </button>
         )}
       </div>
+
+      {/* Current fund + per-day breakdown */}
+      <section className="card text-center">
+        <p className="text-sm uppercase tracking-widest text-white/50">
+          Tổng quỹ hiện tại
+        </p>
+        <p className="mt-2 text-4xl font-extrabold text-neon">
+          {jackpot === null ? "…" : formatVND(jackpot)}
+        </p>
+        <button
+          className="btn-ghost mt-3 text-sm"
+          onClick={syncResults}
+          disabled={syncing}
+        >
+          {syncing ? "Đang cập nhật…" : "🔄 Cập nhật kết quả từ FIFA"}
+        </button>
+
+        {fundByDay.length > 0 && (
+          <div className="mt-4 space-y-1 border-t border-white/10 pt-3 text-left text-sm">
+            <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
+              Quỹ theo ngày
+            </p>
+            {fundByDay.map((d) => (
+              <div
+                key={d.date}
+                className={`flex items-baseline justify-between gap-2 ${
+                  d.counted ? "" : "opacity-40"
+                }`}
+              >
+                <span className="text-white/70">
+                  {d.date.slice(8, 10)}/{d.date.slice(5, 7)}{" "}
+                  <span className="text-white/40">({d.participants.join(", ")})</span>
+                  {!d.counted && <span className="text-white/30"> · chưa tính</span>}
+                </span>
+                <span className="shrink-0 font-semibold">{formatVND(d.pot)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Pick matches open for prediction */}
+      <OpenMatchesPicker onChanged={(text) => setBanner(text)} />
+
+      {/* Correct predictors (most recent match first) */}
+      <section className="card p-0 overflow-hidden">
+        <div className="border-b border-white/10 px-4 py-3 font-bold">
+          Người đoán đúng ({correct.length})
+        </div>
+        {correct.length === 0 ? (
+          <p className="p-4 text-white/50">Chưa có ai đoán đúng.</p>
+        ) : (
+          <ul className="divide-y divide-white/5">
+            {correct.map((c, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <div>
+                  <p className="font-semibold">🎯 {c.player_name}</p>
+                  <p className="text-xs text-white/50">
+                    {c.team1} {c.home_score}–{c.away_score} {c.team2}
+                  </p>
+                </div>
+                <span className="whitespace-nowrap text-xs text-white/40">
+                  {formatKickoff(c.kickoff_time)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/* Manage predictions */}
       <ManagePredictions
@@ -379,14 +380,18 @@ function OpenMatchesPicker({ onChanged }: { onChanged: (text: string) => void })
   );
 }
 
+type DetailItem = Awaited<
+  ReturnType<typeof getAllPredictionsDetailed>
+>["items"][number];
+
 function ManagePredictions({ onChanged }: { onChanged: (text: string) => void }) {
-  const [list, setList] = useState<
-    Awaited<ReturnType<typeof getAllPredictionsDetailed>>
-  >([]);
+  const [data, setData] = useState<Awaited<
+    ReturnType<typeof getAllPredictionsDetailed>
+  > | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    setList(await getAllPredictionsDetailed());
+    setData(await getAllPredictionsDetailed());
     setLoading(false);
   }
 
@@ -394,30 +399,58 @@ function ManagePredictions({ onChanged }: { onChanged: (text: string) => void })
     load();
   }, []);
 
+  const items = data?.items ?? [];
+  const active = data?.active ?? "";
+
+  // Active-day predictions first, then other not-yet-played matches, then
+  // finished matches (locked).
+  const activeItems = items.filter(
+    (p) => !p.finished && dayKey(p.kickoff_time) === active
+  );
+  const otherUpcoming = items.filter(
+    (p) => !p.finished && dayKey(p.kickoff_time) !== active
+  );
+  const finishedItems = items.filter((p) => p.finished);
+
+  const onDeleted = async (text: string) => {
+    onChanged(text);
+    await load();
+  };
+
+  const renderGroup = (title: string, list: DetailItem[], locked: boolean) =>
+    list.length > 0 && (
+      <>
+        <li className="bg-white/5 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/40">
+          {title} ({list.length})
+        </li>
+        {list.map((p) => (
+          <PredRow
+            key={p.id}
+            item={p}
+            locked={locked}
+            onSaved={onChanged}
+            onDeleted={onDeleted}
+          />
+        ))}
+      </>
+    );
+
   return (
     <div className="space-y-4">
       <h2 className="font-bold">Quản lý lượt đoán</h2>
       <section className="card p-0 overflow-hidden">
         <div className="border-b border-white/10 px-4 py-3 font-bold">
-          Tất cả lượt đoán ({list.length})
+          Tất cả lượt đoán ({items.length})
         </div>
         {loading ? (
           <p className="p-4 text-white/40">Đang tải…</p>
-        ) : list.length === 0 ? (
+        ) : items.length === 0 ? (
           <p className="p-4 text-white/50">Chưa có lượt đoán nào.</p>
         ) : (
-          <ul className="divide-y divide-white/5 px-4">
-            {list.map((p) => (
-              <PredRow
-                key={p.id}
-                item={p}
-                onSaved={onChanged}
-                onDeleted={async (text) => {
-                  onChanged(text);
-                  await load();
-                }}
-              />
-            ))}
+          <ul className="divide-y divide-white/5">
+            {renderGroup("⚡ Ngày đang diễn ra", activeItems, false)}
+            {renderGroup("🕒 Trận sắp tới khác", otherUpcoming, false)}
+            {renderGroup("✅ Đã kết thúc", finishedItems, true)}
           </ul>
         )}
       </section>
@@ -427,10 +460,12 @@ function ManagePredictions({ onChanged }: { onChanged: (text: string) => void })
 
 function PredRow({
   item,
+  locked,
   onSaved,
   onDeleted,
 }: {
-  item: Awaited<ReturnType<typeof getAllPredictionsDetailed>>[number];
+  item: DetailItem;
+  locked?: boolean;
   onSaved: (text: string) => void;
   onDeleted: (text: string) => void | Promise<void>;
 }) {
@@ -463,8 +498,29 @@ function PredRow({
     setBusy(false);
   }
 
+  if (locked) {
+    // Finished match → read-only, grayed, no edit/delete.
+    return (
+      <li className="flex items-center gap-2 px-4 py-2.5 opacity-45">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{item.player_name}</p>
+          <p className="truncate text-xs text-white/50">
+            {item.team1} - {item.team2}
+          </p>
+          <p className="truncate text-[10px] text-white/30">
+            KQ: {item.home_score}–{item.away_score} · đoán{" "}
+            {formatShort(item.created_at)}
+          </p>
+        </div>
+        <span className="shrink-0 font-mono text-lg font-bold">
+          {item.predicted_home}–{item.predicted_away}
+        </span>
+      </li>
+    );
+  }
+
   return (
-    <li className="flex items-center gap-2 py-2.5">
+    <li className="flex items-center gap-2 px-4 py-2.5">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{item.player_name}</p>
         <p className="truncate text-xs text-white/50">
