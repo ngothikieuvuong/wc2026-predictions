@@ -471,11 +471,12 @@ export async function setReaction(
     .delete()
     .eq("prediction_id", predictionId)
     .eq("player_name", playerName);
-  await supabase.from("reactions").insert({
+  const { error } = await supabase.from("reactions").insert({
     prediction_id: predictionId,
     player_name: playerName,
     emoji,
   });
+  if (error) throw new Error(error.message ?? "Không lưu được cảm xúc");
 }
 
 // Remove one person's reaction from a prediction.

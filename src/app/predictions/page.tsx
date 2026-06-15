@@ -204,20 +204,31 @@ function ReactionSheet({
   const [emoji, setEmoji] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const save = async () => {
     if (!emoji || !name) return;
     setBusy(true);
-    await setReaction(pred.id, name, emoji);
-    await onChanged();
+    setErr(null);
+    try {
+      await setReaction(pred.id, name, emoji);
+      await onChanged();
+      onClose();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
     setBusy(false);
-    onClose();
   };
 
   const remove = async (who: string) => {
     setBusy(true);
-    await removeReaction(pred.id, who);
-    await onChanged();
+    setErr(null);
+    try {
+      await removeReaction(pred.id, who);
+      await onChanged();
+    } catch (e) {
+      setErr((e as Error).message);
+    }
     setBusy(false);
   };
 
@@ -239,6 +250,12 @@ function ReactionSheet({
             </span>
           </p>
         </div>
+
+        {err && (
+          <p className="rounded-lg bg-red-500/15 px-3 py-2 text-xs text-red-300">
+            Lỗi: {err}
+          </p>
+        )}
 
         {existing.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
