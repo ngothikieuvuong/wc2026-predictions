@@ -61,17 +61,28 @@ export function parseOdds(html: string): OddsRow[] {
   return out;
 }
 
-export async function fetchOdds(): Promise<OddsRow[]> {
+// Raw fetch (status + html), shared by fetchOdds and the route's debug mode.
+export async function fetchOddsRaw(): Promise<{ status: number; html: string }> {
   const res = await fetch(SOURCE, {
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
-      "Accept-Language": "vi,en;q=0.8",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
+      "Cache-Control": "no-cache",
+      Referer: "https://kqbd.mobi/",
+      "Upgrade-Insecure-Requests": "1",
     },
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`kqbd HTTP ${res.status}`);
   const html = await res.text();
+  return { status: res.status, html };
+}
+
+export async function fetchOdds(): Promise<OddsRow[]> {
+  const { status, html } = await fetchOddsRaw();
+  if (status < 200 || status >= 300) throw new Error(`kqbd HTTP ${status}`);
   return parseOdds(html);
 }
 
