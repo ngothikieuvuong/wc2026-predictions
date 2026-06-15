@@ -83,6 +83,10 @@ export default function RulesButton({
                 </h3>
                 <ul className="list-disc space-y-1 pl-5">
                   <li>
+                    <b>Trận thuộc ngày nào:</b> trận đá <b>trước 21h</b> tính vào ngày
+                    đó; <b>từ 21h trở đi</b> tính sang <b>ngày hôm sau</b>.
+                  </li>
+                  <li>
                     Quỹ mỗi ngày = số lượt đoán trong ngày × 20.000đ.
                   </li>
                   <li>
