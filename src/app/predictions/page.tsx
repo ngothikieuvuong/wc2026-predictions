@@ -11,7 +11,7 @@ import {
   removeReaction,
 } from "@/lib/queries";
 import type { Match, Prediction, Reaction } from "@/lib/types";
-import { formatKickoff, formatShort } from "@/lib/format";
+import { formatKickoff, formatShort, isClosed } from "@/lib/format";
 import { dayKey, dayLabel } from "@/lib/day";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤡"];
@@ -122,6 +122,7 @@ function MatchCard({
   onOpen: (p: Prediction) => void;
 }) {
   const finished = match.status === "finished";
+  const live = !finished && isClosed(match.kickoff_time); // started, no score yet
   return (
     <section className="card space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -134,6 +135,11 @@ function MatchCard({
         {finished ? (
           <span className="whitespace-nowrap rounded-lg bg-white/10 px-2.5 py-1 text-sm font-bold">
             KQ: {match.home_score}–{match.away_score}
+          </span>
+        ) : live ? (
+          <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-red-500/20 px-2.5 py-0.5 text-xs font-semibold text-red-300">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
+            Đang diễn ra
           </span>
         ) : (
           <span className="whitespace-nowrap rounded-full bg-grass/20 px-2.5 py-0.5 text-xs font-semibold text-grass">
