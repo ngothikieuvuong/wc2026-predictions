@@ -26,6 +26,37 @@ const TABS = [
   { key: "bang", label: "Bảng xếp hạng" },
 ] as const;
 
+// One collapsible round section (Vòng bảng, Vòng 1/16, …).
+function RoundSection({
+  title,
+  count,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="card p-0 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-white/5"
+      >
+        <span className="font-bold">
+          {title}
+          <span className="ml-1.5 text-xs font-normal text-white/40">({count})</span>
+        </span>
+        <span className="text-white/40">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && <div className="space-y-3 px-4 pb-4">{children}</div>}
+    </div>
+  );
+}
+
 export default function GiaiTabs({
   groups,
   groupFixtures,
@@ -39,6 +70,11 @@ export default function GiaiTabs({
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("nhanh");
   const [results, setResults] = useState<Results | null>(null);
+  // Which round sections are expanded. Default: Vòng bảng open, knockout closed.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const isOpen = (k: string) => expanded[k] ?? k === "Vòng bảng";
+  const toggle = (k: string) =>
+    setExpanded((e) => ({ ...e, [k]: !isOpen(k) }));
 
   useEffect(() => {
     if (tab === "ketqua" && results === null) {
@@ -131,12 +167,16 @@ export default function GiaiTabs({
         </div>
       )}
 
-      {/* Bracket */}
+      {/* Schedule grouped by round (collapsible) */}
       {tab === "nhanh" && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {fxGroups.length > 0 && (
-            <div className="card space-y-3">
-              <h3 className="font-bold">Vòng bảng — sắp tới</h3>
+            <RoundSection
+              title="Vòng bảng"
+              count={groupFixtures.length}
+              open={isOpen("Vòng bảng")}
+              onToggle={() => toggle("Vòng bảng")}
+            >
               {fxGroups.map((g) => (
                 <div key={g.day} className="space-y-1.5">
                   <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
@@ -157,17 +197,17 @@ export default function GiaiTabs({
                   ))}
                 </div>
               ))}
-            </div>
+            </RoundSection>
           )}
 
-          {rounds.length > 0 && (
-            <p className="px-1 pt-1 text-xs font-semibold uppercase tracking-wider text-white/40">
-              Vòng loại trực tiếp
-            </p>
-          )}
           {rounds.map((round) => (
-            <div key={round.name} className="card space-y-2">
-              <h3 className="font-bold">{round.name}</h3>
+            <RoundSection
+              key={round.name}
+              title={round.name}
+              count={round.matches.length}
+              open={isOpen(round.name)}
+              onToggle={() => toggle(round.name)}
+            >
               <ul className="space-y-1.5">
                 {round.matches.map((m, i) => (
                   <li
@@ -182,8 +222,12 @@ export default function GiaiTabs({
                   </li>
                 ))}
               </ul>
-            </div>
+            </RoundSection>
           ))}
+
+          {fxGroups.length === 0 && rounds.length === 0 && (
+            <div className="card text-white/50">Chưa có lịch thi đấu.</div>
+          )}
         </div>
       )}
 
