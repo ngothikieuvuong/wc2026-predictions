@@ -11,6 +11,7 @@ import {
   removeReaction,
 } from "@/lib/queries";
 import type { Match, Prediction, Reaction } from "@/lib/types";
+import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { formatKickoff, formatShort, isClosed } from "@/lib/format";
 import { dayKey, dayLabel } from "@/lib/day";
 
@@ -116,13 +117,16 @@ function MatchCard({
   match,
   predictions,
   reactionsByPred,
+  liveScores,
   onOpen,
 }: Row & {
   reactionsByPred: Map<string, Reaction[]>;
+  liveScores: LiveScore[];
   onOpen: (p: Prediction) => void;
 }) {
   const finished = match.status === "finished";
-  const live = !finished && isClosed(match.kickoff_time); // started, no score yet
+  const started = !finished && isClosed(match.kickoff_time); // kickoff passed
+  const liveInfo = started ? findLive(liveScores, match.team1, match.team2) : null;
   return (
     <section className="card space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -136,10 +140,12 @@ function MatchCard({
           <span className="whitespace-nowrap rounded-lg bg-white/10 px-2.5 py-1 text-sm font-bold">
             KQ: {match.home_score}–{match.away_score}
           </span>
-        ) : live ? (
+        ) : started ? (
           <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-red-500/20 px-2.5 py-0.5 text-xs font-semibold text-red-300">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
-            Đang diễn ra
+            {liveInfo
+              ? `${liveInfo.t1}–${liveInfo.t2}${liveInfo.minute ? ` · ${liveInfo.minute}` : ""}`
+              : "Đang diễn ra"}
           </span>
         ) : (
           <span className="whitespace-nowrap rounded-full bg-grass/20 px-2.5 py-0.5 text-xs font-semibold text-grass">
@@ -169,11 +175,13 @@ function DayBlock({
   group,
   label,
   reactionsByPred,
+  liveScores,
   onOpen,
 }: {
   group: DayGroup;
   label?: string;
   reactionsByPred: Map<string, Reaction[]>;
+  liveScores: LiveScore[];
   onOpen: (p: Prediction) => void;
 }) {
   return (
@@ -186,6 +194,7 @@ function DayBlock({
           key={r.match.id}
           {...r}
           reactionsByPred={reactionsByPred}
+          liveScores={liveScores}
           onOpen={onOpen}
         />
       ))}
@@ -341,6 +350,7 @@ export default function PredictionsPage() {
     new Map()
   );
   const [players, setPlayers] = useState<string[]>([]);
+  const [liveScores, setLiveScores] = useState<LiveScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOld, setShowOld] = useState(false);
   const [target, setTarget] = useState<{
@@ -353,14 +363,16 @@ export default function PredictionsPage() {
 
   useEffect(() => {
     (async () => {
-      const [r, rx, pl] = await Promise.all([
+      const [r, rx, pl, lv] = await Promise.all([
         getPredictionsByMatch(),
         getReactionsByPrediction(),
         getPlayers(),
+        getLive(),
       ]);
       setRows(r);
       setReactionsByPred(rx);
       setPlayers(pl);
+      setLiveScores(lv);
       setLoading(false);
     })();
   }, []);
@@ -425,6 +437,7 @@ export default function PredictionsPage() {
               key={g.day}
               group={g}
               reactionsByPred={reactionsByPred}
+              liveScores={liveScores}
               onOpen={onOpen}
             />
           ))}
@@ -435,6 +448,7 @@ export default function PredictionsPage() {
                 group={justEnded}
                 label={`Vừa kết thúc · Ngày ${dayLabel(justEnded.day)}`}
                 reactionsByPred={reactionsByPred}
+                liveScores={liveScores}
                 onOpen={onOpen}
               />
             </div>
@@ -454,6 +468,7 @@ export default function PredictionsPage() {
                     <DayBlock
                       group={g}
                       reactionsByPred={reactionsByPred}
+                      liveScores={liveScores}
                       onOpen={onOpen}
                     />
                   </div>

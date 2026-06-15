@@ -69,9 +69,50 @@ export function viTeam(code: string | null | undefined): string {
 
 type FifaMatch = {
   MatchStatus: number; // 0 = finished, 1 = scheduled, 3 = live
+  MatchTime?: string; // e.g. "67'"
   Home?: { IdCountry?: string; Score?: number | null };
   Away?: { IdCountry?: string; Score?: number | null };
 };
+
+const FIFA_MATCHES_URL =
+  `https://api.fifa.com/api/v3/calendar/matches?language=en&count=200` +
+  `&idCompetition=${FIFA_COMPETITION}&idSeason=${FIFA_SEASON}` +
+  `&from=2026-06-01T00:00:00Z&to=2026-07-31T00:00:00Z`;
+
+export type LiveScore = {
+  home: string; // Vietnamese team name
+  away: string;
+  homeScore: number;
+  awayScore: number;
+  minute: string; // "67'" or ""
+};
+
+// Currently in-play matches (MatchStatus 3) with their live score + minute.
+// Display only — settlement still uses finalised scores via syncFifaResults.
+export async function getLiveScores(): Promise<LiveScore[]> {
+  const res = await fetch(FIFA_MATCHES_URL, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`FIFA API ${res.status}`);
+  const json = await res.json();
+  const results: FifaMatch[] = json.Results ?? [];
+  const out: LiveScore[] = [];
+  for (const fm of results) {
+    if (fm.MatchStatus !== 3) continue; // live only
+    const homeVI = CODE_TO_VI[fm.Home?.IdCountry ?? ""];
+    const awayVI = CODE_TO_VI[fm.Away?.IdCountry ?? ""];
+    if (!homeVI || !awayVI) continue;
+    out.push({
+      home: homeVI,
+      away: awayVI,
+      homeScore: Number(fm.Home?.Score ?? 0),
+      awayScore: Number(fm.Away?.Score ?? 0),
+      minute: typeof fm.MatchTime === "string" ? fm.MatchTime : "",
+    });
+  }
+  return out;
+}
 
 const pairKey = (a: string, b: string) =>
   [a.toLowerCase(), b.toLowerCase()].sort().join(" | ");
