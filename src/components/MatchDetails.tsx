@@ -27,10 +27,6 @@ function OddsSection({ team1, team2 }: { team1: string; team2: string }) {
         Tỷ lệ kèo (tham khảo)
       </p>
       <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
-        <p className="text-[11px] text-white/40">
-          Nguồn kqbd.mobi · {odds.home} vs {odds.away}
-          {odds.hour ? ` · ${odds.day} ${odds.hour}` : ""}
-        </p>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs text-white/50">Kèo chấp ({odds.hcLine || "–"})</p>
