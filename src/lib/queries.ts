@@ -367,6 +367,18 @@ export async function getCorrectPredictions(): Promise<
   return out;
 }
 
+// Existing predictions for one match (to show others' picks on the predict form).
+export async function getPredictionsForMatch(
+  matchId: string
+): Promise<Prediction[]> {
+  const { data } = await supabase
+    .from("predictions")
+    .select("*")
+    .eq("match_id", matchId)
+    .order("created_at", { ascending: true });
+  return (data as Prediction[]) ?? [];
+}
+
 // Roster of player names (for the predict dropdown), in the order added.
 export async function getPlayers(): Promise<string[]> {
   const { data } = await supabase

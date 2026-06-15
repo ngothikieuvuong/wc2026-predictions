@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { getOpenMatches, getPlayers, addPlayer } from "@/lib/queries";
-import type { Match } from "@/lib/types";
+import {
+  getOpenMatches,
+  getPlayers,
+  addPlayer,
+  getPredictionsForMatch,
+} from "@/lib/queries";
+import type { Match, Prediction } from "@/lib/types";
 import { formatKickoff, isClosed } from "@/lib/format";
 import { matchHint } from "@/lib/strength";
 import TeamInfoButton from "@/components/TeamInfoButton";
@@ -22,6 +27,7 @@ export default function PredictPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [others, setOthers] = useState<Prediction[]>([]);
 
   // Effective player name: typed (new) or picked from the roster.
   const name = picked === NEW_PLAYER ? newName : picked;
@@ -34,6 +40,19 @@ export default function PredictPage() {
       setLoading(false);
     })();
   }, []);
+
+  // Load others' predictions whenever the selected match changes.
+  useEffect(() => {
+    if (!matchId) {
+      setOthers([]);
+      return;
+    }
+    let alive = true;
+    getPredictionsForMatch(matchId).then((p) => alive && setOthers(p));
+    return () => {
+      alive = false;
+    };
+  }, [matchId]);
 
   const selected = matches.find((m) => m.id === matchId);
   const closed = selected ? isClosed(selected.kickoff_time) : false;
@@ -196,6 +215,27 @@ export default function PredictPage() {
                 onChange={(e) => setAway(e.target.value)}
               />
             </div>
+          </div>
+        )}
+
+        {selected && others.length > 0 && (
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
+              Người khác đã đoán ({others.length})
+            </p>
+            <ul className="divide-y divide-white/5">
+              {others.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between py-1.5 text-sm"
+                >
+                  <span className="font-medium">{p.player_name}</span>
+                  <span className="font-mono font-bold">
+                    {p.predicted_home}–{p.predicted_away}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
