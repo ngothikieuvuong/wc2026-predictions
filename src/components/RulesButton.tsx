@@ -49,6 +49,10 @@ export default function RulesButton({
                     nhập tỉ số (đội nhà : đội khách) → <b>Chốt lượt đoán</b>.
                   </li>
                   <li>
+                    Chỉ những trận <b>Ban tổ chức mở cho đoán</b> mới hiện trong danh
+                    sách chọn.
+                  </li>
+                  <li>
                     Mỗi lượt đoán <b>góp 20.000đ</b> vào quỹ. Đoán được nhiều trận —
                     mỗi trận một lượt.
                   </li>
@@ -92,6 +96,10 @@ export default function RulesButton({
                     những ngày họ <b>đã tham gia</b> (chia theo tổng lượt họ đặt ở các
                     ngày đó). Ngày treo mà người trúng không tham gia → <b>vẫn treo</b>
                     cho lần sau.
+                  </li>
+                  <li>
+                    Quỹ một ngày được <b>chốt ngay sau khi trận cuối của ngày kết
+                    thúc</b> (không phải chờ tới cuối ngày).
                   </li>
                 </ul>
 
@@ -139,16 +147,27 @@ export default function RulesButton({
               </section>
 
               <section>
-                <h3 className="mb-1 font-bold text-grass">4. Tham khảo</h3>
+                <h3 className="mb-1 font-bold text-grass">4. Xem & tham khảo</h3>
                 <ul className="list-disc space-y-1 pl-5">
-                  <li>Kết quả các trận tự cập nhật theo lịch chính thức.</li>
                   <li>
-                    Khi chọn trận, app gợi ý <b>đội nào mạnh hơn</b> (theo hạng FIFA)
-                    để bạn tham khảo — chỉ mang tính tham khảo.
+                    Tỉ số <b>tự cập nhật khi mở lại / làm mới trang</b> — không cần
+                    bấm gì.
                   </li>
                   <li>
-                    Xem ai đang lời/lỗ ở tab <b>Tổng kết</b>, ai đoán gì ở tab{" "}
-                    <b>Mọi người</b>.
+                    Trang chủ hiện các trận <b>đang diễn ra</b> kèm tỉ số trực tiếp.
+                  </li>
+                  <li>
+                    Bấm vào một trận để xem: <b>hạng FIFA</b>, đội hình dự kiến, cầu
+                    thủ bị treo giò; <b>trước trận</b> có tỉ lệ tham khảo; <b>khi đang
+                    đá</b> hiện tỉ số trực tiếp + diễn biến (bàn thắng, thẻ).
+                  </li>
+                  <li>
+                    Ở tab <b>Mọi người</b>, <b>nhấn giữ</b> một lượt đoán để thả cảm
+                    xúc.
+                  </li>
+                  <li>
+                    Xem ai đang lời/lỗ ở tab <b>Tổng kết</b> — bấm vào <b>tên</b> để
+                    xem lịch sử dự đoán của người đó.
                   </li>
                 </ul>
               </section>
