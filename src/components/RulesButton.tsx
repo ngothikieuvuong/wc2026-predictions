@@ -102,8 +102,9 @@ export default function RulesButton({
                     cho lần sau.
                   </li>
                   <li>
-                    Quỹ một ngày được <b>chốt ngay sau khi trận cuối của ngày kết
-                    thúc</b> (không phải chờ tới cuối ngày).
+                    Quỹ một ngày được <b>chốt ngay sau khi trận sau cùng (trong số
+                    các trận được mở cho đoán của ngày đó) kết thúc</b> — không phải
+                    chờ tới cuối ngày.
                   </li>
                 </ul>
 

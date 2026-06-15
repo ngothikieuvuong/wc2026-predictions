@@ -45,8 +45,13 @@ export async function computeSettlement(): Promise<SettleResult> {
   const preds = (predsData as Prediction[]) ?? [];
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
+  // A day settles once the last match PEOPLE PREDICTED that day finishes — i.e.
+  // the last of the matches opened for prediction in play, not every fixture on
+  // the calendar that day.
+  const predictedIds = new Set(preds.map((p) => p.match_id));
   const matchesByDay = new Map<string, Match[]>();
   for (const m of matches) {
+    if (!predictedIds.has(m.id)) continue;
     const d = dayKey(m.kickoff_time);
     if (!matchesByDay.has(d)) matchesByDay.set(d, []);
     matchesByDay.get(d)!.push(m);

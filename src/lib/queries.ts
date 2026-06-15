@@ -181,8 +181,12 @@ export async function getFundByDay(): Promise<
   const active = activeDay(M, P);
   const byId = new Map(M.map((m) => [m.id, m]));
 
+  // Only matches people predicted count toward "is this day finished" — the
+  // matches opened for prediction in play, not every fixture on the calendar.
+  const predictedIds = new Set(P.map((p) => p.match_id));
   const matchesByDay = new Map<string, Match[]>();
   for (const m of M) {
+    if (!predictedIds.has(m.id)) continue;
     const d = dayKey(m.kickoff_time);
     if (!matchesByDay.has(d)) matchesByDay.set(d, []);
     matchesByDay.get(d)!.push(m);
