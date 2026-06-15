@@ -66,6 +66,86 @@ async function teamSuspensions(
   return [...out.values()];
 }
 
+// ---- Live match detail (score, minute, goals, cards, possession) -----------
+
+export type LiveGoal = { player: string; minute: string; note?: string };
+export type LiveCard = { player: string; minute: string; red: boolean };
+export type TeamLiveDetail = {
+  name: string;
+  score: number;
+  goals: LiveGoal[];
+  cards: LiveCard[];
+};
+export type MatchLive =
+  | {
+      found: true;
+      status: number; // FIFA: 0 finished, 1 scheduled, 3 live
+      minute: string;
+      possession: { home: number; away: number } | null;
+      home: TeamLiveDetail;
+      away: TeamLiveDetail;
+    }
+  | { found: false };
+
+const CAL_URL =
+  "https://api.fifa.com/api/v3/calendar/matches?language=en&count=200" +
+  "&idCompetition=17&idSeason=285023&from=2026-06-01T00:00:00Z&to=2026-07-31T00:00:00Z";
+
+export async function getMatchLive(
+  team1: string,
+  team2: string
+): Promise<MatchLive> {
+  const cal = await (await fetch(CAL_URL, { headers: UA, next: { revalidate: 60 } })).json();
+  const all: any[] = cal.Results ?? [];
+  const want = pairKey(team1, team2);
+  const fm = all.find((m) => {
+    const h = viTeam(m.Home?.IdCountry);
+    const a = viTeam(m.Away?.IdCountry);
+    return h && a && pairKey(h, a) === want;
+  });
+  if (!fm) return { found: false };
+
+  const live = await (
+    await fetch(liveUrl(fm.IdStage, fm.IdMatch), { headers: UA, next: { revalidate: 30 } })
+  ).json();
+
+  const buildSide = (side: any, viName: string): TeamLiveDetail => {
+    const byId = new Map<string, string>(
+      (side?.Players ?? []).map((p: any) => [p.IdPlayer, playerName(p)])
+    );
+    const nm2 = (id: string) => byId.get(id) ?? "?";
+    const goals: LiveGoal[] = (side?.Goals ?? []).map((g: any) => ({
+      player: nm2(g.IdPlayer),
+      minute: g.Minute ?? "",
+      note: g.Type === 2 ? "pen" : g.Type === 3 ? "phản lưới" : undefined,
+    }));
+    const cards: LiveCard[] = (side?.Bookings ?? []).map((b: any) => ({
+      player: nm2(b.IdPlayer),
+      minute: b.Minute ?? "",
+      red: b.Card >= 2,
+    }));
+    return { name: viName, score: Number(side?.Score ?? 0), goals, cards };
+  };
+
+  // Ball possession comes in a few shapes across FIFA feeds; read defensively.
+  let possession: { home: number; away: number } | null = null;
+  const bp = live.BallPossession;
+  if (bp && typeof bp.OverallHome === "number" && typeof bp.OverallAway === "number") {
+    possession = { home: Math.round(bp.OverallHome), away: Math.round(bp.OverallAway) };
+  } else if (bp && typeof bp.Home === "number" && typeof bp.Away === "number") {
+    possession = { home: Math.round(bp.Home), away: Math.round(bp.Away) };
+  }
+
+  return {
+    found: true,
+    status: typeof live.MatchStatus === "number" ? live.MatchStatus : fm.MatchStatus,
+    minute: typeof live.MatchTime === "string" ? live.MatchTime : fm.MatchTime ?? "",
+    possession,
+    home: buildSide(live.HomeTeam, viTeam(fm.Home?.IdCountry)),
+    away: buildSide(live.AwayTeam, viTeam(fm.Away?.IdCountry)),
+  };
+}
+
 export async function getMatchInfo(team1: string, team2: string): Promise<MatchInfo> {
   const calUrl =
     "https://api.fifa.com/api/v3/calendar/matches?language=en&count=200" +

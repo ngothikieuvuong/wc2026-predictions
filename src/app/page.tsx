@@ -10,6 +10,7 @@ import {
 } from "@/lib/queries";
 import { formatVND, formatKickoff } from "@/lib/format";
 import { dayLabel } from "@/lib/day";
+import { getLive, type LiveScore } from "@/lib/liveClient";
 import MatchInfoButton from "@/components/MatchInfoButton";
 
 export default function HomePage() {
@@ -23,19 +24,22 @@ export default function HomePage() {
   const [winner, setWinner] = useState<Awaited<
     ReturnType<typeof getLatestWinner>
   > | null>(null);
+  const [live, setLive] = useState<LiveScore[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadData() {
-    const [j, f, s, w] = await Promise.all([
+    const [j, f, s, w, lv] = await Promise.all([
       getJackpot(),
       getFundByDay(),
       getUpcomingByDay(),
       getLatestWinner(),
+      getLive(),
     ]);
     setJackpot(j);
     setFundByDay(f);
     setSoon(s);
     setWinner(w);
+    setLive(lv);
     setLoading(false);
   }
 
@@ -82,6 +86,42 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
+      {/* Live matches */}
+      {live.length > 0 && (
+        <section className="card">
+          <h2 className="mb-3 flex items-center gap-2 text-sm uppercase tracking-widest text-white/50">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-400" />
+            Đang diễn ra
+          </h2>
+          <div className="space-y-2">
+            {live.map((m, i) => (
+              <MatchInfoButton
+                key={i}
+                team1={m.home}
+                team2={m.away}
+                started
+              >
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 transition hover:border-red-500/50">
+                  <div className="font-bold">
+                    {m.home} <span className="text-white/40">gặp</span> {m.away}
+                  </div>
+                  <div className="flex items-center gap-2 whitespace-nowrap">
+                    <span className="font-mono text-lg font-extrabold">
+                      {m.homeScore}–{m.awayScore}
+                    </span>
+                    {m.minute && (
+                      <span className="text-xs font-semibold text-red-300">
+                        {m.minute}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </MatchInfoButton>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Upcoming matches, grouped by game-day */}
       <section className="card">

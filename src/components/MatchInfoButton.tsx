@@ -7,10 +7,12 @@ import MatchDetails from "@/components/MatchDetails";
 export default function MatchInfoButton({
   team1,
   team2,
+  started = false,
   children,
 }: {
   team1: string;
   team2: string;
+  started?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -45,7 +47,7 @@ export default function MatchInfoButton({
                 </button>
               </div>
 
-              <MatchDetails team1={team1} team2={team2} />
+              <MatchDetails team1={team1} team2={team2} started={started} />
 
               <button className="btn mt-4 w-full" onClick={() => setOpen(false)}>
                 Đóng
