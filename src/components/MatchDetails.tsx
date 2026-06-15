@@ -2,9 +2,59 @@
 
 import { useEffect, useState } from "react";
 import { getTeamInfo } from "@/lib/queries";
+import { getOdds, findOdds, type OddsRow } from "@/lib/oddsClient";
 import LineupView from "@/components/LineupView";
 
 type Info = Awaited<ReturnType<typeof getTeamInfo>>;
+
+// Reference odds (kèo chấp / tài xỉu) from kqbd.mobi for this match, if listed.
+function OddsSection({ team1, team2 }: { team1: string; team2: string }) {
+  const [odds, setOdds] = useState<OddsRow | null | undefined>(undefined);
+
+  useEffect(() => {
+    let alive = true;
+    getOdds().then((rows) => alive && setOdds(findOdds(rows, team1, team2)));
+    return () => {
+      alive = false;
+    };
+  }, [team1, team2]);
+
+  if (!odds) return null; // loading or not listed → hide
+
+  return (
+    <div className="border-t border-white/10 pt-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+        Tỷ lệ kèo (tham khảo)
+      </p>
+      <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
+        <p className="text-[11px] text-white/40">
+          Nguồn kqbd.mobi · {odds.home} vs {odds.away}
+          {odds.hour ? ` · ${odds.day} ${odds.hour}` : ""}
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs text-white/50">Kèo chấp ({odds.hcLine || "–"})</p>
+            <p>
+              {odds.home}: <b>{odds.hcHome || "–"}</b>
+            </p>
+            <p>
+              {odds.away}: <b>{odds.hcAway || "–"}</b>
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-white/50">Tài xỉu ({odds.ouLine || "–"})</p>
+            <p>
+              Tài: <b>{odds.over || "–"}</b>
+            </p>
+            <p>
+              Xỉu: <b>{odds.under || "–"}</b>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Shared popup body: FIFA rank + tournament form of both teams, then lineups +
 // card suspensions. Used by the home match popup and the predict "Thêm thông tin".
@@ -76,6 +126,9 @@ export default function MatchDetails({
           ))}
         </div>
       )}
+
+      {/* Reference odds */}
+      <OddsSection team1={team1} team2={team2} />
 
       {/* Lineups + card suspensions */}
       <div className="border-t border-white/10 pt-3">
