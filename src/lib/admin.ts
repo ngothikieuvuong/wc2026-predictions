@@ -28,13 +28,12 @@ export type SettleResult = {
   net: { name: string; value: number }[];
   // Days already paid out (winner days + carried no-winner days).
   paidDates: string[];
-  // Win vs refund split (winners = đoán trúng tỉ số; refunds = hoàn theo slot).
+  // Payout split: winners (đoán trúng tỉ số) + leftover kept as treo (carried).
   breakdown: {
-    fund: number;
-    winTotal: number;
-    refundTotal: number;
+    fund: number; // total settled fund
+    winTotal: number; // paid to winners
+    carried: number; // leftover kept as quỹ treo for the next settlement
     winners: { name: string; correct: number; amount: number }[];
-    refunds: { name: string; amount: number }[];
   };
 };
 
@@ -43,11 +42,11 @@ export type SettleResult = {
 //  - Each prediction = 1 slot (20k). A day's pot = its slots × 20k.
 //  - Process days chronologically; stop at the first day not fully finished.
 //  - No-winner days accumulate (treo) into a pool with the following days.
-//  - At the first day with a winner, settle the whole pool (see settlePool):
-//    split by win-ratio (correct scores that day) capped by each winner's max
-//    claim (Σ slots × players × stake over the pool days they played), scaled
-//    down to the fund, with any leftover refunded to everyone by slots — so the
-//    pool is always fully paid out. Trailing no-winner days stay treo.
+//  - At the first day with a winner, settle the pool (see settlePool): winners
+//    take min(fund, Σ winner max-claim) split by win-ratio (correct scores that
+//    day). The leftover is NOT refunded — it is carried forward as treo (with
+//    the pool's slot/player info) into the next pool and distributed there by
+//    the same formula. Trailing no-winner days + the final leftover stay treo.
 export async function computeSettlement(): Promise<SettleResult> {
   const [{ data: matchesData }, { data: predsData }] = await Promise.all([
     supabase.from("matches").select("*"),
@@ -75,6 +74,7 @@ export async function computeSettlement(): Promise<SettleResult> {
     totalSlots: number;
     slots: Map<string, number>; // name -> slots placed that day
     correct: Map<string, number>; // name -> correct slots that day
+    carryFund?: number; // for a synthetic "carried treo" day: its fund = leftover
   };
 
   const infos: DayInfo[] = [...matchesByDay.keys()].sort().map((d) => {
@@ -106,32 +106,25 @@ export async function computeSettlement(): Promise<SettleResult> {
   const addPay = (name: string, date: string, amount: number) =>
     pay.set(name + "|" + date, (pay.get(name + "|" + date) ?? 0) + amount);
 
-  // Breakdown of win vs refund (for the admin congrats + Tổng kết history).
+  // Win breakdown (for the admin congrats + Tổng kết history).
   const winBy = new Map<string, number>();
-  const refundBy = new Map<string, number>();
   const correctBy = new Map<string, number>();
-  let fundTotal = 0;
 
-  // Distribute one settled pool (carried no-winner days + the winning day):
-  //  - winners split by win-ratio (their correct scores on the winning day),
-  //  - but the winners collectively can absorb at most their total "max claim"
-  //    (Σ over pool days they played of slots × players that day × stake),
-  //  - they take min(fund, Σ winner max claim), split by win-ratio,
-  //  - any leftover is refunded to EVERYONE proportional to slots placed.
-  // The whole pool is always paid out — nothing stays treo.
-  const settlePool = (poolDays: DayInfo[], winDay: DayInfo) => {
-    const totalSlots = poolDays.reduce((s, d) => s + d.totalSlots, 0);
-    const totalFund = totalSlots * STAKE;
-    fundTotal += totalFund;
+  const fundOf = (d: DayInfo) => d.carryFund ?? d.totalSlots * STAKE;
 
-    const personSlots = new Map<string, number>();
+  // Settle one pool (carried treo + no-winner days + the winning day): winners
+  // take min(fund, Σ winner max-claim) split by win-ratio (correct scores on the
+  // winning day). The leftover is NOT refunded — it is returned to the caller to
+  // be carried forward (treo) into the next pool, keeping the pool's slot/player
+  // info so the next settlement can apply the same formula. Returns the leftover.
+  const settlePool = (poolDays: DayInfo[], winDay: DayInfo): number => {
+    const totalFund = poolDays.reduce((s, d) => s + fundOf(d), 0);
+
     const maxClaim = new Map<string, number>();
     for (const d of poolDays) {
       const numPlayers = d.slots.size; // distinct players that day
-      for (const [name, sl] of d.slots) {
-        personSlots.set(name, (personSlots.get(name) ?? 0) + sl);
+      for (const [name, sl] of d.slots)
         maxClaim.set(name, (maxClaim.get(name) ?? 0) + sl * numPlayers * STAKE);
-      }
     }
 
     // Winners + win-ratio from the winning day's correct scores only.
@@ -154,31 +147,45 @@ export async function computeSettlement(): Promise<SettleResult> {
       paidWinners += w;
     }
 
-    // Refund leftover to everyone proportional to slots placed in the pool.
-    const leftover = Math.max(0, totalFund - paidWinners);
-    const perSlot = totalSlots > 0 ? leftover / totalSlots : 0;
-    if (perSlot > 0) {
-      for (const [name, sl] of personSlots) {
-        addPay(name, winDay.date, sl * perSlot);
-        refundBy.set(name, (refundBy.get(name) ?? 0) + sl * perSlot);
-      }
-    }
+    return Math.max(0, totalFund - paidWinners); // leftover → carried (treo)
+  };
+
+  // A carried treo day: its fund = leftover, but it keeps the pool's per-person
+  // slots + player count so the next settlement's max-claim formula still works.
+  const makeCarry = (poolDays: DayInfo[], date: string, leftover: number): DayInfo => {
+    const slots = new Map<string, number>();
+    for (const d of poolDays)
+      for (const [name, sl] of d.slots)
+        slots.set(name, (slots.get(name) ?? 0) + sl);
+    const totalSlots = [...slots.values()].reduce((a, b) => a + b, 0);
+    return { date, finished: true, totalSlots, slots, correct: new Map(), carryFund: leftover };
   };
 
   let pool: DayInfo[] = []; // accumulated days with no winner yet (treo)
-  const settled: DayInfo[] = [];
+  const paidReal = new Set<string>(); // real days whose pot has been settled
+  let settledFund = 0; // total real money that entered settled pools
 
   for (const info of infos) {
     if (!info.finished) break; // chronological — wait for the day's results
-    settled.push(info);
     pool.push(info);
     const hasWinner = [...info.correct.values()].some((c) => c > 0);
     if (!hasWinner) continue; // keep accumulating to the next day
-    settlePool(pool, info);
-    pool = []; // pool fully distributed
+    const leftover = settlePool(pool, info);
+    for (const d of pool) {
+      if (d.carryFund !== undefined) continue; // skip the synthetic carry day
+      paidReal.add(d.date);
+      settledFund += d.totalSlots * STAKE;
+    }
+    // Carry the leftover forward (treo) instead of refunding it.
+    pool = leftover > 0 ? [makeCarry(pool, info.date, leftover)] : [];
   }
 
-  const pending: DayInfo[] = pool; // trailing no-winner days still treo
+  // What's left after the last winning day: real no-winner days (shown per-day)
+  // + any carried treo amount (kept in the fund for the next settlement).
+  const pendingReal = pool.filter((d) => d.carryFund === undefined);
+  const carried = pool
+    .filter((d) => d.carryFund !== undefined)
+    .reduce((s, d) => s + (d.carryFund ?? 0), 0);
 
   const payouts = [...pay.entries()].map(([k, amount]) => {
     const [player_name, pay_date] = k.split("|");
@@ -186,17 +193,18 @@ export async function computeSettlement(): Promise<SettleResult> {
   });
 
   const totalPaid = payouts.reduce((s, p) => s + p.amount, 0);
-  const pendingOut = pending.map((e) => ({ date: e.date, pot: e.totalSlots * STAKE }));
+  const pendingOut = pendingReal.map((e) => ({
+    date: e.date,
+    pot: e.totalSlots * STAKE,
+  }));
 
-  // Net per person from resolved days (settled days whose money was distributed,
-  // i.e. settled days no longer pending). net = received − stake in those days.
-  const pendingDates = new Set(pending.map((e) => e.date));
+  // Net per person from resolved (paid) real days. net = received − stake.
   const received = new Map<string, number>();
   for (const p of payouts)
     received.set(p.player_name, (received.get(p.player_name) ?? 0) + p.amount);
   const resolvedStake = new Map<string, number>();
-  for (const info of settled) {
-    if (pendingDates.has(info.date)) continue; // still treo → not resolved
+  for (const info of infos) {
+    if (!paidReal.has(info.date)) continue;
     for (const [name, slots] of info.slots)
       resolvedStake.set(name, (resolvedStake.get(name) ?? 0) + slots * STAKE);
   }
@@ -206,28 +214,23 @@ export async function computeSettlement(): Promise<SettleResult> {
     value: (received.get(name) ?? 0) - (resolvedStake.get(name) ?? 0),
   }));
 
-  // Days whose pot has been distributed (winner days + carried no-winner days).
-  const paidDates = settled
-    .filter((s) => !pendingDates.has(s.date))
-    .map((s) => s.date);
+  // Days whose pot has been settled (winner days + carried no-winner days).
+  const paidDates = [...paidReal];
   const settledDays = paidDates.length;
 
-  // Win vs refund breakdown.
+  // Win breakdown + carried treo.
   const round = (n: number) => Math.round(n);
+  const winTotal = round([...winBy.values()].reduce((s, v) => s + v, 0));
   const breakdown = {
-    fund: round(fundTotal),
-    winTotal: round([...winBy.values()].reduce((s, v) => s + v, 0)),
-    refundTotal: round([...refundBy.values()].reduce((s, v) => s + v, 0)),
+    fund: round(settledFund),
+    winTotal,
+    carried: round(carried),
     winners: [...winBy.entries()]
       .map(([name, amount]) => ({
         name,
         correct: correctBy.get(name) ?? 0,
         amount: round(amount),
       }))
-      .sort((a, b) => b.amount - a.amount),
-    refunds: [...refundBy.entries()]
-      .map(([name, amount]) => ({ name, amount: round(amount) }))
-      .filter((r) => r.amount > 0)
       .sort((a, b) => b.amount - a.amount),
   };
 

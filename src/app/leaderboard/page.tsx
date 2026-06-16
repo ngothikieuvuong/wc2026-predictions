@@ -119,7 +119,13 @@ export default function StatsPage() {
             <p className="text-xs text-white/50">
               Tổng quỹ <b className="text-white/80">{formatVND(breakdown.fund)}</b> →
               thưởng <b className="text-neon">{formatVND(breakdown.winTotal)}</b> cho
-              người trúng, hoàn <b>{formatVND(breakdown.refundTotal)}</b> theo slot.
+              người trúng
+              {breakdown.carried > 0 && (
+                <>
+                  , còn <b>{formatVND(breakdown.carried)}</b> giữ làm quỹ treo
+                </>
+              )}
+              .
             </p>
 
             <div className="space-y-1">
@@ -142,27 +148,11 @@ export default function StatsPage() {
               </ul>
             </div>
 
-            {breakdown.refunds.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-                  ↩ Hoàn lại theo slot
-                </p>
-                <ul className="divide-y divide-white/5">
-                  {breakdown.refunds.map((r) => (
-                    <li
-                      key={r.name}
-                      className="flex items-center justify-between py-1 text-xs text-white/60"
-                    >
-                      <span>{r.name}</span>
-                      <span>{formatVND(r.amount)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-[11px] text-white/40">
-                  Phần quỹ người trúng không ôm hết được hoàn cho mọi người theo số
-                  slot đã đặt.
-                </p>
-              </div>
+            {breakdown.carried > 0 && (
+              <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-[11px] text-amber-300">
+                Còn <b>{formatVND(breakdown.carried)}</b> giữ làm <b>quỹ treo</b> —
+                cộng vào đợt tất toán sau, chia theo công thức bình thường.
+              </p>
             )}
           </div>
         </div>

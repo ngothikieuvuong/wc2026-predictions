@@ -91,8 +91,9 @@ export default function RulesButton({
                     <b>Giới hạn “ăn trọn”:</b> mỗi người có <b>mức ăn tối đa</b> tùy số
                     slot đã chơi và số người chơi — <b>chơi càng nhiều, trần càng cao</b>.
                     Nếu người trúng không ôm hết quỹ (vd chỉ chơi 1–2 trận mà quỹ treo
-                    lớn), phần <b>dư được hoàn lại cho mọi người theo số slot</b> đã đặt.
-                    → <b>Quỹ luôn chia hết</b>, không ai chơi ít mà ăn trọn jackpot.
+                    lớn), phần <b>dư được giữ lại làm quỹ treo</b> và <b>cộng dồn sang
+                    đợt tất toán sau</b> (chia theo công thức bình thường). → không ai
+                    chơi ít mà ăn trọn jackpot.
                   </li>
                 </ul>
 

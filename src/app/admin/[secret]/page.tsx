@@ -183,8 +183,14 @@ function AdminPanel() {
             <p className="text-xs text-white/50">
               Quỹ {formatVND(review.breakdown.fund)} → thưởng{" "}
               <b className="text-neon">{formatVND(review.breakdown.winTotal)}</b> cho
-              người trúng, hoàn{" "}
-              <b>{formatVND(review.breakdown.refundTotal)}</b> theo slot.
+              người trúng
+              {review.breakdown.carried > 0 && (
+                <>
+                  , còn <b>{formatVND(review.breakdown.carried)}</b> giữ làm quỹ treo
+                  cho đợt sau
+                </>
+              )}
+              .
             </p>
 
             {review.breakdown.winners.length === 0 ? (
@@ -220,26 +226,12 @@ function AdminPanel() {
               </div>
             )}
 
-            {review.breakdown.refunds.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-                  ↩ Hoàn theo slot ({review.breakdown.refunds.length} người)
-                </p>
-                <ul className="divide-y divide-white/5">
-                  {review.breakdown.refunds.map((r) => (
-                    <li
-                      key={r.name}
-                      className="flex items-center justify-between py-1 text-xs text-white/60"
-                    >
-                      <span>{r.name}</span>
-                      <span>{formatVND(r.amount)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-[11px] text-white/40">
-                  Phần quỹ người trúng không ôm hết được hoàn lại theo số slot đã đặt.
-                </p>
-              </div>
+            {review.breakdown.carried > 0 && (
+              <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
+                Người trúng không ôm hết quỹ — còn{" "}
+                <b>{formatVND(review.breakdown.carried)}</b> giữ làm <b>quỹ treo</b>,
+                sẽ cộng vào đợt tất toán sau (chia theo công thức bình thường).
+              </p>
             )}
 
             {review.pending.length > 0 && (
