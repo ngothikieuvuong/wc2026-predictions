@@ -71,21 +71,26 @@ export default function HomePage() {
     const row = predByPair.get(pairKey(m.home, m.away));
     const li = row ? findLive(live, row.match.team1, row.match.team2) : null;
     if (!row || !li) return [];
-    return row.predictions.map((p) => {
-      const status =
-        p.predicted_home === li.t1 && p.predicted_away === li.t2
-          ? "exact"
-          : p.predicted_home >= li.t1 && p.predicted_away >= li.t2
-          ? "possible"
-          : "gone";
-      return {
-        id: p.id,
-        name: p.player_name,
-        ph: p.predicted_home,
-        pa: p.predicted_away,
-        status: status as "exact" | "possible" | "gone",
-      };
-    });
+    return row.predictions
+      .map((p) => {
+        const reachable =
+          p.predicted_home >= li.t1 && p.predicted_away >= li.t2;
+        const exact = p.predicted_home === li.t1 && p.predicted_away === li.t2;
+        const status = exact ? "exact" : reachable ? "possible" : "gone";
+        // Distance = extra goals still needed (closest to winning = smallest).
+        const dist = reachable
+          ? p.predicted_home - li.t1 + (p.predicted_away - li.t2)
+          : Infinity;
+        return {
+          id: p.id,
+          name: p.player_name,
+          ph: p.predicted_home,
+          pa: p.predicted_away,
+          status: status as "exact" | "possible" | "gone",
+          dist,
+        };
+      })
+      .sort((a, b) => a.dist - b.dist); // closest to winning first
   };
 
   useEffect(() => {

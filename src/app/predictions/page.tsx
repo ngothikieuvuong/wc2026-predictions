@@ -178,6 +178,24 @@ function MatchCard({
       )
     : false;
   const allMiss = !!liveInfo && predictions.length > 0 && !stillAlive;
+
+  // Closest-to-winning first (live: extra goals still needed; finished: gap to
+  // the final score; upcoming: keep original order).
+  const closeness = (p: Prediction) => {
+    if (liveInfo) {
+      return p.predicted_home >= liveInfo.t1 && p.predicted_away >= liveInfo.t2
+        ? p.predicted_home - liveInfo.t1 + (p.predicted_away - liveInfo.t2)
+        : Infinity;
+    }
+    if (finished && match.home_score != null && match.away_score != null) {
+      return (
+        Math.abs(p.predicted_home - match.home_score) +
+        Math.abs(p.predicted_away - match.away_score)
+      );
+    }
+    return 0;
+  };
+  const sortedPreds = [...predictions].sort((a, b) => closeness(a) - closeness(b));
   return (
     <section className="card space-y-3">
       <MatchInfoButton
@@ -224,7 +242,7 @@ function MatchCard({
       )}
 
       <ul className="divide-y divide-white/5">
-        {predictions.map((p) => (
+        {sortedPreds.map((p) => (
           <PredRow
             key={p.id}
             match={match}
