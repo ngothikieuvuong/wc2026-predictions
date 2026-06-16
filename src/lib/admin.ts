@@ -189,8 +189,12 @@ const normNet = (arr: { name: string; value: number }[]) =>
     )
   );
 
-// Log a settlement event (cumulative net snapshot) — skips if unchanged.
-export async function logSettlement(net: SettleResult["net"]): Promise<void> {
+// Log a settlement event (cumulative net snapshot + the rewards snapshot taken
+// before this settlement, so it can be reverted later). Skips if net unchanged.
+export async function logSettlement(
+  net: SettleResult["net"],
+  prevRewards: Reward[]
+): Promise<void> {
   const { data: last } = await supabase
     .from("settlements")
     .select("cum")
@@ -201,7 +205,9 @@ export async function logSettlement(net: SettleResult["net"]): Promise<void> {
     ((last?.cum as { name: string; value: number }[] | undefined) ?? []);
   const rounded = net.map((n) => ({ name: n.name, value: Math.round(n.value) }));
   if (normNet(lastCum) === normNet(rounded)) return; // no change → no event
-  await supabase.from("settlements").insert({ cum: rounded });
+  await supabase
+    .from("settlements")
+    .insert({ cum: rounded, prev_rewards: prevRewards });
 }
 
 export async function deleteLastSettlement(): Promise<void> {
@@ -212,6 +218,30 @@ export async function deleteLastSettlement(): Promise<void> {
     .limit(1)
     .maybeSingle();
   if (last?.id) await supabase.from("settlements").delete().eq("id", last.id);
+}
+
+// Whether there's a settlement that can be reverted.
+export async function hasSettlement(): Promise<boolean> {
+  const { count } = await supabase
+    .from("settlements")
+    .select("*", { count: "exact", head: true });
+  return (count ?? 0) > 0;
+}
+
+// Revert the most recent settlement: restore the rewards snapshot stored with
+// it and delete the settlement event. Persistent — works after a refresh.
+export async function revertLastSettlement(): Promise<boolean> {
+  const { data: last } = await supabase
+    .from("settlements")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!last?.id) return false;
+  const prev = (last.prev_rewards as Reward[] | null) ?? [];
+  await restoreRewards(prev);
+  await supabase.from("settlements").delete().eq("id", last.id);
+  return true;
 }
 
 // Snapshot current rewards (for Undo) and restore them.

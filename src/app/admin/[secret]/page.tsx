@@ -5,9 +5,9 @@ import {
   computeSettlement,
   applySettlement,
   logSettlement,
-  deleteLastSettlement,
   snapshotRewards,
-  restoreRewards,
+  hasSettlement,
+  revertLastSettlement,
   getAllPredictionsDetailed,
   updatePrediction,
   deletePrediction,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
 import { getJackpot, getCorrectPredictions, getFundByDay } from "@/lib/queries";
-import type { Match, Reward } from "@/lib/types";
+import type { Match } from "@/lib/types";
 import { formatKickoff, formatShort, formatVND } from "@/lib/format";
 import { dayKey } from "@/lib/day";
 
@@ -58,21 +58,23 @@ function AdminPanel() {
   const [settling, setSettling] = useState(false);
   const [review, setReview] = useState<SettleResult | null>(null);
   const [applying, setApplying] = useState(false);
-  const [snapshot, setSnapshot] = useState<Reward[] | null>(null);
+  const [canRevert, setCanRevert] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [preview, setPreview] = useState<SettleResult | null>(null);
 
   async function refresh() {
-    const [j, f, c, pv] = await Promise.all([
+    const [j, f, c, pv, rev] = await Promise.all([
       getJackpot(),
       getFundByDay(),
       getCorrectPredictions(),
       computeSettlement(),
+      hasSettlement(),
     ]);
     setJackpot(j);
     setFundByDay(f);
     setCorrect(c);
     setPreview(pv);
+    setCanRevert(rev);
   }
 
   useEffect(() => {
@@ -109,10 +111,9 @@ function AdminPanel() {
     if (!review) return;
     setApplying(true);
     try {
-      const prev = await snapshotRewards();
+      const prev = await snapshotRewards(); // state before this settlement
       await applySettlement(review.payouts);
-      await logSettlement(review.net);
-      setSnapshot(prev);
+      await logSettlement(review.net, prev);
       setBanner(
         `✅ Đã chia ${formatVND(review.totalPaid)} cho ${perPerson(review).length} người.`
       );
@@ -124,14 +125,17 @@ function AdminPanel() {
     setApplying(false);
   }
 
-  async function undo() {
-    if (!snapshot) return;
+  async function revert() {
+    if (!confirm("Hoàn tác lần chốt sổ gần nhất? Quỹ sẽ quay lại như trước khi chốt."))
+      return;
     setApplying(true);
     try {
-      await restoreRewards(snapshot);
-      await deleteLastSettlement();
-      setSnapshot(null);
-      setBanner("↩ Đã hoàn tác lần chia gần nhất.");
+      const ok = await revertLastSettlement();
+      setBanner(
+        ok
+          ? "↩ Đã hoàn tác lần chốt sổ gần nhất."
+          : "Không có lần chốt sổ nào để hoàn tác."
+      );
       refresh();
     } catch (e) {
       setBanner("Lỗi: " + (e as Error).message);
@@ -213,13 +217,13 @@ function AdminPanel() {
           </div>
         )}
 
-        {snapshot && (
+        {canRevert && (
           <button
             className="btn-ghost w-full text-amber-300"
-            onClick={undo}
+            onClick={revert}
             disabled={applying}
           >
-            ↩ Hoàn tác lần chia gần nhất
+            ↩ Hoàn tác lần chốt sổ gần nhất
           </button>
         )}
       </div>

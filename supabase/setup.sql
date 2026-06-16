@@ -57,9 +57,10 @@ on conflict do nothing;
 -- Settlement history: one row per "Chia quỹ" event, storing the cumulative
 -- net per person (received − stake in resolved days) at that moment.
 create table if not exists settlements (
-  id          uuid primary key default gen_random_uuid(),
-  created_at  timestamptz not null default now(),
-  cum         jsonb not null
+  id            uuid primary key default gen_random_uuid(),
+  created_at    timestamptz not null default now(),
+  cum           jsonb not null,
+  prev_rewards  jsonb -- rewards snapshot before this settlement (for revert)
 );
 
 -- Reactions (emoji) on predictions. A person can place several different
