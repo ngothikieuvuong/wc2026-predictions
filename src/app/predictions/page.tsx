@@ -13,7 +13,7 @@ import {
 import type { Match, Prediction, Reaction } from "@/lib/types";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
-import { loseMessage, allMissMessage } from "@/lib/tease";
+import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 import { formatKickoff, formatShort, isClosed } from "@/lib/format";
 import { dayKey, dayLabel } from "@/lib/day";
 
@@ -154,13 +154,16 @@ function MatchCard({
   const finished = match.status === "finished";
   const started = !finished && isClosed(match.kickoff_time); // kickoff passed
   const liveInfo = started ? findLive(liveScores, match.team1, match.team2) : null;
-  // Live match where every prediction currently misses → pot looks set to grow.
+  // Live match: who currently matches the score, and whether everyone misses.
+  const liveWinners = liveInfo
+    ? predictions
+        .filter(
+          (p) => p.predicted_home === liveInfo.t1 && p.predicted_away === liveInfo.t2
+        )
+        .map((p) => p.player_name)
+    : [];
   const allMiss =
-    !!liveInfo &&
-    predictions.length > 0 &&
-    predictions.every(
-      (p) => !(p.predicted_home === liveInfo.t1 && p.predicted_away === liveInfo.t2)
-    );
+    !!liveInfo && predictions.length > 0 && liveWinners.length === 0;
   return (
     <section className="card space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -187,6 +190,12 @@ function MatchCard({
           </span>
         )}
       </div>
+
+      {liveWinners.length > 0 && (
+        <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
+          {winMessage(match.id, liveWinners)}
+        </p>
+      )}
 
       {allMiss && (
         <p className="rounded-lg bg-red-500/15 px-3 py-1.5 text-center text-sm font-bold text-red-400">

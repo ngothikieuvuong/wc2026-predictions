@@ -14,7 +14,7 @@ import { dayLabel } from "@/lib/day";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import MatchInfoButton from "@/components/MatchInfoButton";
-import { loseMessage, allMissMessage } from "@/lib/tease";
+import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
@@ -98,7 +98,9 @@ export default function HomePage() {
           <div className="space-y-3">
             {live.map((m, i) => {
               const preds = predsForLive(m);
-              const allMiss = preds.length > 0 && preds.every((p) => !p.matching);
+              const winners = preds.filter((p) => p.matching);
+              const missers = preds.filter((p) => !p.matching);
+              const allMiss = preds.length > 0 && winners.length === 0;
               return (
                 <div key={i} className="space-y-1.5">
                   <MatchInfoButton team1={m.home} team2={m.away} started>
@@ -119,39 +121,33 @@ export default function HomePage() {
                     </div>
                   </MatchInfoButton>
 
+                  {winners.length > 0 && (
+                    <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
+                      {winMessage(m.home + m.away, winners.map((w) => w.name))}
+                    </p>
+                  )}
+
                   {allMiss && (
                     <p className="rounded-lg bg-red-500/15 px-3 py-1.5 text-center text-sm font-bold text-red-400">
                       {allMissMessage(m.home + m.away)}
                     </p>
                   )}
 
-                  {preds.length > 0 && (
+                  {missers.length > 0 && (
                     <ul className="space-y-1 px-1">
-                      {preds.map((pr) =>
-                        pr.matching ? (
-                          <li
-                            key={pr.id}
-                            className="flex items-center justify-between gap-2 text-sm font-semibold text-grass"
-                          >
-                            <span>🎉 Chúc mừng {pr.name}, gần trúng rồi 😃</span>
-                            <span className="shrink-0 font-mono">
-                              {pr.ph}–{pr.pa}
-                            </span>
-                          </li>
-                        ) : (
-                          <li
-                            key={pr.id}
-                            className="flex items-center justify-between gap-2 text-sm text-white/35"
-                          >
-                            <span>
-                              {pr.name} — {loseMessage(pr.id)}
-                            </span>
-                            <span className="shrink-0 font-mono">
-                              {pr.ph}–{pr.pa}
-                            </span>
-                          </li>
-                        )
-                      )}
+                      {missers.map((pr) => (
+                        <li
+                          key={pr.id}
+                          className="flex items-center justify-between gap-2 text-sm text-white/35"
+                        >
+                          <span>
+                            {pr.name} — {loseMessage(pr.id)}
+                          </span>
+                          <span className="shrink-0 font-mono">
+                            {pr.ph}–{pr.pa}
+                          </span>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </div>

@@ -30,3 +30,18 @@ export function allMissMessage(seed: string): string {
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return ALL_MISS_MSGS[h % ALL_MISS_MSGS.length];
 }
+
+// Shown (green, highlighted) when someone's prediction matches the live score.
+// "{n}" is replaced with the winners' names.
+export const WIN_MSGS = [
+  "🎉 Chúc mừng {n}, đang trúng tỉ số!",
+  "🔥 {n} đang trúng, đỉnh thật!",
+  "💰 {n} sắp ẵm quỹ tới nơi!",
+  "🥳 {n} đang dẫn, quá ngon!",
+];
+
+export function winMessage(seed: string, names: string[]): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return WIN_MSGS[h % WIN_MSGS.length].replace("{n}", names.join(", "));
+}
