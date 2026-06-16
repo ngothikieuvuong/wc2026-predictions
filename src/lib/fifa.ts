@@ -70,9 +70,14 @@ export function viTeam(code: string | null | undefined): string {
 type FifaMatch = {
   MatchStatus: number; // 0 = finished, 1 = scheduled, 3 = live
   MatchTime?: string; // e.g. "67'"
+  IdStage?: string;
+  IdMatch?: string;
   Home?: { IdCountry?: string; Score?: number | null };
   Away?: { IdCountry?: string; Score?: number | null };
 };
+
+const liveUrl = (stage: string, match: string) =>
+  `https://api.fifa.com/api/v3/live/football/${FIFA_COMPETITION}/${FIFA_SEASON}/${stage}/${match}?language=en`;
 
 const FIFA_MATCHES_URL =
   `https://api.fifa.com/api/v3/calendar/matches?language=en&count=200` +
@@ -97,18 +102,37 @@ export async function getLiveScores(): Promise<LiveScore[]> {
   if (!res.ok) throw new Error(`FIFA API ${res.status}`);
   const json = await res.json();
   const results: FifaMatch[] = json.Results ?? [];
+  const live = results.filter((fm) => fm.MatchStatus === 3); // in play only
   const out: LiveScore[] = [];
-  for (const fm of results) {
-    if (fm.MatchStatus !== 3) continue; // live only
+  for (const fm of live) {
     const homeVI = CODE_TO_VI[fm.Home?.IdCountry ?? ""];
     const awayVI = CODE_TO_VI[fm.Away?.IdCountry ?? ""];
     if (!homeVI || !awayVI) continue;
+
+    // The calendar feed doesn't carry Period; the per-match live feed does.
+    // Period 4 = half-time → show "HT" instead of a minute.
+    let minute = typeof fm.MatchTime === "string" ? fm.MatchTime : "";
+    if (fm.IdStage && fm.IdMatch) {
+      try {
+        const d = await (
+          await fetch(liveUrl(fm.IdStage, fm.IdMatch), {
+            headers: { "User-Agent": "Mozilla/5.0" },
+            cache: "no-store",
+          })
+        ).json();
+        if (d?.Period === 4) minute = "HT";
+        else if (typeof d?.MatchTime === "string" && d.MatchTime) minute = d.MatchTime;
+      } catch {
+        /* keep calendar minute */
+      }
+    }
+
     out.push({
       home: homeVI,
       away: awayVI,
       homeScore: Number(fm.Home?.Score ?? 0),
       awayScore: Number(fm.Away?.Score ?? 0),
-      minute: typeof fm.MatchTime === "string" ? fm.MatchTime : "",
+      minute,
     });
   }
   return out;

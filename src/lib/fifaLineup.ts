@@ -136,10 +136,18 @@ export async function getMatchLive(
     possession = { home: Math.round(bp.Home), away: Math.round(bp.Away) };
   }
 
+  // Period 4 = half-time → show "HT".
+  const minute =
+    live.Period === 4
+      ? "HT"
+      : typeof live.MatchTime === "string"
+      ? live.MatchTime
+      : fm.MatchTime ?? "";
+
   return {
     found: true,
     status: typeof live.MatchStatus === "number" ? live.MatchStatus : fm.MatchStatus,
-    minute: typeof live.MatchTime === "string" ? live.MatchTime : fm.MatchTime ?? "",
+    minute,
     possession,
     home: buildSide(live.HomeTeam, viTeam(fm.Home?.IdCountry)),
     away: buildSide(live.AwayTeam, viTeam(fm.Away?.IdCountry)),

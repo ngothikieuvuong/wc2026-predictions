@@ -64,18 +64,28 @@ export default function HomePage() {
     predRows.map((r) => [pairKey(r.match.team1, r.match.team2), r])
   );
 
-  // For a live match, each prediction with whether it matches the live score.
+  // For a live match, each prediction's status vs the live score. Scores only
+  // go up, so a prediction is still reachable if it's ≥ the current score on
+  // both sides; "exact" = currently matching; otherwise it's already gone.
   const predsForLive = (m: LiveScore) => {
     const row = predByPair.get(pairKey(m.home, m.away));
     const li = row ? findLive(live, row.match.team1, row.match.team2) : null;
     if (!row || !li) return [];
-    return row.predictions.map((p) => ({
-      id: p.id,
-      name: p.player_name,
-      ph: p.predicted_home,
-      pa: p.predicted_away,
-      matching: p.predicted_home === li.t1 && p.predicted_away === li.t2,
-    }));
+    return row.predictions.map((p) => {
+      const status =
+        p.predicted_home === li.t1 && p.predicted_away === li.t2
+          ? "exact"
+          : p.predicted_home >= li.t1 && p.predicted_away >= li.t2
+          ? "possible"
+          : "gone";
+      return {
+        id: p.id,
+        name: p.player_name,
+        ph: p.predicted_home,
+        pa: p.predicted_away,
+        status: status as "exact" | "possible" | "gone",
+      };
+    });
   };
 
   useEffect(() => {
@@ -98,9 +108,12 @@ export default function HomePage() {
           <div className="space-y-3">
             {live.map((m, i) => {
               const preds = predsForLive(m);
-              const winners = preds.filter((p) => p.matching);
-              const missers = preds.filter((p) => !p.matching);
-              const allMiss = preds.length > 0 && winners.length === 0;
+              const winners = preds.filter((p) => p.status === "exact");
+              const possible = preds.filter((p) => p.status === "possible");
+              const gone = preds.filter((p) => p.status === "gone");
+              // Pot looks set to grow only if NOBODY can still win.
+              const allGone =
+                preds.length > 0 && winners.length === 0 && possible.length === 0;
               return (
                 <div key={i} className="space-y-1.5">
                   <MatchInfoButton team1={m.home} team2={m.away} started>
@@ -127,15 +140,26 @@ export default function HomePage() {
                     </p>
                   )}
 
-                  {allMiss && (
+                  {allGone && (
                     <p className="rounded-lg bg-red-500/15 px-3 py-1.5 text-center text-sm font-bold text-red-400">
                       {allMissMessage(m.home + m.away)}
                     </p>
                   )}
 
-                  {missers.length > 0 && (
+                  {(possible.length > 0 || gone.length > 0) && (
                     <ul className="space-y-1 px-1">
-                      {missers.map((pr) => (
+                      {possible.map((pr) => (
+                        <li
+                          key={pr.id}
+                          className="flex items-center justify-between gap-2 text-sm text-white/80"
+                        >
+                          <span>🤞 {pr.name} — còn cơ hội</span>
+                          <span className="shrink-0 font-mono font-semibold">
+                            {pr.ph}–{pr.pa}
+                          </span>
+                        </li>
+                      ))}
+                      {gone.map((pr) => (
                         <li
                           key={pr.id}
                           className="flex items-center justify-between gap-2 text-sm text-white/35"

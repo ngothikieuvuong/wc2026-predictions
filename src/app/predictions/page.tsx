@@ -15,6 +15,7 @@ import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 import { formatKickoff, formatShort, isClosed } from "@/lib/format";
+import MatchInfoButton from "@/components/MatchInfoButton";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤡"];
 
@@ -54,18 +55,24 @@ function PredRow({
 }) {
   const win = isWinner(match, p);
   const finished = match.status === "finished";
-  // Match in play → compare prediction to the current live score.
+  // Match in play → compare to the live score. Scores only go up, so a
+  // prediction is still reachable if ≥ the current score on both sides.
   const isLive = !!liveInfo;
-  const matchingLive =
+  const liveExact =
     isLive &&
     p.predicted_home === liveInfo!.t1 &&
     p.predicted_away === liveInfo!.t2;
-  const liveMiss = isLive && !matchingLive; // playing but wrong so far
+  const livePossible =
+    isLive &&
+    !liveExact &&
+    p.predicted_home >= liveInfo!.t1 &&
+    p.predicted_away >= liveInfo!.t2;
+  const liveGone = isLive && !liveExact && !livePossible; // no chance anymore
   const tone = win
     ? "text-red-400 font-bold"
-    : matchingLive
+    : liveExact
     ? "text-grass font-bold"
-    : liveMiss || finished
+    : liveGone || finished
     ? "text-white/35"
     : "";
 
@@ -109,13 +116,17 @@ function PredRow({
         </span>
       </div>
 
-      {matchingLive && (
+      {liveExact && (
         <p className="mt-0.5 text-[11px] font-semibold text-grass">
           Gần trúng rồi, cố lên xí nữa 🙂
         </p>
       )}
 
-      {liveMiss && (
+      {livePossible && (
+        <p className="mt-0.5 text-[11px] text-white/50">🤞 còn cơ hội</p>
+      )}
+
+      {liveGone && (
         <p className="mt-0.5 text-[11px] text-white/30">{loseMessage(p.id)}</p>
       )}
 
@@ -152,7 +163,8 @@ function MatchCard({
   const finished = match.status === "finished";
   const started = !finished && isClosed(match.kickoff_time); // kickoff passed
   const liveInfo = started ? findLive(liveScores, match.team1, match.team2) : null;
-  // Live match: who currently matches the score, and whether everyone misses.
+  // Live match: who currently matches; and whether nobody can win anymore
+  // (every prediction already below the live score on some side).
   const liveWinners = liveInfo
     ? predictions
         .filter(
@@ -160,34 +172,44 @@ function MatchCard({
         )
         .map((p) => p.player_name)
     : [];
-  const allMiss =
-    !!liveInfo && predictions.length > 0 && liveWinners.length === 0;
+  const stillAlive = liveInfo
+    ? predictions.some(
+        (p) => p.predicted_home >= liveInfo.t1 && p.predicted_away >= liveInfo.t2
+      )
+    : false;
+  const allMiss = !!liveInfo && predictions.length > 0 && !stillAlive;
   return (
     <section className="card space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-lg font-bold">
-            {match.team1} <span className="text-white/40">gặp</span> {match.team2}
-          </p>
-          <p className="text-xs text-white/50">⏱ {formatKickoff(match.kickoff_time)}</p>
+      <MatchInfoButton
+        team1={match.team1}
+        team2={match.team2}
+        started={finished || started}
+      >
+        <div className="flex items-start justify-between gap-3 rounded-lg px-1 py-0.5 transition hover:bg-white/5">
+          <div>
+            <p className="text-lg font-bold underline decoration-white/20 underline-offset-2">
+              {match.team1} <span className="text-white/40">gặp</span> {match.team2}
+            </p>
+            <p className="text-xs text-white/50">⏱ {formatKickoff(match.kickoff_time)}</p>
+          </div>
+          {finished ? (
+            <span className="whitespace-nowrap rounded-lg bg-white/10 px-2.5 py-1 text-sm font-bold">
+              KQ: {match.home_score}–{match.away_score}
+            </span>
+          ) : started ? (
+            <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-red-500/20 px-2.5 py-0.5 text-xs font-semibold text-red-300">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
+              {liveInfo
+                ? `${liveInfo.t1}–${liveInfo.t2}${liveInfo.minute ? ` · ${liveInfo.minute}` : ""}`
+                : "Đang diễn ra"}
+            </span>
+          ) : (
+            <span className="whitespace-nowrap rounded-full bg-grass/20 px-2.5 py-0.5 text-xs font-semibold text-grass">
+              Sắp diễn ra
+            </span>
+          )}
         </div>
-        {finished ? (
-          <span className="whitespace-nowrap rounded-lg bg-white/10 px-2.5 py-1 text-sm font-bold">
-            KQ: {match.home_score}–{match.away_score}
-          </span>
-        ) : started ? (
-          <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-red-500/20 px-2.5 py-0.5 text-xs font-semibold text-red-300">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
-            {liveInfo
-              ? `${liveInfo.t1}–${liveInfo.t2}${liveInfo.minute ? ` · ${liveInfo.minute}` : ""}`
-              : "Đang diễn ra"}
-          </span>
-        ) : (
-          <span className="whitespace-nowrap rounded-full bg-grass/20 px-2.5 py-0.5 text-xs font-semibold text-grass">
-            Sắp diễn ra
-          </span>
-        )}
-      </div>
+      </MatchInfoButton>
 
       {liveWinners.length > 0 && (
         <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
