@@ -15,6 +15,22 @@ import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import MatchInfoButton from "@/components/MatchInfoButton";
 
+// Cheeky condolences for a prediction not matching the live score (deterministic).
+const LOSE_MSGS = [
+  "Lêu lêu, tạch rồi 😝",
+  "Chúc may mắn lần sau 🤣",
+  "Trật lất luôn 😬",
+  "Còn lâu mới trúng 😆",
+  "Sai một li, đi quỹ luôn 😎",
+  "Hẹn trận sau nha 🙃",
+  "Tiền sắp vào quỹ rồi 💸",
+];
+function loseMessage(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return LOSE_MSGS[h % LOSE_MSGS.length];
+}
+
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
   const [fundByDay, setFundByDay] = useState<
@@ -50,31 +66,32 @@ export default function HomePage() {
     setLoading(false);
   }
 
-  // Predictions whose score currently equals the live score of an in-play match.
-  const nearHits: {
-    name: string;
-    team1: string;
-    team2: string;
-    ph: number;
-    pa: number;
-    minute: string;
-  }[] = [];
-  for (const { match, predictions } of predRows) {
-    const li = findLive(live, match.team1, match.team2);
-    if (!li) continue;
-    for (const p of predictions) {
-      if (p.predicted_home === li.t1 && p.predicted_away === li.t2) {
-        nearHits.push({
-          name: p.player_name,
-          team1: match.team1,
-          team2: match.team2,
-          ph: p.predicted_home,
-          pa: p.predicted_away,
-          minute: li.minute,
-        });
-      }
-    }
-  }
+  // Match our prediction rows to FIFA live matches (team pair, order-free).
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/đ/g, "d")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  const pairKey = (a: string, b: string) => [norm(a), norm(b)].sort().join("|");
+  const predByPair = new Map(
+    predRows.map((r) => [pairKey(r.match.team1, r.match.team2), r])
+  );
+
+  // For a live match, each prediction with whether it matches the live score.
+  const predsForLive = (m: LiveScore) => {
+    const row = predByPair.get(pairKey(m.home, m.away));
+    const li = row ? findLive(live, row.match.team1, row.match.team2) : null;
+    if (!row || !li) return [];
+    return row.predictions.map((p) => ({
+      id: p.id,
+      name: p.player_name,
+      ph: p.predicted_home,
+      pa: p.predicted_away,
+      matching: p.predicted_home === li.t1 && p.predicted_away === li.t2,
+    }));
+  };
 
   useEffect(() => {
     loadData();
@@ -86,26 +103,69 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Predictions currently matching the live score */}
-      {nearHits.length > 0 && (
-        <section className="card border-grass/40 bg-grass/5">
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-grass">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-grass" />
-            Đang trùng tỉ số
+      {/* Live matches — with each prediction's status vs the live score */}
+      {live.length > 0 && (
+        <section className="card">
+          <h2 className="mb-3 flex items-center gap-2 text-sm uppercase tracking-widest text-white/50">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-400" />
+            Đang diễn ra
           </h2>
-          <ul className="space-y-2">
-            {nearHits.map((h, i) => (
-              <li key={i}>
-                <p className="font-semibold text-grass">
-                  Chúc mừng {h.name}, gần trúng rồi 😃
-                </p>
-                <p className="text-xs text-white/50">
-                  {h.team1} <b className="text-white/80">{h.ph}–{h.pa}</b> {h.team2}
-                  {h.minute ? ` · ${h.minute}` : ""}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-3">
+            {live.map((m, i) => {
+              const preds = predsForLive(m);
+              return (
+                <div key={i} className="space-y-1.5">
+                  <MatchInfoButton team1={m.home} team2={m.away} started>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 transition hover:border-red-500/50">
+                      <div className="font-bold">
+                        {m.home} <span className="text-white/40">gặp</span> {m.away}
+                      </div>
+                      <div className="flex items-center gap-2 whitespace-nowrap">
+                        <span className="font-mono text-lg font-extrabold">
+                          {m.homeScore}–{m.awayScore}
+                        </span>
+                        {m.minute && (
+                          <span className="text-xs font-semibold text-red-300">
+                            {m.minute}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </MatchInfoButton>
+
+                  {preds.length > 0 && (
+                    <ul className="space-y-1 px-1">
+                      {preds.map((pr) =>
+                        pr.matching ? (
+                          <li
+                            key={pr.id}
+                            className="flex items-center justify-between gap-2 text-sm font-semibold text-grass"
+                          >
+                            <span>🎉 Chúc mừng {pr.name}, gần trúng rồi 😃</span>
+                            <span className="shrink-0 font-mono">
+                              {pr.ph}–{pr.pa}
+                            </span>
+                          </li>
+                        ) : (
+                          <li
+                            key={pr.id}
+                            className="flex items-center justify-between gap-2 text-sm text-white/35"
+                          >
+                            <span>
+                              {pr.name} — {loseMessage(pr.id)}
+                            </span>
+                            <span className="shrink-0 font-mono">
+                              {pr.ph}–{pr.pa}
+                            </span>
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 
@@ -146,42 +206,6 @@ export default function HomePage() {
           </div>
         )}
       </section>
-
-      {/* Live matches */}
-      {live.length > 0 && (
-        <section className="card">
-          <h2 className="mb-3 flex items-center gap-2 text-sm uppercase tracking-widest text-white/50">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-red-400" />
-            Đang diễn ra
-          </h2>
-          <div className="space-y-2">
-            {live.map((m, i) => (
-              <MatchInfoButton
-                key={i}
-                team1={m.home}
-                team2={m.away}
-                started
-              >
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 transition hover:border-red-500/50">
-                  <div className="font-bold">
-                    {m.home} <span className="text-white/40">gặp</span> {m.away}
-                  </div>
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <span className="font-mono text-lg font-extrabold">
-                      {m.homeScore}–{m.awayScore}
-                    </span>
-                    {m.minute && (
-                      <span className="text-xs font-semibold text-red-300">
-                        {m.minute}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </MatchInfoButton>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Upcoming matches, grouped by game-day */}
       <section className="card">
