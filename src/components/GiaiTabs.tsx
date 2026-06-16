@@ -5,6 +5,10 @@ import type { GroupTable, BracketRound, Fixture } from "@/lib/tournament";
 import { getMatchResults } from "@/lib/queries";
 import { autoSync } from "@/lib/syncClient";
 import { formatKickoff } from "@/lib/format";
+import MatchInfoButton from "@/components/MatchInfoButton";
+
+const isStarted = (iso: string) =>
+  !!iso && new Date(iso).getTime() <= Date.now();
 
 type Results = Awaited<ReturnType<typeof getMatchResults>>;
 
@@ -183,17 +187,21 @@ export default function GiaiTabs({
                     {g.day}
                   </p>
                   {g.items.map((m, i) => (
-                    <div
+                    <MatchInfoButton
                       key={i}
-                      className="flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm"
+                      team1={m.home}
+                      team2={m.away}
+                      started={isStarted(m.date)}
                     >
-                      <span className="w-11 shrink-0 text-xs text-white/40">
-                        {viTime(m.date)}
-                      </span>
-                      <span className="flex-1 text-right font-medium">{m.home}</span>
-                      <span className="text-xs text-white/40">vs</span>
-                      <span className="flex-1 font-medium">{m.away}</span>
-                    </div>
+                      <div className="flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm transition hover:bg-white/10">
+                        <span className="w-11 shrink-0 text-xs text-white/40">
+                          {viTime(m.date)}
+                        </span>
+                        <span className="flex-1 text-right font-medium">{m.home}</span>
+                        <span className="text-xs text-white/40">vs</span>
+                        <span className="flex-1 font-medium">{m.away}</span>
+                      </div>
+                    </MatchInfoButton>
                   ))}
                 </div>
               ))}
@@ -209,18 +217,32 @@ export default function GiaiTabs({
               onToggle={() => toggle(round.name)}
             >
               <ul className="space-y-1.5">
-                {round.matches.map((m, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm"
-                  >
-                    <span className="flex-1 text-right font-medium">{m.home}</span>
-                    <span className="min-w-14 text-center font-bold text-white/80">
-                      {m.played ? `${m.hs}–${m.as}` : "vs"}
-                    </span>
-                    <span className="flex-1 font-medium">{m.away}</span>
-                  </li>
-                ))}
+                {round.matches.map((m, i) => {
+                  const row = (
+                    <div className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm transition hover:bg-white/10">
+                      <span className="flex-1 text-right font-medium">{m.home}</span>
+                      <span className="min-w-14 text-center font-bold text-white/80">
+                        {m.played ? `${m.hs}–${m.as}` : "vs"}
+                      </span>
+                      <span className="flex-1 font-medium">{m.away}</span>
+                    </div>
+                  );
+                  return (
+                    <li key={i}>
+                      {m.teamsKnown ? (
+                        <MatchInfoButton
+                          team1={m.home}
+                          team2={m.away}
+                          started={m.played || isStarted(m.date)}
+                        >
+                          {row}
+                        </MatchInfoButton>
+                      ) : (
+                        row
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </RoundSection>
           ))}
@@ -241,26 +263,30 @@ export default function GiaiTabs({
           ) : (
             <ul className="divide-y divide-white/5">
               {results.map((m) => (
-                <li key={m.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex-1 text-right text-sm font-medium">
-                      {m.team1}
-                    </span>
-                    <span className="min-w-16 text-center text-lg font-bold">
-                      {m.home_score}–{m.away_score}
-                    </span>
-                    <span className="flex-1 text-sm font-medium">{m.team2}</span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-white/30">
-                      {formatKickoff(m.kickoff_time)}
-                    </span>
-                    {m.winners.length > 0 && (
-                      <span className="text-xs font-semibold text-neon">
-                        🎯 {m.winners.join(", ")}
-                      </span>
-                    )}
-                  </div>
+                <li key={m.id}>
+                  <MatchInfoButton team1={m.team1} team2={m.team2} started>
+                    <div className="px-4 py-3 transition hover:bg-white/5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex-1 text-right text-sm font-medium">
+                          {m.team1}
+                        </span>
+                        <span className="min-w-16 text-center text-lg font-bold">
+                          {m.home_score}–{m.away_score}
+                        </span>
+                        <span className="flex-1 text-sm font-medium">{m.team2}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-white/30">
+                          {formatKickoff(m.kickoff_time)}
+                        </span>
+                        {m.winners.length > 0 && (
+                          <span className="text-xs font-semibold text-neon">
+                            🎯 {m.winners.join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </MatchInfoButton>
                 </li>
               ))}
             </ul>

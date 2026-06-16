@@ -28,6 +28,7 @@ export type BracketMatch = {
   hs: number | null;
   as: number | null;
   played: boolean;
+  teamsKnown: boolean; // both sides are real teams (not "Winner of…" placeholders)
 };
 export type BracketRound = { name: string; matches: BracketMatch[] };
 
@@ -162,6 +163,7 @@ export async function getTournament(): Promise<Tournament> {
         hs: m.Home?.Score ?? null,
         as: m.Away?.Score ?? null,
         played: m.MatchStatus === 0,
+        teamsKnown: !!(m.Home?.IdCountry && m.Away?.IdCountry),
       })),
   })).filter((r) => r.matches.length > 0);
 
