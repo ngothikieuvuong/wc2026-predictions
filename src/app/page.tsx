@@ -14,7 +14,7 @@ import { dayLabel } from "@/lib/day";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import MatchInfoButton from "@/components/MatchInfoButton";
-import { loseMessage } from "@/lib/tease";
+import { loseMessage, allMissMessage } from "@/lib/tease";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
@@ -98,6 +98,7 @@ export default function HomePage() {
           <div className="space-y-3">
             {live.map((m, i) => {
               const preds = predsForLive(m);
+              const allMiss = preds.length > 0 && preds.every((p) => !p.matching);
               return (
                 <div key={i} className="space-y-1.5">
                   <MatchInfoButton team1={m.home} team2={m.away} started>
@@ -117,6 +118,12 @@ export default function HomePage() {
                       </div>
                     </div>
                   </MatchInfoButton>
+
+                  {allMiss && (
+                    <p className="rounded-lg bg-red-500/15 px-3 py-1.5 text-center text-sm font-bold text-red-400">
+                      {allMissMessage(m.home + m.away)}
+                    </p>
+                  )}
 
                   {preds.length > 0 && (
                     <ul className="space-y-1 px-1">
