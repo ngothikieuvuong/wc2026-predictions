@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getStats, getSettlements } from "@/lib/queries";
+import { computeSettlement, type SettleResult } from "@/lib/admin";
 import { formatVND, formatShort } from "@/lib/format";
 import PlayerHistoryModal from "@/components/PlayerHistoryModal";
 
@@ -12,16 +13,21 @@ export default function StatsPage() {
     { name: string; chi: number; thu: number; loiLo: number }[]
   >([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [breakdown, setBreakdown] = useState<SettleResult["breakdown"] | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [historyName, setHistoryName] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [stats, settlements] = await Promise.all([
+      const [stats, settlements, settle] = await Promise.all([
         getStats(),
         getSettlements(),
+        computeSettlement(),
       ]);
       setRows(stats);
+      setBreakdown(settle.breakdown);
 
       // Per-event win/loss = change in cumulative net vs the previous event.
       const evs: Event[] = [];
@@ -102,6 +108,65 @@ export default function StatsPage() {
           </table>
         )}
       </div>
+
+      {/* How the settled fund was divided */}
+      {breakdown && breakdown.winners.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
+            Quỹ đã chia
+          </h2>
+          <div className="card space-y-3">
+            <p className="text-xs text-white/50">
+              Tổng quỹ <b className="text-white/80">{formatVND(breakdown.fund)}</b> →
+              thưởng <b className="text-neon">{formatVND(breakdown.winTotal)}</b> cho
+              người trúng, hoàn <b>{formatVND(breakdown.refundTotal)}</b> theo slot.
+            </p>
+
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                🎯 Người trúng tỉ số
+              </p>
+              <ul className="divide-y divide-white/10">
+                {breakdown.winners.map((w) => (
+                  <li
+                    key={w.name}
+                    className="flex items-center justify-between py-1.5 text-sm"
+                  >
+                    <span>
+                      <b>{w.name}</b>{" "}
+                      <span className="text-white/40">· trúng {w.correct} tỉ số</span>
+                    </span>
+                    <span className="font-bold text-neon">{formatVND(w.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {breakdown.refunds.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                  ↩ Hoàn lại theo slot
+                </p>
+                <ul className="divide-y divide-white/5">
+                  {breakdown.refunds.map((r) => (
+                    <li
+                      key={r.name}
+                      className="flex items-center justify-between py-1 text-xs text-white/60"
+                    >
+                      <span>{r.name}</span>
+                      <span>{formatVND(r.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-white/40">
+                  Phần quỹ người trúng không ôm hết được hoàn cho mọi người theo số
+                  slot đã đặt.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Settlement history */}
       {events.length > 0 && (

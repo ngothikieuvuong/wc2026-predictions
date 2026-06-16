@@ -28,6 +28,14 @@ export type SettleResult = {
   net: { name: string; value: number }[];
   // Days already paid out (winner days + carried no-winner days).
   paidDates: string[];
+  // Win vs refund split (winners = đoán trúng tỉ số; refunds = hoàn theo slot).
+  breakdown: {
+    fund: number;
+    winTotal: number;
+    refundTotal: number;
+    winners: { name: string; correct: number; amount: number }[];
+    refunds: { name: string; amount: number }[];
+  };
 };
 
 // Day-based settlement, computed from scratch (no DB writes — call
@@ -98,6 +106,12 @@ export async function computeSettlement(): Promise<SettleResult> {
   const addPay = (name: string, date: string, amount: number) =>
     pay.set(name + "|" + date, (pay.get(name + "|" + date) ?? 0) + amount);
 
+  // Breakdown of win vs refund (for the admin congrats + Tổng kết history).
+  const winBy = new Map<string, number>();
+  const refundBy = new Map<string, number>();
+  const correctBy = new Map<string, number>();
+  let fundTotal = 0;
+
   // Distribute one settled pool (carried no-winner days + the winning day):
   //  - winners split by win-ratio (their correct scores on the winning day),
   //  - but the winners collectively can absorb at most their total "max claim"
@@ -108,6 +122,7 @@ export async function computeSettlement(): Promise<SettleResult> {
   const settlePool = (poolDays: DayInfo[], winDay: DayInfo) => {
     const totalSlots = poolDays.reduce((s, d) => s + d.totalSlots, 0);
     const totalFund = totalSlots * STAKE;
+    fundTotal += totalFund;
 
     const personSlots = new Map<string, number>();
     const maxClaim = new Map<string, number>();
@@ -134,6 +149,8 @@ export async function computeSettlement(): Promise<SettleResult> {
     for (const [name, c] of winners) {
       const w = winnersAbsorb * (c / totalWin);
       addPay(name, winDay.date, w);
+      winBy.set(name, (winBy.get(name) ?? 0) + w);
+      correctBy.set(name, (correctBy.get(name) ?? 0) + c);
       paidWinners += w;
     }
 
@@ -141,7 +158,10 @@ export async function computeSettlement(): Promise<SettleResult> {
     const leftover = Math.max(0, totalFund - paidWinners);
     const perSlot = totalSlots > 0 ? leftover / totalSlots : 0;
     if (perSlot > 0) {
-      for (const [name, sl] of personSlots) addPay(name, winDay.date, sl * perSlot);
+      for (const [name, sl] of personSlots) {
+        addPay(name, winDay.date, sl * perSlot);
+        refundBy.set(name, (refundBy.get(name) ?? 0) + sl * perSlot);
+      }
     }
   };
 
@@ -192,7 +212,34 @@ export async function computeSettlement(): Promise<SettleResult> {
     .map((s) => s.date);
   const settledDays = paidDates.length;
 
-  return { settledDays, totalPaid, payouts, pending: pendingOut, net, paidDates };
+  // Win vs refund breakdown.
+  const round = (n: number) => Math.round(n);
+  const breakdown = {
+    fund: round(fundTotal),
+    winTotal: round([...winBy.values()].reduce((s, v) => s + v, 0)),
+    refundTotal: round([...refundBy.values()].reduce((s, v) => s + v, 0)),
+    winners: [...winBy.entries()]
+      .map(([name, amount]) => ({
+        name,
+        correct: correctBy.get(name) ?? 0,
+        amount: round(amount),
+      }))
+      .sort((a, b) => b.amount - a.amount),
+    refunds: [...refundBy.entries()]
+      .map(([name, amount]) => ({ name, amount: round(amount) }))
+      .filter((r) => r.amount > 0)
+      .sort((a, b) => b.amount - a.amount),
+  };
+
+  return {
+    settledDays,
+    totalPaid,
+    payouts,
+    pending: pendingOut,
+    net,
+    paidDates,
+    breakdown,
+  };
 }
 
 // Persist a settlement: rewrite the rewards table (delete all → insert fresh).

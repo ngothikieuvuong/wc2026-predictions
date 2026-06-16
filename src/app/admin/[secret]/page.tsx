@@ -143,9 +143,11 @@ function AdminPanel() {
     setApplying(false);
   }
 
-  // Settle-able = the settlement (only fully-finished days) actually pays someone.
-  const canSettle = !!preview && preview.payouts.length > 0;
-  const settleWinners = preview ? perPerson(preview).map((p) => p.name) : [];
+  // Settle-able = at least one person actually đoán trúng tỉ số (not just refunds).
+  const canSettle = !!preview && preview.breakdown.winners.length > 0;
+  const settleWinners = preview
+    ? preview.breakdown.winners.map((w) => w.name)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -179,21 +181,67 @@ function AdminPanel() {
           <div className="card space-y-3 border-grass/40">
             <p className="font-bold">Xem trước kết quả chia</p>
             <p className="text-xs text-white/50">
-              {review.settledDays} ngày đã chốt · {review.pending.length} ngày treo
-              · tổng chia {formatVND(review.totalPaid)}
+              Quỹ {formatVND(review.breakdown.fund)} → thưởng{" "}
+              <b className="text-neon">{formatVND(review.breakdown.winTotal)}</b> cho
+              người trúng, hoàn{" "}
+              <b>{formatVND(review.breakdown.refundTotal)}</b> theo slot.
             </p>
-            {perPerson(review).length === 0 ? (
+
+            {review.breakdown.winners.length === 0 ? (
               <p className="text-sm text-white/60">Chưa ai trúng — không chia gì.</p>
             ) : (
-              <ul className="divide-y divide-white/10">
-                {perPerson(review).map((p) => (
-                  <li key={p.name} className="flex justify-between py-1.5 text-sm">
-                    <span className="font-medium">{p.name}</span>
-                    <span className="font-bold text-neon">{formatVND(p.amount)}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                  🎯 Người trúng tỉ số
+                </p>
+                <ul className="divide-y divide-white/10">
+                  {review.breakdown.winners.map((w) => (
+                    <li
+                      key={w.name}
+                      className="flex items-center justify-between py-1.5 text-sm"
+                    >
+                      <span>
+                        <b>{w.name}</b>{" "}
+                        <span className="text-white/40">
+                          · trúng {w.correct} tỉ số
+                        </span>
+                      </span>
+                      <span className="font-bold text-neon">
+                        {formatVND(w.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-white/40">
+                  Người trúng chia nhau{" "}
+                  {formatVND(review.breakdown.winTotal)} theo số tỉ số trúng (trúng
+                  nhiều hơn → phần lớn hơn).
+                </p>
+              </div>
             )}
+
+            {review.breakdown.refunds.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                  ↩ Hoàn theo slot ({review.breakdown.refunds.length} người)
+                </p>
+                <ul className="divide-y divide-white/5">
+                  {review.breakdown.refunds.map((r) => (
+                    <li
+                      key={r.name}
+                      className="flex items-center justify-between py-1 text-xs text-white/60"
+                    >
+                      <span>{r.name}</span>
+                      <span>{formatVND(r.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-white/40">
+                  Phần quỹ người trúng không ôm hết được hoàn lại theo số slot đã đặt.
+                </p>
+              </div>
+            )}
+
             {review.pending.length > 0 && (
               <p className="text-xs text-white/40">
                 Quỹ treo:{" "}
