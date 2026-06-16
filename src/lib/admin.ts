@@ -26,6 +26,8 @@ export type SettleResult = {
   // Cumulative net per person from days whose money has been distributed:
   // received − stake in those resolved days. Zero-sum.
   net: { name: string; value: number }[];
+  // Days already paid out (winner days + carried no-winner days).
+  paidDates: string[];
 };
 
 // Day-based settlement, computed from scratch (no DB writes — call
@@ -160,7 +162,12 @@ export async function computeSettlement(): Promise<SettleResult> {
     value: (received.get(name) ?? 0) - (resolvedStake.get(name) ?? 0),
   }));
 
-  return { settledDays, totalPaid, payouts, pending: pendingOut, net };
+  // Days whose pot has been distributed (winner days + carried no-winner days).
+  const paidDates = settled
+    .filter((s) => !pendingDates.has(s.date))
+    .map((s) => s.date);
+
+  return { settledDays, totalPaid, payouts, pending: pendingOut, net, paidDates };
 }
 
 // Persist a settlement: rewrite the rewards table (delete all → insert fresh).

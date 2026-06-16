@@ -181,18 +181,13 @@ export async function getFundByDay(): Promise<
   const active = activeDay(M, P);
   const byId = new Map(M.map((m) => [m.id, m]));
 
-  // Only matches people predicted count toward "is this day finished" — the
-  // matches opened for prediction in play, not every fixture on the calendar.
-  const predictedIds = new Set(P.map((p) => p.match_id));
-  const matchesByDay = new Map<string, Match[]>();
-  for (const m of M) {
-    if (!predictedIds.has(m.id)) continue;
-    const d = dayKey(m.kickoff_time);
-    if (!matchesByDay.has(d)) matchesByDay.set(d, []);
-    matchesByDay.get(d)!.push(m);
-  }
+  // Days whose pot has already been distributed (winner days + carried
+  // no-winner days). After settlement these drop out of the breakdown.
+  const { computeSettlement } = await import("./admin");
+  const settle = await computeSettlement();
+  const paid = new Set(settle.paidDates);
 
-  type Agg = { slots: number; names: Set<string>; hasWinner: boolean };
+  type Agg = { slots: number; names: Set<string> };
   const agg = new Map<string, Agg>();
   for (const p of P) {
     const m = byId.get(p.match_id);
@@ -200,29 +195,15 @@ export async function getFundByDay(): Promise<
     const d = dayKey(m.kickoff_time);
     let a = agg.get(d);
     if (!a) {
-      a = { slots: 0, names: new Set(), hasWinner: false };
+      a = { slots: 0, names: new Set() };
       agg.set(d, a);
     }
     a.slots++;
     a.names.add(p.player_name);
-    if (
-      m.home_score != null &&
-      m.away_score != null &&
-      p.predicted_home === m.home_score &&
-      p.predicted_away === m.away_score
-    ) {
-      a.hasWinner = true;
-    }
   }
 
   return [...agg.entries()]
-    .filter(([d, a]) => {
-      const dms = matchesByDay.get(d) ?? [];
-      const finished =
-        dms.length > 0 &&
-        dms.every((m) => m.status === "finished" && m.home_score != null);
-      return !(finished && a.hasWinner); // drop days already won/paid
-    })
+    .filter(([d]) => !paid.has(d)) // hide days already paid out
     .map(([date, a]) => ({
       date,
       participants: [...a.names],
