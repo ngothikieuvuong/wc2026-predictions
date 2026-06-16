@@ -7,10 +7,11 @@ import {
   getUpcomingByDay,
   getLatestWinner,
   getFundByDay,
+  getPredictionsByMatch,
 } from "@/lib/queries";
 import { formatVND, formatKickoff } from "@/lib/format";
 import { dayLabel } from "@/lib/day";
-import { getLive, type LiveScore } from "@/lib/liveClient";
+import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import MatchInfoButton from "@/components/MatchInfoButton";
 
@@ -26,22 +27,53 @@ export default function HomePage() {
     ReturnType<typeof getLatestWinner>
   > | null>(null);
   const [live, setLive] = useState<LiveScore[]>([]);
+  const [predRows, setPredRows] = useState<
+    Awaited<ReturnType<typeof getPredictionsByMatch>>
+  >([]);
   const [loading, setLoading] = useState(true);
 
   async function loadData() {
-    const [j, f, s, w, lv] = await Promise.all([
+    const [j, f, s, w, lv, pr] = await Promise.all([
       getJackpot(),
       getFundByDay(),
       getUpcomingByDay(),
       getLatestWinner(),
       getLive(),
+      getPredictionsByMatch(),
     ]);
     setJackpot(j);
     setFundByDay(f);
     setSoon(s);
     setWinner(w);
     setLive(lv);
+    setPredRows(pr);
     setLoading(false);
+  }
+
+  // Predictions whose score currently equals the live score of an in-play match.
+  const nearHits: {
+    name: string;
+    team1: string;
+    team2: string;
+    ph: number;
+    pa: number;
+    minute: string;
+  }[] = [];
+  for (const { match, predictions } of predRows) {
+    const li = findLive(live, match.team1, match.team2);
+    if (!li) continue;
+    for (const p of predictions) {
+      if (p.predicted_home === li.t1 && p.predicted_away === li.t2) {
+        nearHits.push({
+          name: p.player_name,
+          team1: match.team1,
+          team2: match.team2,
+          ph: p.predicted_home,
+          pa: p.predicted_away,
+          minute: li.minute,
+        });
+      }
+    }
   }
 
   useEffect(() => {
@@ -54,6 +86,29 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
+      {/* Predictions currently matching the live score */}
+      {nearHits.length > 0 && (
+        <section className="card border-grass/40 bg-grass/5">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-grass">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-grass" />
+            Đang trùng tỉ số
+          </h2>
+          <ul className="space-y-2">
+            {nearHits.map((h, i) => (
+              <li key={i}>
+                <p className="font-semibold text-grass">
+                  Chúc mừng {h.name}, gần trúng rồi 😃
+                </p>
+                <p className="text-xs text-white/50">
+                  {h.team1} <b className="text-white/80">{h.ph}–{h.pa}</b> {h.team2}
+                  {h.minute ? ` · ${h.minute}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Jackpot */}
       <section className="card text-center">
         <p className="text-sm uppercase tracking-widest text-white/50">
