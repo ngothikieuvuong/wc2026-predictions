@@ -44,16 +44,29 @@ function PredRow({
   match,
   p,
   reactions,
+  liveInfo,
   onOpen,
 }: {
   match: Match;
   p: Prediction;
   reactions: Reaction[];
+  liveInfo: { t1: number; t2: number; minute: string } | null;
   onOpen: (p: Prediction) => void;
 }) {
   const win = isWinner(match, p);
   const finished = match.status === "finished";
-  const tone = win ? "text-red-400 font-bold" : finished ? "text-white/35" : "";
+  // Prediction currently matches the live score (match still in play).
+  const matchingLive =
+    !!liveInfo &&
+    p.predicted_home === liveInfo.t1 &&
+    p.predicted_away === liveInfo.t2;
+  const tone = win
+    ? "text-red-400 font-bold"
+    : matchingLive
+    ? "text-grass font-bold"
+    : finished
+    ? "text-white/35"
+    : "";
 
   // Long-press (≈450ms) opens the reaction picker; a move/scroll cancels it.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,6 +107,12 @@ function PredRow({
           {p.predicted_home}–{p.predicted_away}
         </span>
       </div>
+
+      {matchingLive && (
+        <p className="mt-0.5 text-[11px] font-semibold text-grass">
+          Gần trúng rồi, cố lên xí nữa 🙂
+        </p>
+      )}
 
       {groups.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -162,6 +181,7 @@ function MatchCard({
             match={match}
             p={p}
             reactions={reactionsByPred.get(p.id) ?? []}
+            liveInfo={liveInfo}
             onOpen={onOpen}
           />
         ))}
@@ -384,6 +404,13 @@ export default function PredictionsPage() {
     });
   }, []);
 
+  // Within a day: đang diễn ra (live) on top, sắp tới next, đã xong at the bottom.
+  const statusRank = (m: Match) => {
+    const done = m.status === "finished" && m.home_score != null;
+    if (done) return 2;
+    return isClosed(m.kickoff_time) ? 0 : 1; // live : upcoming
+  };
+
   // Group by game-day (rows already sorted by kickoff asc).
   const map = new Map<string, Row[]>();
   for (const r of rows) {
@@ -393,7 +420,12 @@ export default function PredictionsPage() {
   }
   const groups: DayGroup[] = [...map.entries()].map(([day, items]) => ({
     day,
-    items,
+    items: [...items].sort((a, b) => {
+      const ra = statusRank(a.match);
+      const rb = statusRank(b.match);
+      if (ra !== rb) return ra - rb;
+      return a.match.kickoff_time < b.match.kickoff_time ? -1 : 1;
+    }),
     finished: items.every(
       (r) => r.match.status === "finished" && r.match.home_score != null
     ),
