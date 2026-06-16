@@ -100,34 +100,43 @@ export default function RulesButton({
                 <div className="mt-2 space-y-3 rounded-xl border border-grass/30 bg-grass/5 p-3 text-[13px]">
                   <div>
                     <p className="mb-1 font-bold text-grass">
-                      📌 VD 1 — chia theo số tỉ số trúng
+                      📌 VD 1 — 1 người trúng, chơi ít → thưởng ít hơn
                     </p>
                     <p>
-                      Ngày đó quỹ <b>90.000đ</b>, có 2 người trúng: <b>A trúng 1</b> tỉ
-                      số, <b>B trúng 2</b> tỉ số → tổng <b>3 phần</b>.
+                      Ngày đó <b>10 người</b> chơi, tổng <b>20 slot</b> → quỹ{" "}
+                      <b>400.000đ</b>. <b>ba Đức</b> chỉ chơi <b>1 trận (1 slot)</b> và
+                      là người trúng duy nhất.
                     </p>
                     <p className="mt-1">
-                      → A = 90.000 × 1/3 = <b className="text-neon">30.000đ</b>; B =
-                      90.000 × 2/3 = <b className="text-neon">60.000đ</b>.
+                      Mức ăn tối đa của ba Đức = 1 slot × 10 người × 20.000 ={" "}
+                      <b>200.000đ</b>.
+                    </p>
+                    <p className="mt-1">
+                      → ba Đức nhận <b className="text-neon">200.000đ</b> (chơi ít nên
+                      trần thấp); <b>200.000đ</b> còn lại giữ làm <b>quỹ treo</b> cho
+                      đợt sau.
+                    </p>
+                    <p className="mt-1 text-white/50">
+                      Nếu ba Đức chơi nhiều slot hơn → trần cao hơn → ăn được nhiều
+                      hơn.
                     </p>
                   </div>
 
                   <div>
                     <p className="mb-1 font-bold text-grass">
-                      📌 VD 2 — cộng dồn quỹ treo
+                      📌 VD 2 — 2 người trúng, chia theo tỉ lệ ngày trúng
                     </p>
                     <p>
-                      <b>Ngày 1:</b> cả nhà góp <b>100.000đ</b> nhưng không ai trúng →{" "}
-                      <b>treo</b>.
+                      Ngày đó quỹ <b>120.000đ</b>. <b>Chương trúng 2 tỉ số</b>,{" "}
+                      <b>Vương trúng 1 tỉ số</b> → tỉ lệ <b>2 : 1</b> (tổng 3 phần).
                     </p>
-                    <p>
-                      <b>Ngày 2:</b> góp thêm <b>60.000đ</b>, Chương trúng (Chương có
-                      chơi cả 2 ngày) → nhận <b>60.000đ</b> (ngày 2) <b>+ 100.000đ</b>{" "}
-                      (quỹ treo ngày 1) = <b className="text-neon">160.000đ</b> 🎉
+                    <p className="mt-1">
+                      → Chương = 120.000 × 2/3 ={" "}
+                      <b className="text-neon">80.000đ</b>; Vương = 120.000 × 1/3 ={" "}
+                      <b className="text-neon">40.000đ</b>.
                     </p>
                     <p className="mt-1 text-white/50">
-                      Nếu ngày 1 Chương không chơi → chỉ nhận 60.000đ, 100.000đ ngày 1
-                      vẫn treo.
+                      (Cả hai chơi đủ nhiều nên ôm hết quỹ, không còn treo.)
                     </p>
                   </div>
                 </div>
