@@ -84,9 +84,15 @@ export default function RulesButton({
                     <b> 1 phần</b>. Trúng nhiều tỉ số → được nhiều phần hơn.
                   </li>
                   <li>
-                    <b>Cộng dồn:</b> ngày không ai trúng thì quỹ <b>treo lại</b>. Người
-                    trúng ở ngày sau <b>hốt thêm</b> quỹ treo của những ngày họ{" "}
-                    <b>có tham gia</b> (ngày họ không chơi thì vẫn treo cho lần sau).
+                    <b>Cộng dồn:</b> ngày không ai trúng thì quỹ <b>treo lại</b> và
+                    dồn sang ngày sau cho tới khi có người trúng.
+                  </li>
+                  <li>
+                    <b>Giới hạn “ăn trọn”:</b> mỗi người có <b>mức ăn tối đa</b> tùy số
+                    slot đã chơi và số người chơi — <b>chơi càng nhiều, trần càng cao</b>.
+                    Nếu người trúng không ôm hết quỹ (vd chỉ chơi 1–2 trận mà quỹ treo
+                    lớn), phần <b>dư được hoàn lại cho mọi người theo số slot</b> đã đặt.
+                    → <b>Quỹ luôn chia hết</b>, không ai chơi ít mà ăn trọn jackpot.
                   </li>
                 </ul>
 
