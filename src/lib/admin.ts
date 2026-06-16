@@ -35,6 +35,8 @@ export type SettleResult = {
     carried: number; // leftover kept as quỹ treo for the next settlement
     winners: { name: string; correct: number; amount: number }[];
   };
+  // The carried treo as a fund-by-day entry (date + amount + participants).
+  carriedTreo: { date: string; amount: number; participants: string[] } | null;
 };
 
 // Day-based settlement, computed from scratch (no DB writes — call
@@ -183,9 +185,17 @@ export async function computeSettlement(): Promise<SettleResult> {
   // What's left after the last winning day: real no-winner days (shown per-day)
   // + any carried treo amount (kept in the fund for the next settlement).
   const pendingReal = pool.filter((d) => d.carryFund === undefined);
-  const carried = pool
-    .filter((d) => d.carryFund !== undefined)
-    .reduce((s, d) => s + (d.carryFund ?? 0), 0);
+  const carryDay = pool.find((d) => d.carryFund !== undefined);
+  const carried = carryDay?.carryFund ?? 0;
+  // The carried treo as a fund-by-day entry: dated at the settlement day, with
+  // the participants from the just-settled period.
+  const carriedTreo = carryDay
+    ? {
+        date: carryDay.date,
+        amount: Math.round(carryDay.carryFund ?? 0),
+        participants: [...carryDay.slots.keys()],
+      }
+    : null;
 
   const payouts = [...pay.entries()].map(([k, amount]) => {
     const [player_name, pay_date] = k.split("|");
@@ -242,6 +252,7 @@ export async function computeSettlement(): Promise<SettleResult> {
     net,
     paidDates,
     breakdown,
+    carriedTreo,
   };
 }
 

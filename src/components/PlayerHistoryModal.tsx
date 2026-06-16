@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { getPlayerHistory } from "@/lib/queries";
-import { formatKickoff } from "@/lib/format";
+import { getPlayerLedger } from "@/lib/queries";
+import { formatVND, formatShort } from "@/lib/format";
 
-type History = Awaited<ReturnType<typeof getPlayerHistory>>;
+type Ledger = Awaited<ReturnType<typeof getPlayerLedger>>;
 
 export default function PlayerHistoryModal({
   name,
@@ -14,17 +14,15 @@ export default function PlayerHistoryModal({
   name: string;
   onClose: () => void;
 }) {
-  const [rows, setRows] = useState<History | null>(null);
+  const [data, setData] = useState<Ledger | null>(null);
 
   useEffect(() => {
     let alive = true;
-    getPlayerHistory(name).then((d) => alive && setRows(d));
+    getPlayerLedger(name).then((d) => alive && setData(d));
     return () => {
       alive = false;
     };
   }, [name]);
-
-  const wins = rows?.filter((r) => r.win).length ?? 0;
 
   return createPortal(
     <div
@@ -36,14 +34,7 @@ export default function PlayerHistoryModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">
-            Lịch sử của {name}
-            {rows && (
-              <span className="ml-2 text-sm font-normal text-white/40">
-                {rows.length} lượt · {wins} trúng
-              </span>
-            )}
-          </h2>
+          <h2 className="text-lg font-bold">Lịch sử tiền · {name}</h2>
           <button
             className="text-2xl leading-none text-white/50 hover:text-white"
             onClick={onClose}
@@ -53,37 +44,56 @@ export default function PlayerHistoryModal({
           </button>
         </div>
 
-        {rows === null ? (
+        {data === null ? (
           <p className="text-sm text-white/40">Đang tải…</p>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-white/50">Chưa có lượt đoán nào.</p>
+        ) : data.items.length === 0 ? (
+          <p className="text-sm text-white/50">Chưa có giao dịch nào.</p>
         ) : (
-          <ul className="divide-y divide-white/5">
-            {rows.map((r, i) => (
-              <li
-                key={i}
-                className={`flex items-center justify-between gap-3 py-2.5 ${
-                  r.win ? "font-bold text-red-400" : ""
+          <>
+            <div className="mb-3 flex items-baseline justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+              <span className="text-sm text-white/60">Tổng cộng (lời/lỗ)</span>
+              <span
+                className={`text-xl font-extrabold ${
+                  data.total > 0
+                    ? "text-neon"
+                    : data.total < 0
+                    ? "text-red-400"
+                    : "text-white/60"
                 }`}
               >
-                <div className="min-w-0">
-                  <p className="truncate text-sm">
-                    {r.win && "🎯 "}
-                    {r.team1} <span className="text-white/40">gặp</span> {r.team2}
-                  </p>
-                  <p className="text-[11px] font-normal text-white/40">
-                    ⏱ {formatKickoff(r.kickoff_time)}
-                    {r.finished
-                      ? ` · KQ ${r.home_score}–${r.away_score}`
-                      : " · chưa đá"}
-                  </p>
-                </div>
-                <span className="shrink-0 font-mono text-lg">
-                  {r.predicted_home}–{r.predicted_away}
-                </span>
-              </li>
-            ))}
-          </ul>
+                {data.total > 0 ? "+" : ""}
+                {formatVND(data.total)}
+              </span>
+            </div>
+
+            <ul className="divide-y divide-white/5">
+              {data.items.map((it, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {it.kind === "win" ? "🎯 " : "📝 "}
+                      {it.label}
+                    </p>
+                    {it.sub && (
+                      <p className="truncate text-[11px] text-white/40">{it.sub}</p>
+                    )}
+                    <p className="text-[10px] text-white/30">{formatShort(it.time)}</p>
+                  </div>
+                  <span
+                    className={`shrink-0 font-mono text-sm font-bold ${
+                      it.amount > 0 ? "text-neon" : "text-red-400"
+                    }`}
+                  >
+                    {it.amount > 0 ? "+" : ""}
+                    {formatVND(it.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
 
         <button className="btn mt-4 w-full" onClick={onClose}>

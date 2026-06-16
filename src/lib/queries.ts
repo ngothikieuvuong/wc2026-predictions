@@ -1,6 +1,6 @@
 import { supabase, STAKE_VND } from "./supabase";
 import type { Match, Prediction, Reward, Reaction } from "./types";
-import { dayKey, activeDay } from "./day";
+import { dayKey, dayLabel, activeDay } from "./day";
 
 // Current jackpot: counts days up to the active day (the day currently in
 // play). Future days aren't in the pot yet; once a day's matches finish with
@@ -202,15 +202,27 @@ export async function getFundByDay(): Promise<
     a.names.add(p.player_name);
   }
 
-  return [...agg.entries()]
+  const out = [...agg.entries()]
     .filter(([d]) => !paid.has(d)) // hide days already paid out
     .map(([date, a]) => ({
       date,
       participants: [...a.names],
       pot: a.slots * STAKE_VND,
       counted: date <= active,
-    }))
-    .sort((x, y) => (x.date < y.date ? -1 : 1));
+    }));
+
+  // After settling, show the carried-over leftover (treo) as its own day entry,
+  // with the participants from the just-settled period.
+  if (settle.carriedTreo && settle.carriedTreo.amount > 0) {
+    out.push({
+      date: settle.carriedTreo.date,
+      participants: settle.carriedTreo.participants,
+      pot: settle.carriedTreo.amount,
+      counted: true,
+    });
+  }
+
+  return out.sort((x, y) => (x.date < y.date ? -1 : 1));
 }
 
 // Quick info for two teams: FIFA rank + their results so far in the tournament.
@@ -397,6 +409,55 @@ export async function getPlayerHistory(name: string): Promise<
       };
     })
     .sort((a, b) => (a.kickoff_time < b.kickoff_time ? 1 : -1));
+}
+
+// One person's money ledger (credit/debit): each prediction is −20.000đ
+// ("dự đoán tỷ số"), each settlement payout is +amount ("trúng tỷ số").
+export async function getPlayerLedger(name: string): Promise<{
+  total: number;
+  items: { kind: "stake" | "win"; label: string; sub: string; amount: number; time: string }[];
+}> {
+  const [{ data: preds }, { data: matches }, { data: rewards }] = await Promise.all([
+    supabase.from("predictions").select("*").eq("player_name", name),
+    supabase.from("matches").select("*"),
+    supabase.from("rewards").select("*").eq("player_name", name),
+  ]);
+  const byId = new Map(((matches as Match[]) ?? []).map((m) => [m.id, m]));
+
+  const items: {
+    kind: "stake" | "win";
+    label: string;
+    sub: string;
+    amount: number;
+    time: string;
+  }[] = [];
+
+  for (const p of (preds as Prediction[]) ?? []) {
+    const m = byId.get(p.match_id);
+    items.push({
+      kind: "stake",
+      label: "Dự đoán tỷ số",
+      sub: m
+        ? `${m.team1} – ${m.team2} · đoán ${p.predicted_home}–${p.predicted_away}`
+        : "",
+      amount: -STAKE_VND,
+      time: p.created_at,
+    });
+  }
+
+  for (const r of (rewards as Reward[]) ?? []) {
+    items.push({
+      kind: "win",
+      label: "Trúng tỷ số",
+      sub: r.pay_date ? `tất toán ngày ${dayLabel(r.pay_date)}` : "",
+      amount: Number(r.amount),
+      time: r.created_at,
+    });
+  }
+
+  items.sort((a, b) => (a.time < b.time ? 1 : -1)); // newest first
+  const total = items.reduce((s, i) => s + i.amount, 0);
+  return { total, items };
 }
 
 // Existing predictions for one match (to show others' picks on the predict form).
