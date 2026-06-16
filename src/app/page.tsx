@@ -14,22 +14,7 @@ import { dayLabel } from "@/lib/day";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import MatchInfoButton from "@/components/MatchInfoButton";
-
-// Cheeky condolences for a prediction not matching the live score (deterministic).
-const LOSE_MSGS = [
-  "Lêu lêu, tạch rồi 😝",
-  "Chúc may mắn lần sau 🤣",
-  "Trật lất luôn 😬",
-  "Còn lâu mới trúng 😆",
-  "Sai một li, đi quỹ luôn 😎",
-  "Hẹn trận sau nha 🙃",
-  "Tiền sắp vào quỹ rồi 💸",
-];
-function loseMessage(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return LOSE_MSGS[h % LOSE_MSGS.length];
-}
+import { loseMessage } from "@/lib/tease";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);

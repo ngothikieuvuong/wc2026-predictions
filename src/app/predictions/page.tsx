@@ -13,6 +13,7 @@ import {
 import type { Match, Prediction, Reaction } from "@/lib/types";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
+import { loseMessage } from "@/lib/tease";
 import { formatKickoff, formatShort, isClosed } from "@/lib/format";
 import { dayKey, dayLabel } from "@/lib/day";
 
@@ -55,16 +56,18 @@ function PredRow({
 }) {
   const win = isWinner(match, p);
   const finished = match.status === "finished";
-  // Prediction currently matches the live score (match still in play).
+  // Match in play → compare prediction to the current live score.
+  const isLive = !!liveInfo;
   const matchingLive =
-    !!liveInfo &&
-    p.predicted_home === liveInfo.t1 &&
-    p.predicted_away === liveInfo.t2;
+    isLive &&
+    p.predicted_home === liveInfo!.t1 &&
+    p.predicted_away === liveInfo!.t2;
+  const liveMiss = isLive && !matchingLive; // playing but wrong so far
   const tone = win
     ? "text-red-400 font-bold"
     : matchingLive
     ? "text-grass font-bold"
-    : finished
+    : liveMiss || finished
     ? "text-white/35"
     : "";
 
@@ -112,6 +115,10 @@ function PredRow({
         <p className="mt-0.5 text-[11px] font-semibold text-grass">
           Gần trúng rồi, cố lên xí nữa 🙂
         </p>
+      )}
+
+      {liveMiss && (
+        <p className="mt-0.5 text-[11px] text-white/30">{loseMessage(p.id)}</p>
       )}
 
       {groups.length > 0 && (
