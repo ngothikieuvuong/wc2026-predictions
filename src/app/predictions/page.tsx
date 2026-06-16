@@ -18,6 +18,23 @@ import { dayKey, dayLabel } from "@/lib/day";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤡"];
 
+// Cheeky condolences for a wrong prediction (deterministic per prediction id).
+const LOSE_MSGS = [
+  "Lêu lêu, tạch rồi 😝",
+  "Chúc may mắn lần sau 🤣",
+  "Trật lất luôn 😬",
+  "Thôi xong, tạch 😆",
+  "Gần đúng… mà vẫn sai 😅",
+  "Hẹn ngày mai nha 🙃",
+  "Tiền rơi vào quỹ rồi 💸",
+  "Sai một li, đi quỹ luôn 😎",
+];
+function loseMessage(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return LOSE_MSGS[h % LOSE_MSGS.length];
+}
+
 type Row = { match: Match; predictions: Prediction[] };
 type DayGroup = { day: string; items: Row[]; finished: boolean };
 
@@ -112,6 +129,10 @@ function PredRow({
         <p className="mt-0.5 text-[11px] font-semibold text-grass">
           Gần trúng rồi, cố lên xí nữa 🙂
         </p>
+      )}
+
+      {finished && !win && (
+        <p className="mt-0.5 text-[11px] text-white/30">{loseMessage(p.id)}</p>
       )}
 
       {groups.length > 0 && (
