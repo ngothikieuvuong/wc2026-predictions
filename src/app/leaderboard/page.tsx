@@ -5,6 +5,7 @@ import { getStats, getSettlements } from "@/lib/queries";
 import { computeSettlement, type SettleResult } from "@/lib/admin";
 import { formatVND, formatShort } from "@/lib/format";
 import PlayerHistoryModal from "@/components/PlayerHistoryModal";
+import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 
 type Event = { time: string; lines: { name: string; delta: number }[] };
 
@@ -48,6 +49,8 @@ export default function StatsPage() {
 
   return (
     <div className="space-y-6">
+      <PendingWinnersBanner />
+
       <div>
         <h1 className="text-2xl font-bold">Tổng kết</h1>
         <p className="text-sm text-white/50">

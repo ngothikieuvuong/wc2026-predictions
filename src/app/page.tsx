@@ -14,6 +14,7 @@ import { dayLabel } from "@/lib/day";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import MatchInfoButton from "@/components/MatchInfoButton";
+import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 
 export default function HomePage() {
@@ -103,6 +104,8 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
+      <PendingWinnersBanner />
+
       {/* Live matches — with each prediction's status vs the live score */}
       {live.length > 0 && (
         <section className="card">

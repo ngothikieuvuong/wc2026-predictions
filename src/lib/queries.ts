@@ -411,6 +411,70 @@ export async function getPlayerHistory(name: string): Promise<
     .sort((a, b) => (a.kickoff_time < b.kickoff_time ? 1 : -1));
 }
 
+// Early winners on the active day whose pool can't settle yet because the day
+// still has matches to finish. Used for the "congrats, keep going / wait" banner.
+export async function getPendingWinners(): Promise<{
+  waiting: boolean;
+  matches: {
+    team1: string;
+    team2: string;
+    home_score: number;
+    away_score: number;
+    winners: string[];
+  }[];
+}> {
+  const [{ data: preds }, { data: matches }] = await Promise.all([
+    supabase.from("predictions").select("*"),
+    supabase.from("matches").select("*"),
+  ]);
+  const P = (preds as Prediction[]) ?? [];
+  const M = (matches as Match[]) ?? [];
+  const active = activeDay(M, P);
+  const byId = new Map(M.map((m) => [m.id, m]));
+
+  // Predicted matches on the active day.
+  const dayIds = new Set<string>();
+  for (const p of P) {
+    const m = byId.get(p.match_id);
+    if (m && dayKey(m.kickoff_time) === active) dayIds.add(m.id);
+  }
+  const dayMatches = [...dayIds].map((id) => byId.get(id)!).filter(Boolean);
+
+  const allFinished =
+    dayMatches.length > 0 &&
+    dayMatches.every(
+      (m) => m.status === "finished" && m.home_score != null && m.away_score != null
+    );
+
+  const out: {
+    team1: string;
+    team2: string;
+    home_score: number;
+    away_score: number;
+    winners: string[];
+  }[] = [];
+  for (const m of dayMatches) {
+    if (m.status !== "finished" || m.home_score == null || m.away_score == null)
+      continue;
+    const winners = P.filter(
+      (p) =>
+        p.match_id === m.id &&
+        p.predicted_home === m.home_score &&
+        p.predicted_away === m.away_score
+    ).map((p) => p.player_name);
+    if (winners.length > 0)
+      out.push({
+        team1: m.team1,
+        team2: m.team2,
+        home_score: m.home_score,
+        away_score: m.away_score,
+        winners,
+      });
+  }
+
+  return { waiting: !allFinished, matches: out };
+}
+
 // One person's money ledger (credit/debit): each prediction is −20.000đ
 // ("dự đoán tỷ số"), each settlement payout is +amount ("trúng tỷ số").
 export async function getPlayerLedger(name: string): Promise<{

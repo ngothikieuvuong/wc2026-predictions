@@ -16,6 +16,7 @@ import { autoSync } from "@/lib/syncClient";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 import { formatKickoff, formatShort, isClosed } from "@/lib/format";
 import MatchInfoButton from "@/components/MatchInfoButton";
+import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤡"];
 
@@ -472,6 +473,8 @@ export default function PredictionsPage() {
 
   return (
     <div className="space-y-6">
+      <PendingWinnersBanner />
+
       <div>
         <h1 className="text-2xl font-bold">Lượt đoán của mọi người</h1>
         <p className="text-sm text-white/50">
