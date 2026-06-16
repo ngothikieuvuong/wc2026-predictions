@@ -114,11 +114,13 @@ export async function computeSettlement(): Promise<SettleResult> {
 
   const fundOf = (d: DayInfo) => d.carryFund ?? d.totalSlots * STAKE;
 
-  // Settle one pool (carried treo + no-winner days + the winning day): winners
-  // take min(fund, Σ winner max-claim) split by win-ratio (correct scores on the
-  // winning day). The leftover is NOT refunded — it is returned to the caller to
-  // be carried forward (treo) into the next pool, keeping the pool's slot/player
-  // info so the next settlement can apply the same formula. Returns the leftover.
+  // Settle one pool (carried treo + no-winner days + the winning day):
+  //  - win-ratio[w] = w's correct scores / total correct scores (winning day),
+  //  - max-claim[w] = Σ over pool days (w's slots × players that day × stake),
+  //  - tentative[w] = max-claim[w] × win-ratio[w],
+  //  - if Σ tentative > fund, scale everyone down by fund / Σ tentative,
+  //  - the leftover (fund − paid) is NOT refunded — it's returned to be carried
+  //    forward (treo) into the next pool and settled by the same formula.
   const settlePool = (poolDays: DayInfo[], winDay: DayInfo): number => {
     const totalFund = poolDays.reduce((s, d) => s + fundOf(d), 0);
 
@@ -133,16 +135,22 @@ export async function computeSettlement(): Promise<SettleResult> {
     const winners = [...winDay.correct.entries()].filter(([, c]) => c > 0);
     const totalWin = winners.reduce((s, [, c]) => s + c, 0);
 
-    // Winners collectively absorb min(fund, their total max claim).
-    const winnerMaxClaim = winners.reduce(
-      (s, [name]) => s + (maxClaim.get(name) ?? 0),
-      0
-    );
-    const winnersAbsorb = Math.min(totalFund, winnerMaxClaim);
+    // Tentative = each winner's own max-claim × their win-ratio.
+    const tentative = new Map<string, number>();
+    let sumTentative = 0;
+    for (const [name, c] of winners) {
+      const t = (maxClaim.get(name) ?? 0) * (c / totalWin);
+      tentative.set(name, t);
+      sumTentative += t;
+    }
+
+    // Scale down only if the winners' tentative total exceeds the fund.
+    const scale =
+      sumTentative > totalFund && sumTentative > 0 ? totalFund / sumTentative : 1;
 
     let paidWinners = 0;
     for (const [name, c] of winners) {
-      const w = winnersAbsorb * (c / totalWin);
+      const w = (tentative.get(name) ?? 0) * scale;
       addPay(name, winDay.date, w);
       winBy.set(name, (winBy.get(name) ?? 0) + w);
       correctBy.set(name, (correctBy.get(name) ?? 0) + c);
