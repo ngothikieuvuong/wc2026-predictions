@@ -35,8 +35,19 @@ export default function PendingWinnersBanner() {
         ))}
       </ul>
       <p className="mt-2 text-xs text-white/60">
-        Cố đoán thêm các trận còn lại của ngày, hoặc chờ chúng kết thúc để{" "}
-        <b>chốt sổ ẳm quỹ</b> 💰
+        Cố đoán thêm, hoặc chờ{" "}
+        {data.lastMatch ? (
+          <>
+            trận cuối của ngày —{" "}
+            <b className="text-white/80">
+              {data.lastMatch.team1} - {data.lastMatch.team2}
+            </b>{" "}
+            — kết thúc
+          </>
+        ) : (
+          "các trận còn lại kết thúc"
+        )}{" "}
+        để <b>chốt sổ ẳm quỹ</b> 💰
       </p>
     </section>
   );

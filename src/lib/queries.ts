@@ -415,6 +415,7 @@ export async function getPlayerHistory(name: string): Promise<
 // still has matches to finish. Used for the "congrats, keep going / wait" banner.
 export async function getPendingWinners(): Promise<{
   waiting: boolean;
+  lastMatch: { team1: string; team2: string } | null;
   matches: {
     team1: string;
     team2: string;
@@ -438,13 +439,20 @@ export async function getPendingWinners(): Promise<{
     const m = byId.get(p.match_id);
     if (m && dayKey(m.kickoff_time) === active) dayIds.add(m.id);
   }
-  const dayMatches = [...dayIds].map((id) => byId.get(id)!).filter(Boolean);
+  const dayMatches = [...dayIds]
+    .map((id) => byId.get(id)!)
+    .filter(Boolean)
+    .sort((a, b) => (a.kickoff_time < b.kickoff_time ? -1 : 1));
 
   const allFinished =
     dayMatches.length > 0 &&
     dayMatches.every(
       (m) => m.status === "finished" && m.home_score != null && m.away_score != null
     );
+
+  // The last predicted match of the day (latest kickoff) — settlement waits for it.
+  const last = dayMatches[dayMatches.length - 1];
+  const lastMatch = last ? { team1: last.team1, team2: last.team2 } : null;
 
   const out: {
     team1: string;
@@ -472,7 +480,7 @@ export async function getPendingWinners(): Promise<{
       });
   }
 
-  return { waiting: !allFinished, matches: out };
+  return { waiting: !allFinished, lastMatch, matches: out };
 }
 
 // One person's money ledger (credit/debit): each prediction is −20.000đ
