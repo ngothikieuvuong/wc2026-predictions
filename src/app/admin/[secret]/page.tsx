@@ -7,6 +7,7 @@ import {
   logSettlement,
   snapshotRewards,
   hasSettlement,
+  isSettlementCurrent,
   revertLastSettlement,
   getAllPredictionsDetailed,
   updatePrediction,
@@ -15,7 +16,7 @@ import {
   setMatchOpen,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
-import { getJackpot, getCorrectPredictions, getFundByDay } from "@/lib/queries";
+import { getJackpot, getFundByDay } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatKickoff, formatShort, formatVND } from "@/lib/format";
 import { dayKey } from "@/lib/day";
@@ -50,31 +51,28 @@ function AdminPanel() {
   const [fundByDay, setFundByDay] = useState<
     Awaited<ReturnType<typeof getFundByDay>>
   >([]);
-  const [correct, setCorrect] = useState<
-    Awaited<ReturnType<typeof getCorrectPredictions>>
-  >([]);
   const [banner, setBanner] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [settling, setSettling] = useState(false);
   const [review, setReview] = useState<SettleResult | null>(null);
   const [applying, setApplying] = useState(false);
   const [canRevert, setCanRevert] = useState(false);
+  const [alreadySettled, setAlreadySettled] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [preview, setPreview] = useState<SettleResult | null>(null);
 
   async function refresh() {
-    const [j, f, c, pv, rev] = await Promise.all([
+    const [j, f, pv, rev] = await Promise.all([
       getJackpot(),
       getFundByDay(),
-      getCorrectPredictions(),
       computeSettlement(),
       hasSettlement(),
     ]);
     setJackpot(j);
     setFundByDay(f);
-    setCorrect(c);
     setPreview(pv);
     setCanRevert(rev);
+    setAlreadySettled(await isSettlementCurrent(pv.net));
   }
 
   useEffect(() => {
@@ -143,8 +141,10 @@ function AdminPanel() {
     setApplying(false);
   }
 
-  // Settle-able = at least one person actually đoán trúng tỉ số (not just refunds).
-  const canSettle = !!preview && preview.breakdown.winners.length > 0;
+  // Settle-able = someone đoán trúng tỉ số AND it hasn't been settled yet
+  // (a new winning day re-enables the button).
+  const hasWinners = !!preview && preview.breakdown.winners.length > 0;
+  const canSettle = hasWinners && !alreadySettled;
   const settleWinners = preview
     ? preview.breakdown.winners.map((w) => w.name)
     : [];
@@ -173,7 +173,9 @@ function AdminPanel() {
         </button>
         {!canSettle && (
           <p className="text-center text-xs text-white/40">
-            Nút chốt sổ bật khi trận đã kết thúc và có người đoán trúng.
+            {alreadySettled
+              ? "✅ Đã chốt sổ — nút bật lại khi có ngày trúng mới."
+              : "Nút chốt sổ bật khi trận đã kết thúc và có người đoán trúng."}
           </p>
         )}
 
@@ -311,32 +313,6 @@ function AdminPanel() {
       {/* Pick matches open for prediction */}
       <OpenMatchesPicker onChanged={(text) => setBanner(text)} />
 
-      {/* Correct predictors (most recent match first) */}
-      <section className="card p-0 overflow-hidden">
-        <div className="border-b border-white/10 px-4 py-3 font-bold">
-          Người đoán đúng ({correct.length})
-        </div>
-        {correct.length === 0 ? (
-          <p className="p-4 text-white/50">Chưa có ai đoán đúng.</p>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {correct.map((c, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <div>
-                  <p className="font-semibold">🎯 {c.player_name}</p>
-                  <p className="text-xs text-white/50">
-                    {c.team1} {c.home_score}–{c.away_score} {c.team2}
-                  </p>
-                </div>
-                <span className="whitespace-nowrap text-xs text-white/40">
-                  {formatKickoff(c.kickoff_time)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       {/* Manage predictions */}
       <ManagePredictions
         key={reloadKey}
@@ -354,6 +330,7 @@ function OpenMatchesPicker({ onChanged }: { onChanged: (text: string) => void })
   const [list, setList] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [showRest, setShowRest] = useState(false);
 
   async function load() {
     setList(await getUpcomingMatches());
@@ -381,12 +358,44 @@ function OpenMatchesPicker({ onChanged }: { onChanged: (text: string) => void })
 
   const openCount = list.filter((m) => m.is_open).length;
 
+  // Next 3 days shown; later matches collapsed (keep any already-open ones up).
+  const cutoff = Date.now() + 3 * 24 * 3600 * 1000;
+  const soon = list.filter(
+    (m) => new Date(m.kickoff_time).getTime() <= cutoff || m.is_open
+  );
+  const soonIds = new Set(soon.map((m) => m.id));
+  const rest = list.filter((m) => !soonIds.has(m.id));
+
+  const row = (m: Match) => (
+    <li key={m.id} className="flex items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">
+          {m.team1} - {m.team2}
+        </p>
+        <p className="truncate text-xs text-white/40">
+          {formatKickoff(m.kickoff_time)}
+        </p>
+      </div>
+      <button
+        onClick={() => toggle(m)}
+        disabled={busyId === m.id}
+        className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+          m.is_open
+            ? "bg-grass text-black"
+            : "border border-white/15 text-white/60 hover:bg-white/10"
+        }`}
+      >
+        {m.is_open ? "✓ Cho đoán" : "Đóng"}
+      </button>
+    </li>
+  );
+
   return (
     <section className="card space-y-3">
       <div>
         <h2 className="font-bold">Chọn trận cho đoán ({openCount} đang mở)</h2>
         <p className="text-xs text-white/40">
-          Chỉ trận bật xanh mới hiện cho mọi người đoán.
+          Chỉ trận bật xanh mới hiện cho mọi người đoán. Mặc định chỉ hiện 3 ngày tới.
         </p>
       </div>
       {loading ? (
@@ -394,31 +403,20 @@ function OpenMatchesPicker({ onChanged }: { onChanged: (text: string) => void })
       ) : list.length === 0 ? (
         <p className="text-white/50">Không có trận sắp tới.</p>
       ) : (
-        <ul className="space-y-1.5">
-          {list.map((m) => (
-            <li key={m.id} className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  {m.team1} - {m.team2}
-                </p>
-                <p className="truncate text-xs text-white/40">
-                  {formatKickoff(m.kickoff_time)}
-                </p>
-              </div>
+        <>
+          <ul className="space-y-1.5">{soon.map(row)}</ul>
+          {rest.length > 0 && (
+            <div className="space-y-1.5">
               <button
-                onClick={() => toggle(m)}
-                disabled={busyId === m.id}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
-                  m.is_open
-                    ? "bg-grass text-black"
-                    : "border border-white/15 text-white/60 hover:bg-white/10"
-                }`}
+                onClick={() => setShowRest((v) => !v)}
+                className="text-sm font-semibold text-white/60 hover:text-white"
               >
-                {m.is_open ? "✓ Cho đoán" : "Đóng"}
+                {showRest ? "▾" : "▸"} Trận xa hơn ({rest.length})
               </button>
-            </li>
-          ))}
-        </ul>
+              {showRest && <ul className="space-y-1.5">{rest.map(row)}</ul>}
+            </div>
+          )}
+        </>
       )}
     </section>
   );
@@ -433,6 +431,7 @@ function ManagePredictions({ onChanged }: { onChanged: (text: string) => void })
     ReturnType<typeof getAllPredictionsDetailed>
   > | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showFinished, setShowFinished] = useState(false);
 
   async function load() {
     setData(await getAllPredictionsDetailed());
@@ -494,7 +493,28 @@ function ManagePredictions({ onChanged }: { onChanged: (text: string) => void })
           <ul className="divide-y divide-white/5">
             {renderGroup("⚡ Ngày đang diễn ra", activeItems, false)}
             {renderGroup("🕒 Trận sắp tới khác", otherUpcoming, false)}
-            {renderGroup("✅ Đã kết thúc", finishedItems, true)}
+            {finishedItems.length > 0 && (
+              <>
+                <li>
+                  <button
+                    onClick={() => setShowFinished((v) => !v)}
+                    className="w-full bg-white/5 px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-white/40 hover:bg-white/10"
+                  >
+                    {showFinished ? "▾" : "▸"} ✅ Đã kết thúc ({finishedItems.length})
+                  </button>
+                </li>
+                {showFinished &&
+                  finishedItems.map((p) => (
+                    <PredRow
+                      key={p.id}
+                      item={p}
+                      locked
+                      onSaved={onChanged}
+                      onDeleted={onDeleted}
+                    />
+                  ))}
+              </>
+            )}
           </ul>
         )}
       </section>

@@ -15,12 +15,10 @@ import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 import { formatKickoff, formatShort, isClosed } from "@/lib/format";
-import { dayKey, dayLabel } from "@/lib/day";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤡"];
 
 type Row = { match: Match; predictions: Prediction[] };
-type DayGroup = { day: string; items: Row[]; finished: boolean };
 
 function isWinner(m: Match, p: Prediction): boolean {
   return (
@@ -221,37 +219,6 @@ function MatchCard({
   );
 }
 
-function DayBlock({
-  group,
-  label,
-  reactionsByPred,
-  liveScores,
-  onOpen,
-}: {
-  group: DayGroup;
-  label?: string;
-  reactionsByPred: Map<string, Reaction[]>;
-  liveScores: LiveScore[];
-  onOpen: (p: Prediction) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
-        {label ?? `Ngày ${dayLabel(group.day)}`}
-      </h2>
-      {group.items.map((r) => (
-        <MatchCard
-          key={r.match.id}
-          {...r}
-          reactionsByPred={reactionsByPred}
-          liveScores={liveScores}
-          onOpen={onOpen}
-        />
-      ))}
-    </div>
-  );
-}
-
 function ReactionSheet({
   target,
   players,
@@ -402,7 +369,6 @@ export default function PredictionsPage() {
   const [players, setPlayers] = useState<string[]>([]);
   const [liveScores, setLiveScores] = useState<LiveScore[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showOld, setShowOld] = useState(false);
   const [target, setTarget] = useState<{
     pred: Prediction;
     matchLabel: string;
@@ -433,41 +399,26 @@ export default function PredictionsPage() {
     });
   }, []);
 
-  // Within a day: đang diễn ra (live) on top, sắp tới next, đã xong at the bottom.
-  const statusRank = (m: Match) => {
-    const done = m.status === "finished" && m.home_score != null;
-    if (done) return 2;
-    return isClosed(m.kickoff_time) ? 0 : 1; // live : upcoming
-  };
+  // Sort by status: live on top, then upcoming (nearest first), then finished
+  // (newest first).
+  const isDone = (m: Match) => m.status === "finished" && m.home_score != null;
+  const isLive = (m: Match) => !isDone(m) && isClosed(m.kickoff_time);
+  const byKickoffAsc = (a: Row, b: Row) =>
+    a.match.kickoff_time < b.match.kickoff_time ? -1 : 1;
+  const byKickoffDesc = (a: Row, b: Row) =>
+    a.match.kickoff_time > b.match.kickoff_time ? -1 : 1;
 
-  // Group by game-day (rows already sorted by kickoff asc).
-  const map = new Map<string, Row[]>();
-  for (const r of rows) {
-    const d = dayKey(r.match.kickoff_time);
-    if (!map.has(d)) map.set(d, []);
-    map.get(d)!.push(r);
-  }
-  const groups: DayGroup[] = [...map.entries()].map(([day, items]) => ({
-    day,
-    items: [...items].sort((a, b) => {
-      const ra = statusRank(a.match);
-      const rb = statusRank(b.match);
-      if (ra !== rb) return ra - rb;
-      return a.match.kickoff_time < b.match.kickoff_time ? -1 : 1;
-    }),
-    finished: items.every(
-      (r) => r.match.status === "finished" && r.match.home_score != null
-    ),
-  }));
+  const liveRows = rows.filter((r) => isLive(r.match)).sort(byKickoffAsc);
+  const upcomingRows = rows
+    .filter((r) => !isDone(r.match) && !isLive(r.match))
+    .sort(byKickoffAsc); // nearest first
+  const finishedRows = rows.filter((r) => isDone(r.match)).sort(byKickoffDesc); // new → old
 
-  const upcoming = groups
-    .filter((g) => !g.finished)
-    .sort((a, b) => (a.day < b.day ? -1 : 1)); // soonest first
-  const finishedDesc = groups
-    .filter((g) => g.finished)
-    .sort((a, b) => (a.day > b.day ? -1 : 1)); // most recent first
-  const justEnded = finishedDesc[0];
-  const older = finishedDesc.slice(1);
+  const sections = [
+    { key: "live", title: "🔴 Đang diễn ra", items: liveRows, dim: false },
+    { key: "upcoming", title: "Sắp diễn ra", items: upcomingRows, dim: false },
+    { key: "finished", title: "Vừa kết thúc", items: finishedRows, dim: true },
+  ];
 
   // Open the reaction sheet for a prediction; resolve its match for the label.
   const matchById = new Map(rows.map((r) => [r.match.id, r.match]));
@@ -484,14 +435,14 @@ export default function PredictionsPage() {
       <div>
         <h1 className="text-2xl font-bold">Lượt đoán của mọi người</h1>
         <p className="text-sm text-white/50">
-          Trận sắp diễn ra ở trên, ngày vừa xong mờ bên dưới. Nhấn giữ một lượt
-          đoán để thả cảm xúc 💬
+          Đang diễn ra ở trên cùng, rồi sắp diễn ra, cuối là vừa kết thúc. Nhấn
+          giữ một lượt đoán để thả cảm xúc 💬
         </p>
       </div>
 
       {loading ? (
         <p className="text-white/40">Đang tải…</p>
-      ) : groups.length === 0 ? (
+      ) : rows.length === 0 ? (
         <div className="card text-center">
           <p className="text-white/50">Chưa có ai đoán.</p>
           <Link href="/predict" className="btn mt-3">
@@ -500,48 +451,27 @@ export default function PredictionsPage() {
         </div>
       ) : (
         <>
-          {upcoming.map((g) => (
-            <DayBlock
-              key={g.day}
-              group={g}
-              reactionsByPred={reactionsByPred}
-              liveScores={liveScores}
-              onOpen={onOpen}
-            />
-          ))}
-
-          {justEnded && (
-            <div className="opacity-70">
-              <DayBlock
-                group={justEnded}
-                label={`Vừa kết thúc · Ngày ${dayLabel(justEnded.day)}`}
-                reactionsByPred={reactionsByPred}
-                liveScores={liveScores}
-                onOpen={onOpen}
-              />
-            </div>
-          )}
-
-          {older.length > 0 && (
-            <div className="space-y-3">
-              <button
-                onClick={() => setShowOld((v) => !v)}
-                className="text-sm font-semibold text-white/60 hover:text-white"
-              >
-                {showOld ? "▾" : "▸"} Các ngày trước ({older.length})
-              </button>
-              {showOld &&
-                older.map((g) => (
-                  <div key={g.day} className="opacity-70">
-                    <DayBlock
-                      group={g}
+          {sections.map(
+            (s) =>
+              s.items.length > 0 && (
+                <div
+                  key={s.key}
+                  className={`space-y-3 ${s.dim ? "opacity-70" : ""}`}
+                >
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
+                    {s.title}
+                  </h2>
+                  {s.items.map((r) => (
+                    <MatchCard
+                      key={r.match.id}
+                      {...r}
                       reactionsByPred={reactionsByPred}
                       liveScores={liveScores}
                       onOpen={onOpen}
                     />
-                  </div>
-                ))}
-            </div>
+                  ))}
+                </div>
+              )
           )}
         </>
       )}

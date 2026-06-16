@@ -16,6 +16,43 @@ import TeamInfoButton from "@/components/TeamInfoButton";
 
 const NEW_PLAYER = "__new__";
 
+// Score input with −/+ steppers for easy mobile entry.
+function ScoreStepper({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const n = value === "" ? 0 : Number(value);
+  const step = (d: number) => onChange(String(Math.max(0, n + d)));
+  const btn =
+    "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-2xl font-bold text-white/80 transition hover:bg-white/20 active:scale-95";
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <div className="flex items-center gap-1.5">
+        <button type="button" onClick={() => step(-1)} className={btn} aria-label="Giảm">
+          −
+        </button>
+        <input
+          type="number"
+          min={0}
+          inputMode="numeric"
+          className="input min-w-0 flex-1 text-center text-xl"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button type="button" onClick={() => step(1)} className={btn} aria-label="Tăng">
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PredictPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<string[]>([]);
@@ -195,26 +232,8 @@ export default function PredictPage() {
 
         {selected && (
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">{selected.team1}</label>
-              <input
-                type="number"
-                min={0}
-                className="input text-center text-xl"
-                value={home}
-                onChange={(e) => setHome(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">{selected.team2}</label>
-              <input
-                type="number"
-                min={0}
-                className="input text-center text-xl"
-                value={away}
-                onChange={(e) => setAway(e.target.value)}
-              />
-            </div>
+            <ScoreStepper label={selected.team1} value={home} onChange={setHome} />
+            <ScoreStepper label={selected.team2} value={away} onChange={setAway} />
           </div>
         )}
 

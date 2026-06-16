@@ -304,6 +304,22 @@ export async function logSettlement(
     .insert({ cum: rounded, prev_rewards: prevRewards });
 }
 
+// Whether the latest logged settlement already matches the current net — i.e.
+// nothing new has been won since the last chốt sổ (so the button can disable).
+export async function isSettlementCurrent(
+  net: SettleResult["net"]
+): Promise<boolean> {
+  const { data: last } = await supabase
+    .from("settlements")
+    .select("cum")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!last) return false;
+  const lastCum = (last.cum as { name: string; value: number }[]) ?? [];
+  return normNet(lastCum) === normNet(net);
+}
+
 export async function deleteLastSettlement(): Promise<void> {
   const { data: last } = await supabase
     .from("settlements")
