@@ -436,25 +436,29 @@ function SettleSimulator() {
                   </p>
                   {g.items.map((m) => (
                     <div key={m.id} className="flex items-center gap-2 text-sm">
-                      <span className="flex-1 truncate text-right">{m.team1}</span>
+                      <span className="min-w-0 flex-1 truncate text-right font-medium">
+                        {m.team1}
+                      </span>
                       <input
                         type="number"
                         min={0}
                         inputMode="numeric"
                         value={scores[m.id]?.h ?? ""}
                         onChange={(e) => setScore(m.id, "h", e.target.value)}
-                        className="input w-12 !px-1 !py-1 text-center"
+                        className="w-11 shrink-0 rounded-lg border border-white/15 bg-black/30 py-1 text-center text-white outline-none focus:border-grass"
                       />
-                      <span className="text-white/40">–</span>
+                      <span className="shrink-0 text-white/40">–</span>
                       <input
                         type="number"
                         min={0}
                         inputMode="numeric"
                         value={scores[m.id]?.a ?? ""}
                         onChange={(e) => setScore(m.id, "a", e.target.value)}
-                        className="input w-12 !px-1 !py-1 text-center"
+                        className="w-11 shrink-0 rounded-lg border border-white/15 bg-black/30 py-1 text-center text-white outline-none focus:border-grass"
                       />
-                      <span className="flex-1 truncate">{m.team2}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {m.team2}
+                      </span>
                     </div>
                   ))}
                 </div>
