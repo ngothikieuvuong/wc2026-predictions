@@ -11,7 +11,7 @@ import {
 } from "@/lib/queries";
 import type { Match, Prediction } from "@/lib/types";
 import { formatKickoff, isClosed } from "@/lib/format";
-import { matchHint } from "@/lib/strength";
+import { matchHint, teamRank } from "@/lib/strength";
 import { getOdds, findOdds } from "@/lib/oddsClient";
 import { predictMatch, type Prediction as ScorePrediction } from "@/lib/predict";
 import TeamInfoButton from "@/components/TeamInfoButton";
@@ -21,25 +21,33 @@ const NEW_PLAYER = "__new__";
 const MAX_GOALS = 6; // 0–6 per side (e.g. 6–0 max, never 7–0)
 const DEFAULT_OU_LINE = 3; // Tài = tổng > 3 bàn, Xỉu = tổng < 3 (khi không có kèo)
 
-// Realism weighting so the roller favours plausible scores. Goals per side
-// follow ~Poisson(1.4) (real football), making 1–0/1–1/2–1 common and blowouts
-// like 5–5/6–6 vanishingly rare; a team scoring ≥4 lands only ~10% of the time.
-const REALISM_MU = 1.4;
-const factorial = (n: number) => {
-  let r = 1;
-  for (let i = 2; i <= n; i++) r *= i;
-  return r;
-};
-const poissonW = (k: number) =>
-  (Math.exp(-REALISM_MU) * Math.pow(REALISM_MU, k)) / factorial(k);
-const scoreWeight = (h: number, a: number) => poissonW(h) * poissonW(a);
+// Random scores are EQUALLY likely except a few "không tưởng" cases are rarer:
+//  - the stronger team scoring ≥5  (~10%),
+//  - the weaker team scoring ≥4    (~10%, less likely than the favourite),
+//  - the whole match totalling >7  (~7%),
+//  (both teams ≥4 falls out at ~3%). strongerIsHome: true/false by rank, or
+//  undefined when teams are even (then the higher-scoring side is "stronger").
+function scoreWeight(h: number, a: number, strongerIsHome?: boolean): number {
+  const sg =
+    strongerIsHome === true ? h : strongerIsHome === false ? a : Math.max(h, a);
+  const wg =
+    strongerIsHome === true ? a : strongerIsHome === false ? h : Math.min(h, a);
+  let w = 1;
+  if (sg >= 5) w *= 0.35;
+  if (wg >= 4) w *= 0.18;
+  if (h + a >= 8) w *= 0.7;
+  return w;
+}
 
 // Weighted random pick from candidate [home, away] scores.
-function pickWeighted(cands: [number, number][]): [number, number] {
-  const total = cands.reduce((s, [h, a]) => s + scoreWeight(h, a), 0);
+function pickWeighted(
+  cands: [number, number][],
+  strongerIsHome?: boolean
+): [number, number] {
+  const total = cands.reduce((s, [h, a]) => s + scoreWeight(h, a, strongerIsHome), 0);
   let r = Math.random() * total;
   for (const c of cands) {
-    r -= scoreWeight(c[0], c[1]);
+    r -= scoreWeight(c[0], c[1], strongerIsHome);
     if (r <= 0) return c;
   }
   return cands[cands.length - 1];
@@ -99,6 +107,12 @@ function RandomScoreModal({
 
   const takenSet = new Set(taken.map(([h, a]) => `${h}-${a}`));
 
+  // Which side is the favourite (lower FIFA rank); undefined when even/unknown.
+  const r1 = teamRank(team1);
+  const r2 = teamRank(team2);
+  const strongerIsHome =
+    r1 != null && r2 != null && r1 !== r2 ? r1 < r2 : undefined;
+
   const pool = (useNoDup: boolean, useOu: boolean): [number, number][] => {
     const out: [number, number][] = [];
     for (let h = 0; h <= MAX_GOALS; h++)
@@ -120,7 +134,7 @@ function RandomScoreModal({
     let p = pool(noDup, true);
     if (p.length === 0) p = pool(false, true);
     if (p.length === 0) p = pool(false, false);
-    const final = pickWeighted(p); // realistic scores far more likely
+    const final = pickWeighted(p, strongerIsHome); // unrealistic scores rarer
     setResult(final);
     setPhase("spin");
     const start = performance.now();
@@ -134,7 +148,7 @@ function RandomScoreModal({
       }
       // Flicker through valid candidates, weighted like the result (so wild
       // scores rarely flash either).
-      setDisplay(pickWeighted(p));
+      setDisplay(pickWeighted(p, strongerIsHome));
       const prog = elapsed / DURATION;
       timer.current = setTimeout(loop, 55 + prog * prog * 420); // ease-out
     };
