@@ -97,6 +97,32 @@ body {
 .modal-fade { animation: modalFade 0.15s ease-out; }
 .modal-pop { animation: modalPop 0.18s ease-out; }
 
+/* Logo trophy: gentle float + a pulsing golden halo so it stands out. */
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.95); }
+  50% { opacity: 0.95; transform: scale(1.08); }
+}
+.logo-float {
+  animation: logoFloat 3.2s ease-in-out infinite;
+}
+.logo-glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(233, 201, 124, 0.55),
+    rgba(233, 201, 124, 0) 70%
+  );
+  filter: blur(7px);
+  animation: glowPulse 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
 /* Smooth page-to-page transition (keyed on route). */
 @keyframes pageEnter {
   from { opacity: 0; transform: translateY(10px); }
