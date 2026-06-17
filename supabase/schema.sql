@@ -60,7 +60,8 @@ create table if not exists settlements (
   id            uuid primary key default gen_random_uuid(),
   created_at    timestamptz not null default now(),
   cum           jsonb not null,
-  prev_rewards  jsonb -- rewards snapshot before this settlement (for revert)
+  prev_rewards  jsonb, -- rewards snapshot before this settlement (for revert)
+  detail        jsonb  -- the confirmed payout breakdown of this settlement
 );
 
 -- Reactions (emoji) on predictions. A person can place several different

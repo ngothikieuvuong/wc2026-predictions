@@ -438,9 +438,13 @@ async function cumulativeNet(): Promise<{ name: string; value: number }[]> {
   }));
 }
 
-// Log a settlement event (cumulative net snapshot + the rewards snapshot taken
-// before this settlement, for revert). Skips if the net is unchanged.
-export async function logSettlement(prevRewards: Reward[]): Promise<void> {
+// Log a settlement event: cumulative net snapshot, the rewards snapshot before
+// this settlement (for revert), and the confirmed payout breakdown (for Tổng
+// kết). Skips if the net is unchanged.
+export async function logSettlement(
+  prevRewards: Reward[],
+  detail: SettleResult["breakdown"]
+): Promise<void> {
   const cum = await cumulativeNet();
   const { data: last } = await supabase
     .from("settlements")
@@ -453,7 +457,20 @@ export async function logSettlement(prevRewards: Reward[]): Promise<void> {
   if (normNet(lastCum) === normNet(cum)) return; // no change → no event
   await supabase
     .from("settlements")
-    .insert({ cum, prev_rewards: prevRewards });
+    .insert({ cum, prev_rewards: prevRewards, detail });
+}
+
+// The most recent confirmed settlement's payout breakdown (for Tổng kết).
+export async function getLastSettlementDetail(): Promise<
+  SettleResult["breakdown"] | null
+> {
+  const { data } = await supabase
+    .from("settlements")
+    .select("detail")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data?.detail as SettleResult["breakdown"] | undefined) ?? null;
 }
 
 export async function deleteLastSettlement(): Promise<void> {

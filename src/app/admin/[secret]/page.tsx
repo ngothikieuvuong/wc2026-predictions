@@ -108,7 +108,7 @@ function AdminPanel() {
     try {
       const prev = await snapshotRewards(); // state before this settlement
       await applySettlement(review.payouts);
-      await logSettlement(prev);
+      await logSettlement(prev, review.breakdown);
       setBanner(
         `✅ Đã chia ${formatVND(review.totalPaid)} cho ${perPerson(review).length} người.`
       );

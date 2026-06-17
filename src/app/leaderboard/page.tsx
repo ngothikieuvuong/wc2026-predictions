@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getStats, getSettlements } from "@/lib/queries";
-import { computeSettlement, type SettleResult } from "@/lib/admin";
+import { getLastSettlementDetail, type SettleResult } from "@/lib/admin";
 import { formatVND, formatShort } from "@/lib/format";
 import PlayerHistoryModal from "@/components/PlayerHistoryModal";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
@@ -22,13 +22,13 @@ export default function StatsPage() {
 
   useEffect(() => {
     (async () => {
-      const [stats, settlements, settle] = await Promise.all([
+      const [stats, settlements, detail] = await Promise.all([
         getStats(),
         getSettlements(),
-        computeSettlement(),
+        getLastSettlementDetail(), // confirmed division (null until chốt sổ)
       ]);
       setRows(stats);
-      setBreakdown(settle.breakdown);
+      setBreakdown(detail);
 
       // Per-event win/loss = change in cumulative net vs the previous event.
       const evs: Event[] = [];
