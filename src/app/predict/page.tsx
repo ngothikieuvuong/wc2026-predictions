@@ -542,95 +542,15 @@ export default function PredictPage() {
           )}
         </div>
 
-        {selected &&
-          (() => {
-            const hint = matchHint(selected.team1, selected.team2);
-            if (!hint) return null;
-            return (
-              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm">
-                <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
-                  Tham khảo
-                </p>
-                <div className="flex items-center justify-between text-white/70">
-                  <span>
-                    {selected.team1}{" "}
-                    <span className="text-white/40">(hạng ~{hint.rank1})</span>
-                  </span>
-                  <span>
-                    <span className="text-white/40">(hạng ~{hint.rank2})</span>{" "}
-                    {selected.team2}
-                  </span>
-                </div>
-                <p className="mt-1 text-center font-semibold text-grass">
-                  {hint.level === "cân sức" ? "⚖ Cân sức" : `💪 ${hint.level}`}
-                </p>
-                <div className="mt-2 text-center">
-                  <TeamInfoButton team1={selected.team1} team2={selected.team2} />
-                </div>
-              </div>
-            );
-          })()}
-
+        {/* Score input — right under the match dropdown */}
         {selected && (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <ScoreStepper label={selected.team1} value={home} onChange={setHome} />
-              <ScoreStepper label={selected.team2} value={away} onChange={setAway} />
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowRandom(true)}
-              className="btn-ghost w-full"
-            >
-              🎲 Random tỉ số
-            </button>
-            <ScoreHint team1={selected.team1} team2={selected.team2} />
-          </>
-        )}
-
-        {showRandom && selected && (
-          <RandomScoreModal
-            team1={selected.team1}
-            team2={selected.team2}
-            taken={others.map(
-              (p) => [p.predicted_home, p.predicted_away] as [number, number]
-            )}
-            onUse={(h, a) => {
-              setHome(String(h));
-              setAway(String(a));
-              setShowRandom(false);
-            }}
-            onClose={() => setShowRandom(false)}
-          />
-        )}
-
-        {selected && others.length > 0 && (
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
-              Người khác đã đoán ({others.length})
-            </p>
-            <ul className="divide-y divide-white/5">
-              {others.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex items-center justify-between py-1.5 text-sm"
-                >
-                  <span className="font-medium">{p.player_name}</span>
-                  <span className="font-mono font-bold">
-                    {p.predicted_home}–{p.predicted_away}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <div className="grid grid-cols-2 gap-2">
+            <ScoreStepper label={selected.team1} value={home} onChange={setHome} />
+            <ScoreStepper label={selected.team2} value={away} onChange={setAway} />
           </div>
         )}
 
-        {closed && (
-          <p className="text-sm text-amber-400">
-            Trận đã bắt đầu — dự đoán đã đóng.
-          </p>
-        )}
-
+        {/* Status / validation — right under the score box */}
         {msg && (
           <div className="space-y-1">
             <p
@@ -651,9 +571,105 @@ export default function PredictPage() {
           </div>
         )}
 
+        {closed && (
+          <p className="text-sm text-amber-400">
+            Trận đã bắt đầu — dự đoán đã đóng.
+          </p>
+        )}
+
         <button className="btn w-full" disabled={submitting || closed}>
           {submitting ? "Đang gửi…" : "Chốt lượt đoán"}
         </button>
+
+        {/* Helper tools — random + suggested score (kept visually separate) */}
+        {selected && (
+          <div className="space-y-3 rounded-2xl border border-grass/30 bg-grass/[0.06] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-grass">
+              🎯 Gợi ý chọn tỉ số
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowRandom(true)}
+              className="btn-ghost w-full"
+            >
+              🎲 Random tỉ số
+            </button>
+            <ScoreHint team1={selected.team1} team2={selected.team2} />
+          </div>
+        )}
+
+        {/* Reference info — team strength + others' predictions */}
+        {selected &&
+          (() => {
+            const hint = matchHint(selected.team1, selected.team2);
+            if (!hint && others.length === 0) return null;
+            return (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  📊 Thông tin tham khảo
+                </p>
+                {hint && (
+                  <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between text-white/70">
+                      <span>
+                        {selected.team1}{" "}
+                        <span className="text-white/40">(hạng ~{hint.rank1})</span>
+                      </span>
+                      <span>
+                        <span className="text-white/40">(hạng ~{hint.rank2})</span>{" "}
+                        {selected.team2}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-center font-semibold text-grass">
+                      {hint.level === "cân sức" ? "⚖ Cân sức" : `💪 ${hint.level}`}
+                    </p>
+                    <div className="mt-2 text-center">
+                      <TeamInfoButton
+                        team1={selected.team1}
+                        team2={selected.team2}
+                      />
+                    </div>
+                  </div>
+                )}
+                {others.length > 0 && (
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                    <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
+                      Người khác đã đoán ({others.length})
+                    </p>
+                    <ul className="divide-y divide-white/5">
+                      {others.map((p) => (
+                        <li
+                          key={p.id}
+                          className="flex items-center justify-between py-1.5 text-sm"
+                        >
+                          <span className="font-medium">{p.player_name}</span>
+                          <span className="font-mono font-bold">
+                            {p.predicted_home}–{p.predicted_away}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+        {showRandom && selected && (
+          <RandomScoreModal
+            team1={selected.team1}
+            team2={selected.team2}
+            taken={others.map(
+              (p) => [p.predicted_home, p.predicted_away] as [number, number]
+            )}
+            onUse={(h, a) => {
+              setHome(String(h));
+              setAway(String(a));
+              setShowRandom(false);
+            }}
+            onClose={() => setShowRandom(false)}
+          />
+        )}
       </form>
     </div>
   );
