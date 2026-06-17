@@ -23,10 +23,7 @@ export type SettleResult = {
   totalPaid: number;
   payouts: { player_name: string; pay_date: string; amount: number }[];
   pending: { date: string; pot: number }[];
-  // Cumulative net per person from days whose money has been distributed:
-  // received − stake in those resolved days. Zero-sum.
-  net: { name: string; value: number }[];
-  // Days already paid out (winner days + carried no-winner days).
+  // New days settled in THIS settlement.
   paidDates: string[];
   // Payout split: winners (đoán trúng tỉ số) + leftover kept as treo (carried).
   breakdown: {
@@ -39,16 +36,50 @@ export type SettleResult = {
   carriedTreo: { date: string; amount: number; participants: string[] } | null;
 };
 
-// Day-based settlement, computed from scratch (no DB writes — call
-// applySettlement to persist). Rules:
+// What's already been settled, derived from the rewards table:
+//  - watermark = the latest pay_date (days with dayKey ≤ it are already chốt'd),
+//  - carry = the leftover treo still in the pot = stakes on settled days minus
+//    everything paid. It carries only SLOTS forward (max-claim capacity), never
+//    the previous correct-score history.
+export async function settlementState(
+  matches: Match[],
+  preds: Prediction[]
+): Promise<{
+  watermark: string;
+  carryAmount: number;
+  carrySlots: Map<string, number>;
+}> {
+  const { data: rewards } = await supabase
+    .from("rewards")
+    .select("pay_date, amount");
+  const R = (rewards as { pay_date: string | null; amount: number }[]) ?? [];
+  const dates = R.map((r) => r.pay_date).filter((d): d is string => !!d);
+  const watermark = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : "";
+  const paidTotal = R.reduce((s, r) => s + Number(r.amount), 0);
+
+  const byId = new Map(matches.map((m) => [m.id, m]));
+  const carrySlots = new Map<string, number>();
+  let settledFund = 0;
+  if (watermark) {
+    for (const p of preds) {
+      const m = byId.get(p.match_id);
+      if (m && dayKey(m.kickoff_time) <= watermark) {
+        carrySlots.set(p.player_name, (carrySlots.get(p.player_name) ?? 0) + 1);
+        settledFund += STAKE;
+      }
+    }
+  }
+  return { watermark, carryAmount: Math.max(0, settledFund - paidTotal), carrySlots };
+}
+
+// INCREMENTAL day-based settlement (no DB writes — applySettlement persists).
 //  - Each prediction = 1 slot (20k). A day's pot = its slots × 20k.
-//  - Process days chronologically; stop at the first day not fully finished.
-//  - No-winner days accumulate (treo) into a pool with the following days.
-//  - At the first day with a winner, settle the pool (see settlePool): winners
-//    take min(fund, Σ winner max-claim) split by win-ratio (correct scores that
-//    day). The leftover is NOT refunded — it is carried forward as treo (with
-//    the pool's slot/player info) into the next pool and distributed there by
-//    the same formula. Trailing no-winner days + the final leftover stay treo.
+//  - Only days AFTER the last chốt'd day (watermark) are settled; the carried
+//    treo (leftover money + slots, NOT win history) seeds the pool, so already
+//    settled money isn't re-added and old correct scores aren't re-counted.
+//  - No-winner new days accumulate (treo) into the pool. At a winning day,
+//    winners take min(fund, …) via max-claim × win-ratio (see settlePool); the
+//    leftover carries forward. Trailing no-winner days + leftover stay treo.
 export async function computeSettlement(): Promise<SettleResult> {
   const [{ data: matchesData }, { data: predsData }] = await Promise.all([
     supabase.from("matches").select("*"),
@@ -58,14 +89,19 @@ export async function computeSettlement(): Promise<SettleResult> {
   const preds = (predsData as Prediction[]) ?? [];
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
-  // A day settles once the last match PEOPLE PREDICTED that day finishes — i.e.
-  // the last of the matches opened for prediction in play, not every fixture on
-  // the calendar that day.
+  const { watermark, carryAmount, carrySlots } = await settlementState(
+    matches,
+    preds
+  );
+
+  // Predicted matches grouped by day — only days AFTER the watermark (the
+  // already-settled days are skipped entirely).
   const predictedIds = new Set(preds.map((p) => p.match_id));
   const matchesByDay = new Map<string, Match[]>();
   for (const m of matches) {
     if (!predictedIds.has(m.id)) continue;
     const d = dayKey(m.kickoff_time);
+    if (watermark && d <= watermark) continue; // already chốt'd
     if (!matchesByDay.has(d)) matchesByDay.set(d, []);
     matchesByDay.get(d)!.push(m);
   }
@@ -171,9 +207,23 @@ export async function computeSettlement(): Promise<SettleResult> {
     return { date, finished: true, totalSlots, slots, correct: new Map(), carryFund: leftover };
   };
 
-  let pool: DayInfo[] = []; // accumulated days with no winner yet (treo)
-  const paidReal = new Set<string>(); // real days whose pot has been settled
-  let settledFund = 0; // total real money that entered settled pools
+  // Seed the pool with the carried treo from previous settlements (its fund is
+  // the leftover money; it keeps slots for max-claim but no correct scores).
+  const carryStart: DayInfo | null =
+    carryAmount > 0
+      ? {
+          date: watermark,
+          finished: true,
+          totalSlots: [...carrySlots.values()].reduce((a, b) => a + b, 0),
+          slots: carrySlots,
+          correct: new Map(),
+          carryFund: carryAmount,
+        }
+      : null;
+
+  let pool: DayInfo[] = carryStart ? [carryStart] : [];
+  const paidReal = new Set<string>(); // NEW real days whose pot has been settled
+  let settledFund = 0; // NEW real money that entered settled pools this period
 
   for (const info of infos) {
     if (!info.finished) break; // chronological — wait for the day's results
@@ -216,31 +266,15 @@ export async function computeSettlement(): Promise<SettleResult> {
     pot: e.totalSlots * STAKE,
   }));
 
-  // Net per person from resolved (paid) real days. net = received − stake.
-  const received = new Map<string, number>();
-  for (const p of payouts)
-    received.set(p.player_name, (received.get(p.player_name) ?? 0) + p.amount);
-  const resolvedStake = new Map<string, number>();
-  for (const info of infos) {
-    if (!paidReal.has(info.date)) continue;
-    for (const [name, slots] of info.slots)
-      resolvedStake.set(name, (resolvedStake.get(name) ?? 0) + slots * STAKE);
-  }
-  const names = new Set([...received.keys(), ...resolvedStake.keys()]);
-  const net = [...names].map((name) => ({
-    name,
-    value: (received.get(name) ?? 0) - (resolvedStake.get(name) ?? 0),
-  }));
-
-  // Days whose pot has been settled (winner days + carried no-winner days).
   const paidDates = [...paidReal];
   const settledDays = paidDates.length;
 
-  // Win breakdown + carried treo.
+  // Win breakdown + carried treo. Fund for THIS settlement = carried leftover
+  // from before + the new days' money settled now (never re-adds old days).
   const round = (n: number) => Math.round(n);
   const winTotal = round([...winBy.values()].reduce((s, v) => s + v, 0));
   const breakdown = {
-    fund: round(settledFund),
+    fund: round(carryAmount + settledFund),
     winTotal,
     carried: round(carried),
     winners: [...winBy.entries()]
@@ -257,18 +291,17 @@ export async function computeSettlement(): Promise<SettleResult> {
     totalPaid,
     payouts,
     pending: pendingOut,
-    net,
     paidDates,
     breakdown,
     carriedTreo,
   };
 }
 
-// Persist a settlement: rewrite the rewards table (delete all → insert fresh).
+// Persist a settlement: APPEND this settlement's payouts to the rewards table
+// (incremental — previous payouts stay).
 export async function applySettlement(
   payouts: SettleResult["payouts"]
 ): Promise<void> {
-  await supabase.from("rewards").delete().gte("amount", 0);
   if (payouts.length > 0) {
     await supabase
       .from("rewards")
@@ -283,12 +316,41 @@ const normNet = (arr: { name: string; value: number }[]) =>
     )
   );
 
+// Cumulative net per person from settled money: received (all rewards) − stake
+// on settled days (≤ watermark). Used for the Tổng kết history snapshots.
+async function cumulativeNet(): Promise<{ name: string; value: number }[]> {
+  const [{ data: m }, { data: p }, { data: r }] = await Promise.all([
+    supabase.from("matches").select("id, kickoff_time"),
+    supabase.from("predictions").select("player_name, match_id"),
+    supabase.from("rewards").select("player_name, amount, pay_date"),
+  ]);
+  const M = (m as { id: string; kickoff_time: string }[]) ?? [];
+  const P = (p as { player_name: string; match_id: string }[]) ?? [];
+  const R = (r as { player_name: string; amount: number; pay_date: string | null }[]) ?? [];
+  const dates = R.map((x) => x.pay_date).filter((d): d is string => !!d);
+  const watermark = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : "";
+  const byId = new Map(M.map((x) => [x.id, x]));
+
+  const received = new Map<string, number>();
+  for (const x of R)
+    received.set(x.player_name, (received.get(x.player_name) ?? 0) + Number(x.amount));
+  const stake = new Map<string, number>();
+  for (const x of P) {
+    const mm = byId.get(x.match_id);
+    if (mm && watermark && dayKey(mm.kickoff_time) <= watermark)
+      stake.set(x.player_name, (stake.get(x.player_name) ?? 0) + STAKE);
+  }
+  const names = new Set([...received.keys(), ...stake.keys()]);
+  return [...names].map((name) => ({
+    name,
+    value: Math.round((received.get(name) ?? 0) - (stake.get(name) ?? 0)),
+  }));
+}
+
 // Log a settlement event (cumulative net snapshot + the rewards snapshot taken
-// before this settlement, so it can be reverted later). Skips if net unchanged.
-export async function logSettlement(
-  net: SettleResult["net"],
-  prevRewards: Reward[]
-): Promise<void> {
+// before this settlement, for revert). Skips if the net is unchanged.
+export async function logSettlement(prevRewards: Reward[]): Promise<void> {
+  const cum = await cumulativeNet();
   const { data: last } = await supabase
     .from("settlements")
     .select("cum")
@@ -297,27 +359,10 @@ export async function logSettlement(
     .maybeSingle();
   const lastCum =
     ((last?.cum as { name: string; value: number }[] | undefined) ?? []);
-  const rounded = net.map((n) => ({ name: n.name, value: Math.round(n.value) }));
-  if (normNet(lastCum) === normNet(rounded)) return; // no change → no event
+  if (normNet(lastCum) === normNet(cum)) return; // no change → no event
   await supabase
     .from("settlements")
-    .insert({ cum: rounded, prev_rewards: prevRewards });
-}
-
-// Whether the latest logged settlement already matches the current net — i.e.
-// nothing new has been won since the last chốt sổ (so the button can disable).
-export async function isSettlementCurrent(
-  net: SettleResult["net"]
-): Promise<boolean> {
-  const { data: last } = await supabase
-    .from("settlements")
-    .select("cum")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!last) return false;
-  const lastCum = (last.cum as { name: string; value: number }[]) ?? [];
-  return normNet(lastCum) === normNet(net);
+    .insert({ cum, prev_rewards: prevRewards });
 }
 
 export async function deleteLastSettlement(): Promise<void> {

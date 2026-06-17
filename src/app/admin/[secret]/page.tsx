@@ -7,7 +7,6 @@ import {
   logSettlement,
   snapshotRewards,
   hasSettlement,
-  isSettlementCurrent,
   revertLastSettlement,
   getAllPredictionsDetailed,
   updatePrediction,
@@ -57,7 +56,6 @@ function AdminPanel() {
   const [review, setReview] = useState<SettleResult | null>(null);
   const [applying, setApplying] = useState(false);
   const [canRevert, setCanRevert] = useState(false);
-  const [alreadySettled, setAlreadySettled] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [preview, setPreview] = useState<SettleResult | null>(null);
 
@@ -72,7 +70,6 @@ function AdminPanel() {
     setFundByDay(f);
     setPreview(pv);
     setCanRevert(rev);
-    setAlreadySettled(await isSettlementCurrent(pv.net));
   }
 
   useEffect(() => {
@@ -111,7 +108,7 @@ function AdminPanel() {
     try {
       const prev = await snapshotRewards(); // state before this settlement
       await applySettlement(review.payouts);
-      await logSettlement(review.net, prev);
+      await logSettlement(prev);
       setBanner(
         `✅ Đã chia ${formatVND(review.totalPaid)} cho ${perPerson(review).length} người.`
       );
@@ -141,10 +138,9 @@ function AdminPanel() {
     setApplying(false);
   }
 
-  // Settle-able = someone đoán trúng tỉ số AND it hasn't been settled yet
-  // (a new winning day re-enables the button).
-  const hasWinners = !!preview && preview.breakdown.winners.length > 0;
-  const canSettle = hasWinners && !alreadySettled;
+  // Settle-able = someone đoán trúng a NEW score (computeSettlement is
+  // incremental, so it only surfaces winners that haven't been chốt'd yet).
+  const canSettle = !!preview && preview.breakdown.winners.length > 0;
   const settleWinners = preview
     ? preview.breakdown.winners.map((w) => w.name)
     : [];
@@ -173,9 +169,7 @@ function AdminPanel() {
         </button>
         {!canSettle && (
           <p className="text-center text-xs text-white/40">
-            {alreadySettled
-              ? "✅ Đã chốt sổ — nút bật lại khi có ngày trúng mới."
-              : "Nút chốt sổ bật khi trận đã kết thúc và có người đoán trúng."}
+            Nút chốt sổ bật khi có người đoán trúng tỉ số mới (chưa chốt).
           </p>
         )}
 

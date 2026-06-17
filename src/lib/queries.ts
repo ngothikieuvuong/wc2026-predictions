@@ -181,11 +181,9 @@ export async function getFundByDay(): Promise<
   const active = activeDay(M, P);
   const byId = new Map(M.map((m) => [m.id, m]));
 
-  // Days whose pot has already been distributed (winner days + carried
-  // no-winner days). After settlement these drop out of the breakdown.
-  const { computeSettlement } = await import("./admin");
-  const settle = await computeSettlement();
-  const paid = new Set(settle.paidDates);
+  // Days already chốt'd (≤ watermark) drop out; the leftover treo shows once.
+  const { settlementState } = await import("./admin");
+  const { watermark, carryAmount, carrySlots } = await settlementState(M, P);
 
   type Agg = { slots: number; names: Set<string> };
   const agg = new Map<string, Agg>();
@@ -193,6 +191,7 @@ export async function getFundByDay(): Promise<
     const m = byId.get(p.match_id);
     if (!m) continue;
     const d = dayKey(m.kickoff_time);
+    if (watermark && d <= watermark) continue; // already settled
     let a = agg.get(d);
     if (!a) {
       a = { slots: 0, names: new Set() };
@@ -202,22 +201,19 @@ export async function getFundByDay(): Promise<
     a.names.add(p.player_name);
   }
 
-  const out = [...agg.entries()]
-    .filter(([d]) => !paid.has(d)) // hide days already paid out
-    .map(([date, a]) => ({
-      date,
-      participants: [...a.names],
-      pot: a.slots * STAKE_VND,
-      counted: date <= active,
-    }));
+  const out = [...agg.entries()].map(([date, a]) => ({
+    date,
+    participants: [...a.names],
+    pot: a.slots * STAKE_VND,
+    counted: date <= active,
+  }));
 
-  // After settling, show the carried-over leftover (treo) as its own day entry,
-  // with the participants from the just-settled period.
-  if (settle.carriedTreo && settle.carriedTreo.amount > 0) {
+  // The carried-over leftover (treo) from past settlements as its own entry.
+  if (carryAmount > 0) {
     out.push({
-      date: settle.carriedTreo.date,
-      participants: settle.carriedTreo.participants,
-      pot: settle.carriedTreo.amount,
+      date: watermark,
+      participants: [...carrySlots.keys()],
+      pot: carryAmount,
       counted: true,
     });
   }
@@ -455,10 +451,11 @@ export async function getPendingWinners(): Promise<{
     winners: winnersOf(m),
   });
 
-  // 1) A fully-finished pool with a winner that admin hasn't settled yet.
-  const { computeSettlement, isSettlementCurrent } = await import("./admin");
+  // 1) A fully-finished pool with a winner that admin hasn't chốt'd yet
+  //    (computeSettlement is incremental, so winners here = not yet settled).
+  const { computeSettlement } = await import("./admin");
   const settle = await computeSettlement();
-  if (settle.breakdown.winners.length > 0 && !(await isSettlementCurrent(settle.net))) {
+  if (settle.breakdown.winners.length > 0) {
     const paid = new Set(settle.paidDates);
     const wm = M.filter((m) => paid.has(dayKey(m.kickoff_time)))
       .map(toWinMatch)
