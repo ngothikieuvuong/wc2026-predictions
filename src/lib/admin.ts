@@ -124,13 +124,32 @@ export async function settlementState(
 //  - No-winner new days accumulate (treo) into the pool. At a winning day,
 //    winners take min(fund, …) via max-claim × win-ratio (see settlePool); the
 //    leftover carries forward. Trailing no-winner days + leftover stay treo.
-export async function computeSettlement(): Promise<SettleResult> {
+// `overrides` (optional) applies HYPOTHETICAL final scores to the given matches
+// (marking them finished) WITHOUT touching the DB — used by the admin "thử chốt
+// sổ" simulator to preview how a day's results would divide the pot.
+export async function computeSettlement(
+  overrides?: { match_id: string; home: number; away: number }[]
+): Promise<SettleResult> {
   const [{ data: matchesData }, { data: predsData }] = await Promise.all([
     supabase.from("matches").select("*"),
     supabase.from("predictions").select("*"),
   ]);
-  const matches = (matchesData as Match[]) ?? [];
+  let matches = (matchesData as Match[]) ?? [];
   const preds = (predsData as Prediction[]) ?? [];
+
+  if (overrides && overrides.length) {
+    const ov = new Map(overrides.map((o) => [o.match_id, o]));
+    matches = matches.map((m) =>
+      ov.has(m.id)
+        ? {
+            ...m,
+            home_score: ov.get(m.id)!.home,
+            away_score: ov.get(m.id)!.away,
+            status: "finished",
+          }
+        : m
+    );
+  }
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
   const { watermark, carryAmount, carrySlots } = await settlementState(
@@ -676,6 +695,23 @@ export async function getUpcomingMatches(): Promise<Match[]> {
     .order("kickoff_time", { ascending: true })
     .limit(40);
   return (data as Match[]) ?? [];
+}
+
+// Unfinished matches that already have predictions — the candidates the admin
+// can assign hypothetical scores to in the "thử chốt sổ" simulator.
+export async function getPendingScoreMatches(): Promise<Match[]> {
+  const [{ data: m }, { data: p }] = await Promise.all([
+    supabase
+      .from("matches")
+      .select("*")
+      .neq("status", "finished")
+      .order("kickoff_time", { ascending: true }),
+    supabase.from("predictions").select("match_id"),
+  ]);
+  const predicted = new Set(
+    ((p as { match_id: string }[]) ?? []).map((x) => x.match_id)
+  );
+  return ((m as Match[]) ?? []).filter((x) => predicted.has(x.id));
 }
 
 export async function setMatchOpen(matchId: string, open: boolean): Promise<void> {

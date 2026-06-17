@@ -13,6 +13,7 @@ import {
   deletePrediction,
   getUpcomingMatches,
   setMatchOpen,
+  getPendingScoreMatches,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
 import { getJackpot, getFundByDay } from "@/lib/queries";
@@ -340,6 +341,9 @@ function AdminPanel() {
         )}
       </section>
 
+      {/* What-if settlement simulator */}
+      <SettleSimulator />
+
       {/* Pick matches open for prediction */}
       <OpenMatchesPicker onChanged={(text) => setBanner(text)} />
 
@@ -353,6 +357,164 @@ function AdminPanel() {
         }}
       />
     </div>
+  );
+}
+
+// "What-if" settlement: admin types hypothetical scores for unplayed matches
+// and previews how the pot would divide — no DB writes.
+function SettleSimulator() {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [scores, setScores] = useState<Record<string, { h: string; a: string }>>(
+    {}
+  );
+  const [result, setResult] = useState<SettleResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && matches.length === 0) getPendingScoreMatches().then(setMatches);
+  }, [open, matches.length]);
+
+  const setScore = (id: string, k: "h" | "a", v: string) =>
+    setScores((s) => ({
+      ...s,
+      [id]: { h: s[id]?.h ?? "", a: s[id]?.a ?? "", [k]: v },
+    }));
+
+  async function run() {
+    const overrides = matches
+      .filter((m) => scores[m.id]?.h !== "" && scores[m.id]?.a !== "")
+      .filter((m) => scores[m.id] != null)
+      .map((m) => ({
+        match_id: m.id,
+        home: Number(scores[m.id].h),
+        away: Number(scores[m.id].a),
+      }));
+    setBusy(true);
+    setResult(await computeSettlement(overrides));
+    setBusy(false);
+  }
+
+  // Group the pending matches by game-day.
+  const byDay: { day: string; items: Match[] }[] = [];
+  for (const m of matches) {
+    const d = dayKey(m.kickoff_time);
+    const last = byDay[byDay.length - 1];
+    if (!last || last.day !== d) byDay.push({ day: d, items: [m] });
+    else last.items.push(m);
+  }
+  const winners = result ? perPerson(result) : [];
+
+  return (
+    <section className="card space-y-3">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className="font-bold">🧮 Thử chốt sổ (tỉ số giả định)</span>
+        <span className="text-white/40">{open ? "▾" : "▸"}</span>
+      </button>
+
+      {open && (
+        <>
+          <p className="text-xs text-white/50">
+            Nhập tỉ số giả định cho các trận chưa đá để xem nếu kết quả như vậy
+            thì chia tiền thế nào. Nhập <b>đủ các trận trong ngày</b> mới tính
+            được ngày đó. Không lưu gì cả.
+          </p>
+
+          {matches.length === 0 ? (
+            <p className="text-sm text-white/50">
+              Chưa có trận nào (đã có người đoán) để thử.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {byDay.map((g) => (
+                <div key={g.day} className="space-y-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                    Ngày {dayLabel(g.day)}
+                  </p>
+                  {g.items.map((m) => (
+                    <div key={m.id} className="flex items-center gap-2 text-sm">
+                      <span className="flex-1 truncate text-right">{m.team1}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        value={scores[m.id]?.h ?? ""}
+                        onChange={(e) => setScore(m.id, "h", e.target.value)}
+                        className="input w-12 !px-1 !py-1 text-center"
+                      />
+                      <span className="text-white/40">–</span>
+                      <input
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        value={scores[m.id]?.a ?? ""}
+                        onChange={(e) => setScore(m.id, "a", e.target.value)}
+                        className="input w-12 !px-1 !py-1 text-center"
+                      />
+                      <span className="flex-1 truncate">{m.team2}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+              <div className="flex gap-2">
+                <button onClick={run} disabled={busy} className="btn flex-1">
+                  {busy ? "Đang tính…" : "Tính thử"}
+                </button>
+                {result && (
+                  <button
+                    onClick={() => {
+                      setResult(null);
+                      setScores({});
+                    }}
+                    className="btn-ghost"
+                  >
+                    Xóa
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {result && (
+            <div className="space-y-2 rounded-xl border border-grass/30 bg-grass/5 p-3 text-sm">
+              <p className="text-xs text-white/50">
+                Nếu kết quả như trên: tổng chia{" "}
+                <b className="text-neon">{formatVND(result.breakdown.winTotal)}</b>
+                {result.breakdown.carried > 0 && (
+                  <>
+                    , treo lại <b>{formatVND(result.breakdown.carried)}</b>
+                  </>
+                )}
+                .
+              </p>
+              {winners.length === 0 ? (
+                <p className="text-white/60">
+                  Chưa ai trúng — toàn bộ thành quỹ treo.
+                </p>
+              ) : (
+                <ul className="divide-y divide-white/10">
+                  {winners.map((w) => (
+                    <li key={w.name} className="flex justify-between py-1.5">
+                      <span className="font-medium">{w.name}</span>
+                      <span className="font-bold text-neon">
+                        {formatVND(w.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-[11px] text-white/30">
+                Chỉ là thử — chưa lưu, chưa chốt sổ thật.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
