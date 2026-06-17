@@ -33,6 +33,82 @@ function perPerson(r: SettleResult): { name: string; amount: number }[] {
     .sort((a, b) => b.amount - a.amount);
 }
 
+// Per-winner detail + formula (shared by the real preview and the simulator).
+function BreakdownDetail({ b }: { b: SettleResult["breakdown"] }) {
+  if (b.winners.length === 0)
+    return <p className="text-sm text-white/60">Chưa ai trúng — không chia gì.</p>;
+  return (
+    <>
+      <div className="space-y-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+          🎯 Người trúng tỉ số — vì sao chia vậy?
+        </p>
+        <ul className="space-y-2">
+          {b.winners.map((w) => {
+            const pct = Math.round((w.correct / (b.totalCorrect || 1)) * 100);
+            return (
+              <li key={w.name} className="rounded-lg bg-black/20 p-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span>
+                    <b>{w.name}</b>{" "}
+                    <span className="text-[11px] text-white/40">
+                      trúng {w.correct}/{b.totalCorrect} · tỉ lệ {pct}%
+                    </span>
+                  </span>
+                  <span className="font-bold text-neon">{formatVND(w.amount)}</span>
+                </div>
+                <ul className="mt-1 space-y-0.5 text-[11px] text-white/50">
+                  {w.days.map((d, i) => (
+                    <li key={i} className="flex justify-between gap-2">
+                      <span>
+                        {d.kind === "win" ? (
+                          <>
+                            Ngày {dayLabel(d.date)} (trúng {d.correct}/{d.totalWin},
+                            chia theo tỉ lệ)
+                          </>
+                        ) : d.kind === "treo" ? (
+                          <>🔁 Từ quỹ treo: {d.slots} slot</>
+                        ) : (
+                          <>
+                            Ngày treo {dayLabel(d.date)}: {d.slots} slot × {d.players}{" "}
+                            người
+                          </>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-white/70">
+                        → {formatVND(d.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="text-[11px] leading-relaxed text-white/40">
+          Mỗi ngày: <b>slot × số người chơi × 20k = mức ăn tối đa</b>; nhân{" "}
+          <b>tỉ lệ tỉ số trúng</b>
+          {b.scaled && (
+            <>
+              {" "}
+              rồi <b>giảm đều</b> (vì tổng vượt quỹ)
+            </>
+          )}{" "}
+          ra tiền thực nhận.
+        </p>
+      </div>
+
+      {b.carried > 0 && (
+        <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
+          Người trúng không ôm hết quỹ — còn{" "}
+          <b>{formatVND(b.carried)}</b> giữ làm <b>quỹ treo</b>, cộng vào đợt tất
+          toán sau.
+        </p>
+      )}
+    </>
+  );
+}
+
 export default function AdminPage({ params }: { params: { secret: string } }) {
   const { secret } = params;
   if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
@@ -190,82 +266,7 @@ function AdminPanel() {
               .
             </p>
 
-            {review.breakdown.winners.length === 0 ? (
-              <p className="text-sm text-white/60">Chưa ai trúng — không chia gì.</p>
-            ) : (
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-                  🎯 Người trúng tỉ số — vì sao chia vậy?
-                </p>
-                <ul className="space-y-2">
-                  {review.breakdown.winners.map((w) => {
-                    const pct = Math.round(
-                      (w.correct / (review.breakdown.totalCorrect || 1)) * 100
-                    );
-                    return (
-                      <li key={w.name} className="rounded-lg bg-black/20 p-2 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span>
-                            <b>{w.name}</b>{" "}
-                            <span className="text-[11px] text-white/40">
-                              trúng {w.correct}/{review.breakdown.totalCorrect} ·
-                              tỉ lệ {pct}%
-                            </span>
-                          </span>
-                          <span className="font-bold text-neon">
-                            {formatVND(w.amount)}
-                          </span>
-                        </div>
-                        <ul className="mt-1 space-y-0.5 text-[11px] text-white/50">
-                          {w.days.map((d, i) => (
-                            <li key={i} className="flex justify-between gap-2">
-                              <span>
-                                {d.kind === "win" ? (
-                                  <>
-                                    Ngày {dayLabel(d.date)} (trúng {d.correct}/
-                                    {d.totalWin}, chia theo tỉ lệ)
-                                  </>
-                                ) : d.kind === "treo" ? (
-                                  <>🔁 Từ quỹ treo: {d.slots} slot</>
-                                ) : (
-                                  <>
-                                    Ngày treo {dayLabel(d.date)}: {d.slots} slot ×{" "}
-                                    {d.players} người
-                                  </>
-                                )}
-                              </span>
-                              <span className="shrink-0 text-white/70">
-                                → {formatVND(d.amount)}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="text-[11px] leading-relaxed text-white/40">
-                  Mỗi ngày: <b>slot × số người chơi × 20k = mức ăn tối đa</b>; nhân{" "}
-                  <b>tỉ lệ tỉ số trúng</b>
-                  {review.breakdown.scaled && (
-                    <>
-                      {" "}
-                      rồi <b>giảm đều</b> (vì tổng vượt quỹ)
-                    </>
-                  )}{" "}
-                  ra tiền thực nhận. Khác nhau do <b>số tỉ số trúng</b> và <b>mức ăn
-                  tối đa</b> (chơi nhiều slot/ngày → trần cao hơn).
-                </p>
-              </div>
-            )}
-
-            {review.breakdown.carried > 0 && (
-              <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
-                Người trúng không ôm hết quỹ — còn{" "}
-                <b>{formatVND(review.breakdown.carried)}</b> giữ làm <b>quỹ treo</b>,
-                sẽ cộng vào đợt tất toán sau (chia theo công thức bình thường).
-              </p>
-            )}
+            <BreakdownDetail b={review.breakdown} />
 
             {review.pending.length > 0 && (
               <p className="text-xs text-white/40">
@@ -403,7 +404,6 @@ function SettleSimulator() {
     if (!last || last.day !== d) byDay.push({ day: d, items: [m] });
     else last.items.push(m);
   }
-  const winners = result ? perPerson(result) : [];
 
   return (
     <section className="card space-y-3">
@@ -484,9 +484,11 @@ function SettleSimulator() {
           )}
 
           {result && (
-            <div className="space-y-2 rounded-xl border border-grass/30 bg-grass/5 p-3 text-sm">
+            <div className="space-y-3 rounded-xl border border-grass/30 bg-grass/5 p-3 text-sm">
               <p className="text-xs text-white/50">
-                Nếu kết quả như trên: tổng chia{" "}
+                Nếu kết quả như trên: quỹ{" "}
+                <b className="text-white/80">{formatVND(result.breakdown.fund)}</b> →
+                thưởng{" "}
                 <b className="text-neon">{formatVND(result.breakdown.winTotal)}</b>
                 {result.breakdown.carried > 0 && (
                   <>
@@ -495,22 +497,7 @@ function SettleSimulator() {
                 )}
                 .
               </p>
-              {winners.length === 0 ? (
-                <p className="text-white/60">
-                  Chưa ai trúng — toàn bộ thành quỹ treo.
-                </p>
-              ) : (
-                <ul className="divide-y divide-white/10">
-                  {winners.map((w) => (
-                    <li key={w.name} className="flex justify-between py-1.5">
-                      <span className="font-medium">{w.name}</span>
-                      <span className="font-bold text-neon">
-                        {formatVND(w.amount)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <BreakdownDetail b={result.breakdown} />
               <p className="text-[11px] text-white/30">
                 Chỉ là thử — chưa lưu, chưa chốt sổ thật.
               </p>
