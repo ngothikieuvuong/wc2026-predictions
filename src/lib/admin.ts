@@ -27,10 +27,17 @@ export type SettleResult = {
   paidDates: string[];
   // Payout split: winners (đoán trúng tỉ số) + leftover kept as treo (carried).
   breakdown: {
-    fund: number; // total settled fund
+    fund: number; // total settled fund (leftover + new days)
     winTotal: number; // paid to winners
     carried: number; // leftover kept as quỹ treo for the next settlement
-    winners: { name: string; correct: number; amount: number }[];
+    totalCorrect: number; // total correct scores among winners
+    scaled: boolean; // winners' tentative total exceeded the fund → scaled down
+    winners: {
+      name: string;
+      correct: number;
+      maxClaim: number; // their max-claim cap
+      amount: number;
+    }[];
   };
   // The carried treo as a fund-by-day entry (date + amount + participants).
   carriedTreo: { date: string; amount: number; participants: string[] } | null;
@@ -51,11 +58,16 @@ export async function settlementState(
 }> {
   const { data: rewards } = await supabase
     .from("rewards")
-    .select("pay_date, amount");
-  const R = (rewards as { pay_date: string | null; amount: number }[]) ?? [];
+    .select("player_name, pay_date, amount");
+  const R =
+    (rewards as { player_name: string; pay_date: string | null; amount: number }[]) ??
+    [];
   const dates = R.map((r) => r.pay_date).filter((d): d is string => !!d);
   const watermark = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : "";
   const paidTotal = R.reduce((s, r) => s + Number(r.amount), 0);
+  // People who already won/got paid — their share of the leftover is gone, so
+  // they (and their slots) drop out of the carried treo's capacity.
+  const paidPlayers = new Set(R.map((r) => r.player_name));
 
   const byId = new Map(matches.map((m) => [m.id, m]));
   const carrySlots = new Map<string, number>();
@@ -63,10 +75,10 @@ export async function settlementState(
   if (watermark) {
     for (const p of preds) {
       const m = byId.get(p.match_id);
-      if (m && dayKey(m.kickoff_time) <= watermark) {
-        carrySlots.set(p.player_name, (carrySlots.get(p.player_name) ?? 0) + 1);
-        settledFund += STAKE;
-      }
+      if (!m || dayKey(m.kickoff_time) > watermark) continue;
+      settledFund += STAKE; // all settled stakes count toward the fund/leftover
+      if (paidPlayers.has(p.player_name)) continue; // winners excluded from carry
+      carrySlots.set(p.player_name, (carrySlots.get(p.player_name) ?? 0) + 1);
     }
   }
   return { watermark, carryAmount: Math.max(0, settledFund - paidTotal), carrySlots };
@@ -147,6 +159,8 @@ export async function computeSettlement(): Promise<SettleResult> {
   // Win breakdown (for the admin congrats + Tổng kết history).
   const winBy = new Map<string, number>();
   const correctBy = new Map<string, number>();
+  const maxClaimBy = new Map<string, number>(); // each winner's max-claim cap
+  let scaledFlag = false; // whether any pool was scaled down (over the fund)
 
   const fundOf = (d: DayInfo) => d.carryFund ?? d.totalSlots * STAKE;
 
@@ -183,6 +197,7 @@ export async function computeSettlement(): Promise<SettleResult> {
     // Scale down only if the winners' tentative total exceeds the fund.
     const scale =
       sumTentative > totalFund && sumTentative > 0 ? totalFund / sumTentative : 1;
+    if (scale < 1) scaledFlag = true;
 
     let paidWinners = 0;
     for (const [name, c] of winners) {
@@ -190,6 +205,7 @@ export async function computeSettlement(): Promise<SettleResult> {
       addPay(name, winDay.date, w);
       winBy.set(name, (winBy.get(name) ?? 0) + w);
       correctBy.set(name, (correctBy.get(name) ?? 0) + c);
+      maxClaimBy.set(name, (maxClaimBy.get(name) ?? 0) + (maxClaim.get(name) ?? 0));
       paidWinners += w;
     }
 
@@ -273,14 +289,18 @@ export async function computeSettlement(): Promise<SettleResult> {
   // from before + the new days' money settled now (never re-adds old days).
   const round = (n: number) => Math.round(n);
   const winTotal = round([...winBy.values()].reduce((s, v) => s + v, 0));
+  const totalCorrect = [...correctBy.values()].reduce((s, v) => s + v, 0);
   const breakdown = {
     fund: round(carryAmount + settledFund),
     winTotal,
     carried: round(carried),
+    totalCorrect,
+    scaled: scaledFlag,
     winners: [...winBy.entries()]
       .map(([name, amount]) => ({
         name,
         correct: correctBy.get(name) ?? 0,
+        maxClaim: round(maxClaimBy.get(name) ?? 0),
         amount: round(amount),
       }))
       .sort((a, b) => b.amount - a.amount),

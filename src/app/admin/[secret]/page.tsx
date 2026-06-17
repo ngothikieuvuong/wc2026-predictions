@@ -194,30 +194,41 @@ function AdminPanel() {
             ) : (
               <div className="space-y-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-                  🎯 Người trúng tỉ số
+                  🎯 Người trúng tỉ số — vì sao chia vậy?
                 </p>
                 <ul className="divide-y divide-white/10">
                   {review.breakdown.winners.map((w) => (
-                    <li
-                      key={w.name}
-                      className="flex items-center justify-between py-1.5 text-sm"
-                    >
-                      <span>
-                        <b>{w.name}</b>{" "}
-                        <span className="text-white/40">
-                          · trúng {w.correct} tỉ số
+                    <li key={w.name} className="py-1.5 text-sm">
+                      <div className="flex items-center justify-between">
+                        <b>{w.name}</b>
+                        <span className="font-bold text-neon">
+                          {formatVND(w.amount)}
                         </span>
-                      </span>
-                      <span className="font-bold text-neon">
-                        {formatVND(w.amount)}
-                      </span>
+                      </div>
+                      <p className="text-[11px] text-white/40">
+                        trúng <b className="text-white/70">{w.correct}</b>/
+                        {review.breakdown.totalCorrect} tỉ số (tỉ lệ{" "}
+                        {Math.round(
+                          (w.correct / (review.breakdown.totalCorrect || 1)) * 100
+                        )}
+                        %) · mức ăn tối đa{" "}
+                        <b className="text-white/70">{formatVND(w.maxClaim)}</b>
+                      </p>
                     </li>
                   ))}
                 </ul>
-                <p className="text-[11px] text-white/40">
-                  Người trúng chia nhau{" "}
-                  {formatVND(review.breakdown.winTotal)} theo số tỉ số trúng (trúng
-                  nhiều hơn → phần lớn hơn).
+                <p className="text-[11px] leading-relaxed text-white/40">
+                  Cách tính mỗi người: <b>tạm tính = mức ăn tối đa × tỉ lệ tỉ số
+                  trúng</b>
+                  {review.breakdown.scaled ? (
+                    <>
+                      ; tổng vượt quỹ nên <b>giảm đều</b> cho khớp quỹ.
+                    </>
+                  ) : (
+                    <>. Phần chưa ôm hết quỹ giữ làm quỹ treo.</>
+                  )}{" "}
+                  Khác nhau là do <b>số tỉ số trúng</b> (tỉ lệ) và <b>mức ăn tối đa</b>{" "}
+                  (chơi nhiều slot/ngày → trần cao hơn).
                 </p>
               </div>
             )}
