@@ -74,13 +74,13 @@ export default function NavBar() {
         {/* Brand + menu */}
         <div className="flex items-center justify-between py-2.5">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-lux ring-1 ring-white/20">
+            <span className="flex shrink-0 items-center rounded-md bg-white p-1 shadow-lux ring-1 ring-white/20">
               <Image
                 src="/wcLogo.webp"
                 alt="World Cup 2026"
-                width={36}
-                height={36}
-                className="h-8 w-8 object-contain"
+                width={400}
+                height={240}
+                className="h-8 w-auto object-contain"
                 priority
               />
             </span>
