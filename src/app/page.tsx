@@ -8,6 +8,7 @@ import {
   getLatestWinners,
   getFundByDay,
   getPredictionsByMatch,
+  getStats,
 } from "@/lib/queries";
 import { formatVND, formatKickoff } from "@/lib/format";
 import { dayLabel } from "@/lib/day";
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [winners, setWinners] = useState<
     Awaited<ReturnType<typeof getLatestWinners>>
   >([]);
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof getStats>>>([]);
   const [live, setLive] = useState<LiveScore[]>([]);
   const [predRows, setPredRows] = useState<
     Awaited<ReturnType<typeof getPredictionsByMatch>>
@@ -35,13 +37,14 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   async function loadData() {
-    const [j, f, s, w, lv, pr] = await Promise.all([
+    const [j, f, s, w, lv, pr, st] = await Promise.all([
       getJackpot(),
       getFundByDay(),
       getUpcomingByDay(),
       getLatestWinners(4),
       getLive(),
       getPredictionsByMatch(),
+      getStats(),
     ]);
     setJackpot(j);
     setFundByDay(f);
@@ -49,6 +52,7 @@ export default function HomePage() {
     setWinners(w);
     setLive(lv);
     setPredRows(pr);
+    setStats(st);
     setLoading(false);
   }
 
@@ -302,6 +306,48 @@ export default function HomePage() {
               href="/leaderboard#lich-su-tat-toan"
               className="btn-ghost mt-3 w-full"
             >
+              Xem chi tiết
+            </Link>
+          </>
+        )}
+      </section>
+
+      {/* Profit/loss summary */}
+      <section className="card">
+        <h2 className="mb-3 text-sm uppercase tracking-widest text-white/50">
+          Ai đang ăn / thua
+        </h2>
+        {loading ? (
+          <p className="text-white/40">Đang tải…</p>
+        ) : stats.filter((s) => s.chi > 0 || s.thu > 0).length === 0 ? (
+          <p className="text-white/50">Chưa có dữ liệu.</p>
+        ) : (
+          <>
+            <ul className="divide-y divide-white/10">
+              {stats
+                .filter((s) => s.chi > 0 || s.thu > 0)
+                .map((s) => {
+                  const pos = s.loiLo > 0;
+                  const neg = s.loiLo < 0;
+                  return (
+                    <li
+                      key={s.name}
+                      className="flex items-center justify-between gap-3 py-1.5 text-sm"
+                    >
+                      <span className="font-medium">{s.name}</span>
+                      <span
+                        className={`font-bold ${
+                          pos ? "text-neon" : neg ? "text-red-400" : "text-white/50"
+                        }`}
+                      >
+                        {pos ? "+" : ""}
+                        {formatVND(s.loiLo)}
+                      </span>
+                    </li>
+                  );
+                })}
+            </ul>
+            <Link href="/leaderboard" className="btn-ghost mt-3 w-full">
               Xem chi tiết
             </Link>
           </>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
+import Modal from "@/components/Modal";
 import {
   getPredictionsByMatch,
   getReactionsByPrediction,
@@ -314,17 +314,18 @@ function ReactionSheet({
     setBusy(false);
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center"
-      onClick={onClose}
+  return (
+    <Modal
+      title={matchLabel || "Cảm xúc"}
+      onClose={onClose}
+      footer={
+        <button onClick={onClose} className="btn w-full">
+          Xong
+        </button>
+      }
     >
-      <div
-        className="card w-full max-w-md space-y-4 rounded-b-none sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="space-y-4">
         <div>
-          <p className="text-xs text-white/40">{matchLabel}</p>
           <p className="font-bold">
             {pred.player_name}:{" "}
             <span className="font-mono">
@@ -396,13 +397,8 @@ function ReactionSheet({
             </div>
           </>
         )}
-
-        <button onClick={onClose} className="btn w-full">
-          Xong
-        </button>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
 
@@ -418,6 +414,7 @@ export default function PredictionsPage() {
     pred: Prediction;
     matchLabel: string;
   } | null>(null);
+  const [showOld, setShowOld] = useState(false); // older finished matches
 
   const loadReactions = async () =>
     setReactionsByPred(await getReactionsByPrediction());
@@ -445,17 +442,26 @@ export default function PredictionsPage() {
   }, []);
 
   // Linked from a match popup (#match-…): scroll to that match and flash it.
+  // If the match sits in the collapsed group, expand it first, then scroll.
   useEffect(() => {
     if (loading) return;
     const hash = window.location.hash.slice(1);
     if (!hash) return;
     const el = document.getElementById(hash);
-    if (!el) return;
+    if (!el) {
+      if (
+        !showOld &&
+        olderFinished.some((r) => matchSlug(r.match.team1, r.match.team2) === hash)
+      )
+        setShowOld(true);
+      return;
+    }
     el.scrollIntoView({ behavior: "smooth", block: "start" });
     el.classList.add("ring-2", "ring-grass");
     const t = setTimeout(() => el.classList.remove("ring-2", "ring-grass"), 2500);
     return () => clearTimeout(t);
-  }, [loading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, showOld]);
 
   // Sort by status: live on top, then upcoming (nearest first), then finished
   // (newest first).
@@ -471,11 +477,15 @@ export default function PredictionsPage() {
     .filter((r) => !isDone(r.match) && !isLive(r.match))
     .sort(byKickoffAsc); // nearest first
   const finishedRows = rows.filter((r) => isDone(r.match)).sort(byKickoffDesc); // new → old
+  // Show only the 2 most-recently finished; the rest collapse into a group.
+  const recentFinished = finishedRows.slice(0, 2);
+  const olderFinished = finishedRows.slice(2);
 
+  // Top sections: live, then upcoming, then the 2 latest finished.
   const sections = [
     { key: "live", title: "🔴 Đang diễn ra", items: liveRows, dim: false },
     { key: "upcoming", title: "Sắp diễn ra", items: upcomingRows, dim: false },
-    { key: "finished", title: "Vừa kết thúc", items: finishedRows, dim: true },
+    { key: "finished", title: "Vừa kết thúc", items: recentFinished, dim: true },
   ];
 
   // Open the reaction sheet for a prediction; resolve its match for the label.
@@ -495,8 +505,8 @@ export default function PredictionsPage() {
       <div>
         <h1 className="text-2xl font-bold">Lượt đoán của mọi người</h1>
         <p className="text-sm text-white/50">
-          Đang diễn ra ở trên cùng, rồi sắp diễn ra, cuối là vừa kết thúc. Nhấn
-          giữ một lượt đoán để thả cảm xúc 💬
+          Trận sắp diễn ra ở trên, rồi 2 trận vừa kết thúc; các trận cũ hơn nằm
+          gọn ở cuối. Nhấn giữ một lượt đoán để thả cảm xúc 💬
         </p>
       </div>
 
@@ -532,6 +542,37 @@ export default function PredictionsPage() {
                   ))}
                 </div>
               )
+          )}
+
+          {/* Older finished matches — collapsed by default */}
+          {olderFinished.length > 0 && (
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowOld((o) => !o)}
+                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-semibold transition hover:bg-white/10"
+              >
+                <span>
+                  Các trận đã kết thúc khác
+                  <span className="ml-1.5 font-normal text-white/40">
+                    ({olderFinished.length})
+                  </span>
+                </span>
+                <span className="text-white/40">{showOld ? "▾" : "▸"}</span>
+              </button>
+              {showOld && (
+                <div className="space-y-3 opacity-70">
+                  {olderFinished.map((r) => (
+                    <MatchCard
+                      key={r.match.id}
+                      {...r}
+                      reactionsByPred={reactionsByPred}
+                      liveScores={liveScores}
+                      onOpen={onOpen}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </>
       )}

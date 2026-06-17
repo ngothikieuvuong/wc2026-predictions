@@ -53,3 +53,15 @@ body {
 .label {
   @apply mb-1.5 block text-sm font-medium text-white/70;
 }
+
+/* Modal open animation — soft fade + lift, so popups feel less abrupt. */
+@keyframes modalFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.modal-fade { animation: modalFade 0.15s ease-out; }
+.modal-pop { animation: modalPop 0.18s ease-out; }

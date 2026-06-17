@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
+import Modal from "@/components/Modal";
 
 export default function RulesButton({
   className = "btn-ghost",
@@ -18,28 +18,8 @@ export default function RulesButton({
         {children}
       </button>
 
-      {open &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="card max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-b-none sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-xl font-bold">📖 Luật chơi</h2>
-              <button
-                className="text-2xl leading-none text-white/50 hover:text-white"
-                onClick={() => setOpen(false)}
-                aria-label="Đóng"
-              >
-                ✕
-              </button>
-            </div>
-
+      {open && (
+        <Modal title="📖 Luật chơi" onClose={() => setOpen(false)}>
             <div className="space-y-4 text-sm leading-relaxed text-white/80">
               <section>
                 <h3 className="mb-1 font-bold text-grass">1. Cách chơi</h3>
@@ -156,14 +136,8 @@ export default function RulesButton({
                 </div>
               </section>
             </div>
-
-            <button className="btn mt-4 w-full" onClick={() => setOpen(false)}>
-              Đã hiểu
-            </button>
-          </div>
-        </div>,
-          document.body
-        )}
+        </Modal>
+      )}
     </>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { getPlayerLedger } from "@/lib/queries";
 import { formatVND, formatShort } from "@/lib/format";
+import Modal from "@/components/Modal";
 
 type Ledger = Awaited<ReturnType<typeof getPlayerLedger>>;
 
@@ -24,26 +24,8 @@ export default function PlayerHistoryModal({
     };
   }, [name]);
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="card max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-b-none sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Lịch sử tiền · {name}</h2>
-          <button
-            className="text-2xl leading-none text-white/50 hover:text-white"
-            onClick={onClose}
-            aria-label="Đóng"
-          >
-            ✕
-          </button>
-        </div>
-
+  return (
+    <Modal title={`Lịch sử tiền · ${name}`} onClose={onClose}>
         {data === null ? (
           <p className="text-sm text-white/40">Đang tải…</p>
         ) : data.items.length === 0 ? (
@@ -95,12 +77,6 @@ export default function PlayerHistoryModal({
             </ul>
           </>
         )}
-
-        <button className="btn mt-4 w-full" onClick={onClose}>
-          Đóng
-        </button>
-      </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
