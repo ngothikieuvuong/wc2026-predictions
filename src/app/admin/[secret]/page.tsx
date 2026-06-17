@@ -16,7 +16,7 @@ import {
   getPendingScoreMatches,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
-import { getJackpot, getFundByDay } from "@/lib/queries";
+import { getJackpot, getFundByDay, getPlayers } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatKickoff, formatShort, formatVND } from "@/lib/format";
 import { dayKey, dayLabel } from "@/lib/day";
@@ -402,10 +402,20 @@ function SettleSimulator() {
   const [result, setResult] = useState<SettleResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  // Hypothetical extra predictions.
+  const [players, setPlayers] = useState<string[]>([]);
+  const [extra, setExtra] = useState<
+    { player: string; matchId: string; h: number; a: number }[]
+  >([]);
+  const [addPlayer, setAddPlayer] = useState("");
+  const [addMatch, setAddMatch] = useState("");
+  const [addH, setAddH] = useState(0);
+  const [addA, setAddA] = useState(0);
 
   useEffect(() => {
     if (open && matches.length === 0) getPendingScoreMatches().then(setMatches);
-  }, [open, matches.length]);
+    if (open && players.length === 0) getPlayers().then(setPlayers);
+  }, [open, matches.length, players.length]);
 
   const setScore = (id: string, k: "h" | "a", v: number) =>
     setScores((s) => ({
@@ -413,14 +423,25 @@ function SettleSimulator() {
       [id]: { h: s[id]?.h ?? 0, a: s[id]?.a ?? 0, [k]: v },
     }));
 
+  const matchName = (id: string) => {
+    const m = matches.find((x) => x.id === id);
+    return m ? `${m.team1}–${m.team2}` : "?";
+  };
+
   async function run() {
     const overrides = matches.map((m) => ({
       match_id: m.id,
       home: scores[m.id]?.h ?? 0,
       away: scores[m.id]?.a ?? 0,
     }));
+    const extraPreds = extra.map((e) => ({
+      player_name: e.player,
+      match_id: e.matchId,
+      predicted_home: e.h,
+      predicted_away: e.a,
+    }));
     setBusy(true);
-    setResult(await computeSettlement(overrides));
+    setResult(await computeSettlement(overrides, extraPreds));
     setBusy(false);
   }
 
@@ -483,15 +504,86 @@ function SettleSimulator() {
                 </div>
               ))}
 
+              {/* Hypothetical extra predictions */}
+              <div className="space-y-2 rounded-xl border border-white/10 p-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  Giả định thêm lượt đoán
+                </p>
+                {extra.map((e, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-2 text-xs"
+                  >
+                    <span>
+                      <b>{e.player}</b> · {matchName(e.matchId)} ·{" "}
+                      <span className="font-mono">
+                        {e.h}–{e.a}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => setExtra((x) => x.filter((_, j) => j !== i))}
+                      className="text-white/40 hover:text-red-400"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={addPlayer}
+                    onChange={(e) => setAddPlayer(e.target.value)}
+                    className="rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-xs"
+                  >
+                    <option value="">Ai?</option>
+                    {players.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={addMatch}
+                    onChange={(e) => setAddMatch(e.target.value)}
+                    className="max-w-[9rem] rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-xs"
+                  >
+                    <option value="">Trận?</option>
+                    {matches.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.team1}–{m.team2}
+                      </option>
+                    ))}
+                  </select>
+                  <NumStepper value={addH} onChange={setAddH} />
+                  <span className="text-white/40">:</span>
+                  <NumStepper value={addA} onChange={setAddA} />
+                  <button
+                    type="button"
+                    disabled={!addPlayer || !addMatch}
+                    onClick={() => {
+                      setExtra((x) => [
+                        ...x,
+                        { player: addPlayer, matchId: addMatch, h: addH, a: addA },
+                      ]);
+                      setAddH(0);
+                      setAddA(0);
+                    }}
+                    className="btn-ghost px-3 py-1 text-xs disabled:opacity-40"
+                  >
+                    + Thêm
+                  </button>
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <button onClick={run} disabled={busy} className="btn flex-1">
                   {busy ? "Đang tính…" : "Tính thử"}
                 </button>
-                {result && (
+                {(result || extra.length > 0) && (
                   <button
                     onClick={() => {
                       setResult(null);
                       setScores({});
+                      setExtra([]);
                     }}
                     className="btn-ghost"
                   >

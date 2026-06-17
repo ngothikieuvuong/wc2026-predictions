@@ -128,7 +128,13 @@ export async function settlementState(
 // (marking them finished) WITHOUT touching the DB — used by the admin "thử chốt
 // sổ" simulator to preview how a day's results would divide the pot.
 export async function computeSettlement(
-  overrides?: { match_id: string; home: number; away: number }[]
+  overrides?: { match_id: string; home: number; away: number }[],
+  extraPreds?: {
+    player_name: string;
+    match_id: string;
+    predicted_home: number;
+    predicted_away: number;
+  }[]
 ): Promise<SettleResult> {
   const [{ data: matchesData }, { data: predsData }] = await Promise.all([
     supabase.from("matches").select("*"),
@@ -136,6 +142,20 @@ export async function computeSettlement(
   ]);
   let matches = (matchesData as Match[]) ?? [];
   const preds = (predsData as Prediction[]) ?? [];
+
+  // Hypothetical extra predictions (simulator only) — appended in-memory.
+  if (extraPreds && extraPreds.length) {
+    extraPreds.forEach((e, i) =>
+      preds.push({
+        id: `sim-${i}`,
+        player_name: e.player_name,
+        match_id: e.match_id,
+        predicted_home: e.predicted_home,
+        predicted_away: e.predicted_away,
+        created_at: new Date(0).toISOString(),
+      } as Prediction)
+    );
+  }
 
   if (overrides && overrides.length) {
     const ov = new Map(overrides.map((o) => [o.match_id, o]));
