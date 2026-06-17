@@ -54,85 +54,78 @@ export default function RulesButton({
               </section>
 
               <section>
-                <h3 className="mb-1 font-bold text-grass">3. Chia thưởng (theo ngày)</h3>
+                <h3 className="mb-1 font-bold text-grass">
+                  3. Chia thưởng — theo TỪNG TRẬN
+                </h3>
                 <ul className="list-disc space-y-1 pl-5">
                   <li>
-                    Quỹ = <b>tổng slot × 20.000đ</b> (gộp cả quỹ treo các ngày trước).
+                    <b>Quỹ mỗi trận</b> = số người đoán trận đó × 20.000đ.
                   </li>
                   <li>
-                    <b>Tỉ lệ trúng</b> = số tỉ số người đó trúng ÷ tổng số tỉ số trúng
-                    của tất cả người thắng (trong ngày có người trúng).
+                    Quỹ một trận <b>chia đều cho những người đoán trúng đúng trận
+                    đó</b>. Bạn chỉ ăn tiền từ trận mình đoán trúng — không lẹm sang
+                    trận khác.
                   </li>
                   <li>
-                    <b>Mức ăn tối đa</b> = cộng mỗi ngày tham gia:{" "}
-                    <b>số slot × số người chơi ngày đó × 20.000đ</b> → chơi nhiều
-                    slot/nhiều ngày thì trần càng cao.
+                    Trúng <b>nhiều trận</b> → cộng dồn tiền các trận. Đoán <b>trật</b>{" "}
+                    → 20.000đ đó nhập vào quỹ trận, cho người trúng trận ấy.
+                  </li>
+                </ul>
+
+                <h3 className="mb-1 mt-3 font-bold text-grass">
+                  4. Quỹ treo (trận chưa ai trúng)
+                </h3>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    Trận <b>không ai đoán trúng</b> → toàn bộ quỹ trận đó thành{" "}
+                    <b>quỹ treo</b>, dồn sang các đợt sau.
                   </li>
                   <li>
-                    <b>Tiền tạm tính = mức ăn tối đa × tỉ lệ trúng.</b> Nếu tổng tạm
-                    tính <b>vượt quỹ</b> → giảm đều cho khớp quỹ; nếu <b>chưa hết quỹ</b>{" "}
-                    → phần dư giữ làm <b>quỹ treo</b> cộng dồn sang đợt sau (không hoàn
-                    lại).
+                    Khi tới ngày có người trúng, quỹ treo được chia cho{" "}
+                    <b>những người trúng</b> hôm đó theo <b>số slot</b> họ đã đặt ở các
+                    trận treo (slot × số người × 20.000đ = mức ăn tối đa), <b>ưu tiên
+                    trả hết</b>; nếu vượt quỹ treo thì <b>giảm đều</b>.
+                  </li>
+                  <li>
+                    Người <b>đã nhận thưởng</b> trước đó không còn phần trong quỹ treo.
                   </li>
                 </ul>
 
                 <div className="mt-2 space-y-3 rounded-xl border border-grass/30 bg-grass/5 p-3 text-[13px]">
                   <p className="text-white/60">
-                    Ví dụ: gộp 2 ngày <b>15 + 16/06</b>, mỗi ngày <b>9 người</b> chơi,
-                    tổng <b>30 slot</b> → quỹ <b>600.000đ</b>.
+                    Ví dụ một ngày có 2 trận, mỗi trận <b>8 người</b> đoán (160.000đ
+                    mỗi trận), kèm <b>quỹ treo 240.000đ</b> từ trước.
                   </p>
 
                   <div>
-                    <p className="mb-1 font-bold text-grass">
-                      📌 VD 1 — chỉ ba Đức trúng, chơi ít → ăn ít, dư thì treo
-                    </p>
+                    <p className="mb-1 font-bold text-grass">📌 Trận A — 2 người trúng</p>
                     <p>
-                      ba Đức đặt <b>1 slot mỗi ngày</b>, trúng 1 tỉ số (duy nhất) → tỉ
-                      lệ <b>100%</b>.
-                    </p>
-                    <p className="mt-1">
-                      Mức ăn tối đa = (1×9×20k) + (1×9×20k) = <b>360.000đ</b>. Tạm tính
-                      = 360k × 100% = 360k (&lt; 600k).
-                    </p>
-                    <p className="mt-1">
-                      → ba Đức nhận <b className="text-neon">360.000đ</b>; còn{" "}
-                      <b>240.000đ</b> giữ làm <b>quỹ treo</b> cho đợt sau.
+                      ba Đức &amp; ba Hiến cùng đoán đúng → quỹ trận 160k{" "}
+                      <b>chia đôi = 80.000đ mỗi người</b>.
                     </p>
                   </div>
 
                   <div>
-                    <p className="mb-1 font-bold text-grass">
-                      📌 VD 2 — chỉ Ny trúng, chơi nhiều → ôm hết quỹ
-                    </p>
+                    <p className="mb-1 font-bold text-grass">📌 Trận B — 1 người trúng</p>
                     <p>
-                      Ny đặt <b>3 slot (15) + 2 slot (16)</b>, trúng 1 tỉ số → tỉ lệ{" "}
-                      <b>100%</b>.
-                    </p>
-                    <p className="mt-1">
-                      Mức ăn tối đa = (3×9×20k) + (2×9×20k) = <b>900.000đ</b>. Tạm tính
-                      900k &gt; quỹ 600k → giảm đều (×600/900).
-                    </p>
-                    <p className="mt-1">
-                      → Ny nhận <b className="text-neon">600.000đ</b>. Hết quỹ, không
-                      treo.
+                      Chỉ Ly đúng → Ly <b>ăn trọn 160.000đ</b> của trận B.
                     </p>
                   </div>
 
                   <div>
-                    <p className="mb-1 font-bold text-grass">
-                      📌 VD 3 — cả ba Đức & Ny trúng (mỗi người 1 tỉ số)
-                    </p>
-                    <p>Tỉ lệ <b>50% / 50%</b>.</p>
-                    <p className="mt-1">
-                      Tạm tính: ba Đức 360k×50% = 180k; Ny 900k×50% = 450k; tổng 630k
-                      &gt; 600k → giảm đều (×600/630 ≈ 95,24%).
-                    </p>
-                    <p className="mt-1">
-                      → ba Đức ≈ <b className="text-neon">171.000đ</b>; Ny ≈{" "}
-                      <b className="text-neon">429.000đ</b>. Tổng 600k, không treo —
-                      Ny chơi nhiều nên ăn nhiều hơn dù cùng trúng 1 tỉ số.
+                    <p className="mb-1 font-bold text-grass">📌 Quỹ treo 240k</p>
+                    <p>
+                      Chia cho người trúng theo slot treo: ba Hiến 2 slot, Ly 3 slot
+                      (ba Đức đã nhận thưởng trước → loại) → ba Hiến{" "}
+                      <b>96.000đ</b>, Ly <b>144.000đ</b>.
                     </p>
                   </div>
+
+                  <p className="border-t border-white/10 pt-2 text-white/70">
+                    → Tổng: ba Đức <b className="text-neon">80.000đ</b>, ba Hiến{" "}
+                    <b className="text-neon">176.000đ</b>, Ly{" "}
+                    <b className="text-neon">304.000đ</b>.
+                  </p>
                 </div>
               </section>
             </div>
