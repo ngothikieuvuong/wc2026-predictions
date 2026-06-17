@@ -27,8 +27,17 @@ export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+
+  // Condense the header once the page scrolls.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Close the menu on outside click / route change.
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -70,9 +79,13 @@ export default function NavBar() {
       ref={headerRef}
       className="sticky top-0 z-30 border-b border-white/10 bg-[#08160e]/80 shadow-lux backdrop-blur-xl"
     >
-      <div className="mx-auto max-w-3xl px-3">
+      <div className="mx-auto max-w-3xl px-4">
         {/* Brand + menu */}
-        <div className="flex items-center justify-between py-2.5">
+        <div
+          className={`flex items-center justify-between transition-all duration-200 ${
+            scrolled ? "py-1.5" : "py-2.5"
+          }`}
+        >
           <Link href="/" className="flex items-center gap-2.5">
             <span className="relative flex shrink-0 items-center justify-center">
               <span className="logo-glow" aria-hidden />
@@ -81,11 +94,17 @@ export default function NavBar() {
                 alt="World Cup 2026"
                 width={63}
                 height={141}
-                className="logo-float relative h-12 w-auto object-contain drop-shadow-[0_2px_10px_rgba(233,201,124,0.55)]"
+                className={`logo-float relative w-auto object-contain drop-shadow-[0_2px_10px_rgba(233,201,124,0.55)] transition-all duration-200 ${
+                  scrolled ? "h-8" : "h-12"
+                }`}
                 priority
               />
             </span>
-            <span className="title-lux whitespace-nowrap text-2xl">
+            <span
+              className={`title-lux whitespace-nowrap transition-all duration-200 ${
+                scrolled ? "text-lg" : "text-2xl"
+              }`}
+            >
               Nhà Tiên Tri WC
             </span>
             {DEMO && (
@@ -133,14 +152,20 @@ export default function NavBar() {
         </div>
 
         {/* Two main tabs — on every page */}
-        <nav className="flex gap-1.5 pb-2.5">
+        <nav
+          className={`flex gap-1.5 transition-all duration-200 ${
+            scrolled ? "pb-1.5" : "pb-2.5"
+          }`}
+        >
           {mainTabs.map((l) => {
             const active = pathname === l.href;
             return (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-center text-sm font-semibold transition-all duration-200 ${
+                className={`flex-1 whitespace-nowrap rounded-xl px-3 text-center font-semibold transition-all duration-200 ${
+                  scrolled ? "py-1 text-xs" : "py-2 text-sm"
+                } ${
                   active
                     ? "bg-gradient-to-b from-[#28d567] to-grass text-black shadow-glow"
                     : "border border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/10"

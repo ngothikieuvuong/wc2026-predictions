@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { GroupTable, BracketRound, Fixture } from "@/lib/tournament";
 import { getMatchResults, getOpenMatches } from "@/lib/queries";
@@ -93,11 +93,28 @@ export default function GiaiTabs({
   const isOpen = (k: string) => expanded[k] ?? k === "Vòng bảng";
   const toggle = (k: string) =>
     setExpanded((e) => ({ ...e, [k]: !isOpen(k) }));
+  // Whether the predict/tab bar is frozen under the nav → shrink it.
+  const [stuck, setStuck] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getOpenMatches().then((ms) =>
       setOpenKeys(new Set(ms.map((m) => matchSlug(m.team1, m.team2))))
     );
+  }, []);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const navH =
+      parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue("--nav-h")
+      ) || 90;
+    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting), {
+      rootMargin: `-${navH}px 0px 0px 0px`,
+    });
+    io.observe(el);
+    return () => io.disconnect();
   }, []);
 
   useEffect(() => {
@@ -128,14 +145,22 @@ export default function GiaiTabs({
         </p>
       </div>
 
-      {/* Predict button + tabs freeze under the nav while scrolling */}
+      {/* Sentinel: marks where the bar pins under the nav */}
+      <div ref={sentinelRef} aria-hidden className="h-0" />
+
+      {/* Predict button + tabs freeze under the nav while scrolling — and
+          shrink once frozen. */}
       <div
-        className="sticky z-20 -mx-4 space-y-3 border-b border-white/10 bg-[#08160e]/80 px-4 py-3 backdrop-blur-xl"
+        className={`sticky z-20 -mx-4 border-b border-white/10 bg-[#08160e]/80 px-4 backdrop-blur-xl transition-all duration-200 ${
+          stuck ? "space-y-2 py-2" : "space-y-3 py-3"
+        }`}
         style={{ top: "var(--nav-h)" }}
       >
         <Link
           href="/predict"
-          className="flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-lg font-extrabold text-black shadow-glow transition hover:brightness-110 active:scale-[0.98]"
+          className={`flex w-full items-center justify-center gap-2 rounded-2xl font-extrabold text-black shadow-glow transition-all duration-200 hover:brightness-110 active:scale-[0.98] ${
+            stuck ? "px-6 py-2 text-sm" : "px-6 py-3.5 text-lg"
+          }`}
           style={{
             background:
               "linear-gradient(180deg,#28d567 0%,#1db954 60%,#15a049 100%)",
@@ -149,7 +174,9 @@ export default function GiaiTabs({
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 rounded-lg px-2 py-2 text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 rounded-lg px-2 font-medium transition-all duration-200 ${
+                stuck ? "py-1 text-xs" : "py-2 text-sm"
+              } ${
                 tab === t.key
                   ? "bg-gradient-to-b from-[#28d567] to-grass text-black shadow-glow"
                   : "text-white/60 hover:bg-white/10"
