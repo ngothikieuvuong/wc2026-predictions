@@ -13,6 +13,7 @@ import type { Match, Prediction } from "@/lib/types";
 import { formatKickoff, isClosed } from "@/lib/format";
 import { matchHint } from "@/lib/strength";
 import { getOdds, findOdds } from "@/lib/oddsClient";
+import { predictMatch, type Prediction as ScorePrediction } from "@/lib/predict";
 import TeamInfoButton from "@/components/TeamInfoButton";
 import Modal from "@/components/Modal";
 
@@ -106,10 +107,8 @@ function RandomScoreModal({
         setPhase("done");
         return;
       }
-      setDisplay([
-        Math.floor(Math.random() * (MAX_GOALS + 1)),
-        Math.floor(Math.random() * (MAX_GOALS + 1)),
-      ]);
+      // Flicker only through VALID candidates (e.g. Xỉu never flashes 6–0).
+      setDisplay(p[Math.floor(Math.random() * p.length)]);
       const prog = elapsed / DURATION;
       timer.current = setTimeout(loop, 55 + prog * prog * 420); // ease-out
     };
@@ -283,6 +282,87 @@ function ScoreStepper({
           −
         </button>
       </div>
+    </div>
+  );
+}
+
+// Always-on statistical score hint (odds + rank/form) shown under the random
+// button — no tap needed. Reference only.
+function ScoreHint({ team1, team2 }: { team1: string; team2: string }) {
+  const [pred, setPred] = useState<ScorePrediction | null>(null);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setPred(null);
+    setErr(false);
+    predictMatch(team1, team2)
+      .then((p) => alive && setPred(p))
+      .catch(() => alive && setErr(true));
+    return () => {
+      alive = false;
+    };
+  }, [team1, team2]);
+
+  if (err) return null;
+  if (!pred)
+    return (
+      <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-center text-xs text-white/40">
+        Đang phân tích gợi ý…
+      </div>
+    );
+
+  const pct = (x: number) => Math.round(x * 100);
+  return (
+    <div className="space-y-3 rounded-xl border border-grass/30 bg-grass/5 p-3">
+      <div className="text-center">
+        <p className="text-[11px] uppercase tracking-wider text-white/40">
+          🤖 Gợi ý tỉ số · tham khảo
+        </p>
+        <p className="mt-1 text-xl font-extrabold">
+          {team1}{" "}
+          <span className="text-neon">
+            {pred.scoreA}–{pred.scoreB}
+          </span>{" "}
+          {team2}
+        </p>
+        <p className="text-[11px] text-white/40">
+          khả năng đúng y tỉ số này ~{pct(pred.pTopScore)}%
+        </p>
+      </div>
+
+      <div>
+        <div className="mb-1 flex justify-between gap-2 text-[11px] text-white/60">
+          <span className="truncate">
+            {team1} {pct(pred.pA)}%
+          </span>
+          <span className="shrink-0">Hòa {pct(pred.pDraw)}%</span>
+          <span className="truncate text-right">
+            {team2} {pct(pred.pB)}%
+          </span>
+        </div>
+        <div className="flex h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="bg-grass" style={{ width: `${pct(pred.pA)}%` }} />
+          <div className="bg-amber-400" style={{ width: `${pct(pred.pDraw)}%` }} />
+          <div className="bg-red-400" style={{ width: `${pct(pred.pB)}%` }} />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {pred.top.map((t, i) => (
+          <span
+            key={i}
+            className="rounded-lg bg-black/30 px-2.5 py-1 font-mono text-sm"
+          >
+            {t.a}–{t.b}{" "}
+            <span className="text-xs text-white/40">{pct(t.p)}%</span>
+          </span>
+        ))}
+      </div>
+
+      <p className="text-[11px] leading-relaxed text-white/30">
+        Dựa trên {pred.basis}. Chỉ tham khảo cho vui — đoán đúng y tỉ số rất khó.
+      </p>
     </div>
   );
 }
@@ -478,6 +558,7 @@ export default function PredictPage() {
             >
               🎲 Random tỉ số
             </button>
+            <ScoreHint team1={selected.team1} team2={selected.team2} />
           </>
         )}
 
