@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:kqbd.mobi)"
+      "WebFetch(domain:kqbd.mobi)",
+      "WebFetch(domain:vsbet287.com)"
     ]
   }
 }
