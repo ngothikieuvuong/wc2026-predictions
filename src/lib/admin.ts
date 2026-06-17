@@ -405,30 +405,71 @@ export async function computeSettlement(): Promise<SettleResult> {
   const pendingReal = pool.filter((d) => d.carryFund === undefined);
   const carryDay = pool.find((d) => d.carryFund !== undefined);
 
-  // Round money UP to the nearest 1.000đ (clean cash amounts). Each winner's
-  // total is the sum of their rounded per-source lines, so the breakdown always
-  // foots; the payout stored in rewards uses that same total.
   const round = (n: number) => Math.round(n);
-  const roundK = (n: number) => Math.ceil(n / 1000) * 1000;
 
-  // Rounded per-winner day lines + total.
-  const roundedDays = new Map<string, ReturnType<typeof mapDays>>();
-  function mapDays(name: string) {
-    return (winnerDays.get(name) ?? []).map((d) => ({
-      kind: d.kind,
-      date: d.date,
-      slots: d.slots,
-      players: d.players,
-      correct: d.correct,
-      totalWin: d.totalWin,
-      amount: roundK(d.amount),
-    }));
-  }
-  const totalByName = new Map<string, number>();
-  for (const name of winBy.keys()) {
-    const days = mapDays(name);
-    roundedDays.set(name, days);
-    totalByName.set(name, days.reduce((s, d) => s + d.amount, 0));
+  // Round a set of amounts to whole 1.000đ while keeping their sum EXACTLY at a
+  // target (also a multiple of 1.000) — largest-remainder method: floor each,
+  // then hand the leftover thousands to the amounts with the biggest fraction.
+  // This keeps cash amounts clean without ever paying out more than the fund.
+  const roundThousands = (raw: number[], targetSum: number): number[] => {
+    const out = raw.map((v) => Math.floor(v / 1000) * 1000);
+    let units = Math.round((targetSum - out.reduce((a, b) => a + b, 0)) / 1000);
+    const order = raw
+      .map((v, i) => ({ i, frac: v - out[i] }))
+      .sort((a, b) => b.frac - a.frac || raw[b.i] - raw[a.i]);
+    for (let k = 0; k < order.length && units > 0; k++, units--)
+      out[order[k].i] += 1000;
+    return out;
+  };
+
+  const fund = round(carryAmount + settledFund);
+
+  // 1) Round each winner's TOTAL to whole thousands, summing to the fund floored
+  //    to thousands (so payouts never exceed the fund); leftover → quỹ treo.
+  const names = [...winBy.keys()];
+  const rawTotals = names.map((n) => winBy.get(n) ?? 0);
+  const winTotalRaw = rawTotals.reduce((a, b) => a + b, 0);
+  const targetWinSum = Math.min(
+    Math.floor(fund / 1000) * 1000,
+    Math.floor(winTotalRaw / 1000) * 1000
+  );
+  const roundedTotals = roundThousands(rawTotals, targetWinSum);
+  const totalByName = new Map<string, number>(
+    names.map((n, i) => [n, roundedTotals[i]])
+  );
+
+  // 2) Round each winner's per-source lines to whole thousands, summing to that
+  //    winner's rounded total — so every breakdown card foots exactly.
+  const roundedDays = new Map<
+    string,
+    {
+      kind: "win" | "treo" | "other";
+      date: string;
+      slots: number;
+      players: number;
+      correct: number;
+      totalWin: number;
+      amount: number;
+    }[]
+  >();
+  for (const name of names) {
+    const lines = winnerDays.get(name) ?? [];
+    const amts = roundThousands(
+      lines.map((d) => d.amount),
+      totalByName.get(name) ?? 0
+    );
+    roundedDays.set(
+      name,
+      lines.map((d, i) => ({
+        kind: d.kind,
+        date: d.date,
+        slots: d.slots,
+        players: d.players,
+        correct: d.correct,
+        totalWin: d.totalWin,
+        amount: amts[i],
+      }))
+    );
   }
 
   const payouts = [...pay.entries()].map(([k]) => {
@@ -445,9 +486,6 @@ export async function computeSettlement(): Promise<SettleResult> {
   const paidDates = [...paidReal];
   const settledDays = paidDates.length;
 
-  // Win breakdown + carried treo. Fund for THIS settlement = carried leftover
-  // from before + the new days' money settled now (never re-adds old days).
-  const fund = round(carryAmount + settledFund);
   const winTotal = [...totalByName.values()].reduce((s, v) => s + v, 0);
   const totalCorrect = [...correctBy.values()].reduce((s, v) => s + v, 0);
   const breakdown = {
@@ -456,8 +494,8 @@ export async function computeSettlement(): Promise<SettleResult> {
     carried: Math.max(0, fund - winTotal), // leftover after the rounded payouts
     totalCorrect,
     scaled: scaledFlag,
-    winners: [...winBy.entries()]
-      .map(([name]) => ({
+    winners: names
+      .map((name) => ({
         name,
         correct: correctBy.get(name) ?? 0,
         maxClaim: round(maxClaimBy.get(name) ?? 0),
