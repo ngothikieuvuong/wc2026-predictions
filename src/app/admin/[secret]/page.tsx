@@ -417,6 +417,11 @@ function SettleSimulator() {
     if (open && players.length === 0) getPlayers().then(setPlayers);
   }, [open, matches.length, players.length]);
 
+  // Any change to scores / extra preds invalidates the shown result.
+  useEffect(() => {
+    setResult(null);
+  }, [scores, extra]);
+
   const setScore = (id: string, k: "h" | "a", v: number) =>
     setScores((s) => ({
       ...s,
@@ -508,6 +513,9 @@ function SettleSimulator() {
               <div className="space-y-2 rounded-xl border border-white/10 p-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
                   Giả định thêm lượt đoán
+                </p>
+                <p className="text-[11px] text-white/40">
+                  Lượt thêm chỉ trúng nếu tỉ số khớp <b>kết quả trận đặt ở trên</b>.
                 </p>
                 {extra.map((e, i) => (
                   <div
