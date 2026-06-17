@@ -12,11 +12,23 @@ import {
 import type { Match, Prediction } from "@/lib/types";
 import { formatKickoff, isClosed } from "@/lib/format";
 import { matchHint } from "@/lib/strength";
+import { getOdds, findOdds } from "@/lib/oddsClient";
 import TeamInfoButton from "@/components/TeamInfoButton";
 import Modal from "@/components/Modal";
 
 const NEW_PLAYER = "__new__";
 const MAX_GOALS = 6; // 0–6 per side (e.g. 6–0 max, never 7–0)
+const DEFAULT_OU_LINE = 3; // Tài = tổng > 3 bàn, Xỉu = tổng < 3 (khi không có kèo)
+
+// "2.5/3" → 2.75 · "3" → 3 · "" → null
+function parseOuLine(s: string | undefined): number | null {
+  if (!s) return null;
+  const ns = s
+    .split("/")
+    .map((x) => parseFloat(x.replace(/[^0-9.]/g, "")))
+    .filter((n) => !isNaN(n));
+  return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : null;
+}
 
 // Pick a random score, then a 7s slot-machine spin before revealing it.
 //  - "Đội thắng": force a winner for the chosen team (else any, incl. draws),
@@ -35,20 +47,41 @@ function RandomScoreModal({
   onClose: () => void;
 }) {
   const [winner, setWinner] = useState<"any" | "home" | "away">("any");
+  const [ou, setOu] = useState<"any" | "over" | "under">("any");
   const [noDup, setNoDup] = useState(true);
   const [phase, setPhase] = useState<"setup" | "spin" | "done">("setup");
   const [display, setDisplay] = useState<[number, number]>([0, 0]);
   const [result, setResult] = useState<[number, number] | null>(null);
+  // Over/under line: from the scraped odds if listed, else the default.
+  const [line, setLine] = useState(DEFAULT_OU_LINE);
+  const [lineFromOdds, setLineFromOdds] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getOdds().then((rows) => {
+      if (!alive) return;
+      const l = parseOuLine(findOdds(rows, team1, team2)?.ouLine);
+      if (l != null) {
+        setLine(l);
+        setLineFromOdds(true);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [team1, team2]);
 
   const takenSet = new Set(taken.map(([h, a]) => `${h}-${a}`));
 
-  const pool = (useNoDup: boolean): [number, number][] => {
+  const pool = (useNoDup: boolean, useOu: boolean): [number, number][] => {
     const out: [number, number][] = [];
     for (let h = 0; h <= MAX_GOALS; h++)
       for (let a = 0; a <= MAX_GOALS; a++) {
         if (winner === "home" && !(h > a)) continue;
         if (winner === "away" && !(a > h)) continue;
+        if (useOu && ou === "over" && !(h + a > line)) continue;
+        if (useOu && ou === "under" && !(h + a < line)) continue;
         if (useNoDup && takenSet.has(`${h}-${a}`)) continue;
         out.push([h, a]);
       }
@@ -56,8 +89,11 @@ function RandomScoreModal({
   };
 
   const spin = () => {
-    let p = pool(noDup);
-    if (p.length === 0) p = pool(false); // everything taken → relax no-dup
+    // Relax constraints in order if the combination leaves nothing: drop
+    // no-dup first, then tài/xỉu.
+    let p = pool(noDup, true);
+    if (p.length === 0) p = pool(false, true);
+    if (p.length === 0) p = pool(false, false);
     const final = p[Math.floor(Math.random() * p.length)];
     setResult(final);
     setPhase("spin");
@@ -130,6 +166,38 @@ function RandomScoreModal({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="label">Tài / Xỉu</label>
+            <div className="flex gap-1 rounded-xl bg-black/30 p-1">
+              {(
+                [
+                  ["any", "Bất kỳ"],
+                  ["over", "Tài"],
+                  ["under", "Xỉu"],
+                ] as const
+              ).map(([k, lb]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setOu(k)}
+                  className={`flex-1 rounded-lg px-2 py-2 text-sm font-medium transition ${
+                    ou === k
+                      ? "bg-grass text-black"
+                      : "text-white/60 hover:bg-white/10"
+                  }`}
+                >
+                  {lb}
+                </button>
+              ))}
+            </div>
+            {ou !== "any" && (
+              <p className="mt-1 text-[11px] text-white/40">
+                {ou === "over" ? "Tổng bàn > " : "Tổng bàn < "}
+                {line} ({lineFromOdds ? "theo kèo" : "mặc định"})
+              </p>
+            )}
           </div>
 
           <label className="flex items-center gap-2 text-sm">
