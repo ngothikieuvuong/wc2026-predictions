@@ -158,15 +158,17 @@ export async function computeSettlement(
   );
 
   // A day is split per MATCH into:
-  //  - WON matches (someone nailed the score): their pot is disbursed to the
-  //    day's winners by win-ratio (correct scores) — it never carries.
+  //  - WON matches (someone nailed the score): EACH match's own pot is split
+  //    equally among the people who nailed THAT match — you only earn from
+  //    matches you predicted correctly (no eating into other matches' pots).
   //  - NO-WINNER matches: their pot + slots carry (treo capacity), to be split
   //    by slots at the next winning day.
   type DayInfo = {
     date: string;
     finished: boolean;
-    wonFund: number; // won matches' pot (distributed by win-ratio)
-    correct: Map<string, number>; // name -> correct scores (on won matches)
+    wonFund: number; // Σ won matches' pots (each goes to its own winners)
+    wonMatches: { pot: number; winners: string[] }[]; // per won match
+    correct: Map<string, number>; // name -> # matches won that day
     noWinFund: number; // no-winner matches' pot (carries / "other" source)
     noWinSlots: Map<string, number>; // name -> slots on no-winner matches
     carryFund?: number; // a carried treo day: noWinFund holds the leftover.
@@ -183,49 +185,49 @@ export async function computeSettlement(
     matchesByDay.get(d)!.push(m);
   }
 
+  const predsByMatch = new Map<string, Prediction[]>();
+  for (const p of preds) {
+    const a = predsByMatch.get(p.match_id) ?? [];
+    a.push(p);
+    predsByMatch.set(p.match_id, a);
+  }
+
   const infos: DayInfo[] = [...matchesByDay.keys()].sort().map((d) => {
     const dms = matchesByDay.get(d)!;
-    const ids = new Set(dms.map((m) => m.id));
     const finished = dms.every(
       (m) => m.status === "finished" && m.home_score != null && m.away_score != null
     );
-    // Which of this day's matches were won (someone nailed the exact score).
-    const isWon = (m: Match) =>
-      m.status === "finished" &&
-      m.home_score != null &&
-      m.away_score != null &&
-      preds.some(
-        (p) =>
-          p.match_id === m.id &&
-          p.predicted_home === m.home_score &&
-          p.predicted_away === m.away_score
-      );
-    const wonIds = new Set(dms.filter(isWon).map((m) => m.id));
-
     const correct = new Map<string, number>();
     const noWinSlots = new Map<string, number>();
-    let wonSlots = 0;
-    let noWinSlotsTotal = 0;
-    for (const p of preds) {
-      if (!ids.has(p.match_id)) continue;
-      const m = matchById.get(p.match_id)!;
-      if (wonIds.has(p.match_id)) {
-        wonSlots++;
-        if (p.predicted_home === m.home_score && p.predicted_away === m.away_score)
-          correct.set(p.player_name, (correct.get(p.player_name) ?? 0) + 1);
+    const wonMatches: { pot: number; winners: string[] }[] = [];
+    let wonFund = 0;
+    let noWinFund = 0;
+    for (const m of dms) {
+      const ps = predsByMatch.get(m.id) ?? [];
+      if (ps.length === 0) continue;
+      const pot = ps.length * STAKE;
+      const done =
+        m.status === "finished" && m.home_score != null && m.away_score != null;
+      const winners = done
+        ? ps
+            .filter(
+              (p) =>
+                p.predicted_home === m.home_score &&
+                p.predicted_away === m.away_score
+            )
+            .map((p) => p.player_name)
+        : [];
+      if (winners.length > 0) {
+        wonMatches.push({ pot, winners });
+        wonFund += pot;
+        for (const w of winners) correct.set(w, (correct.get(w) ?? 0) + 1);
       } else {
-        noWinSlotsTotal++;
-        noWinSlots.set(p.player_name, (noWinSlots.get(p.player_name) ?? 0) + 1);
+        noWinFund += pot;
+        for (const p of ps)
+          noWinSlots.set(p.player_name, (noWinSlots.get(p.player_name) ?? 0) + 1);
       }
     }
-    return {
-      date: d,
-      finished,
-      wonFund: wonSlots * STAKE,
-      correct,
-      noWinFund: noWinSlotsTotal * STAKE,
-      noWinSlots,
-    };
+    return { date: d, finished, wonFund, wonMatches, correct, noWinFund, noWinSlots };
   });
 
   const pay = new Map<string, number>(); // "name|date" -> amount
@@ -264,7 +266,16 @@ export async function computeSettlement(
   // Winners who got paid drop out of the next carry (see makeCarry).
   const settlePool = (poolDays: DayInfo[], winDay: DayInfo): number => {
     const winners = [...winDay.correct.entries()].filter(([, c]) => c > 0);
-    const totalWin = winners.reduce((s, [, c]) => s + c, 0);
+
+    // Per-match winnings: each won match's pot splits equally among the people
+    // who nailed that match — no eating into matches you didn't predict.
+    const winPayByName = new Map<string, number>();
+    for (const wm of winDay.wonMatches)
+      for (const nm of wm.winners)
+        winPayByName.set(
+          nm,
+          (winPayByName.get(nm) ?? 0) + wm.pot / wm.winners.length
+        );
 
     const treoDays = poolDays.filter((d) => d.carryFund !== undefined);
     // Real days (incl. the winning day) contribute their NO-WINNER matches to
@@ -300,7 +311,7 @@ export async function computeSettlement(
 
     let paidWinners = 0;
     for (const [name, c] of winners) {
-      const winPay = (c / totalWin) * winFund; // won matches by win-ratio
+      const winPay = winPayByName.get(name) ?? 0; // sum of won-match shares
       const treoPay = (treoMax.get(name) ?? 0) * treoScale; // treo by slots
       const otherPay = (otherMax.get(name) ?? 0) * otherScale; // no-winner by slots
       const w = winPay + treoPay + otherPay;
@@ -320,7 +331,7 @@ export async function computeSettlement(
         slots: 0,
         players: 0,
         correct: c,
-        totalWin,
+        totalWin: c,
         amount: winPay,
       });
       const treoSlots = treoDays.reduce(
@@ -375,6 +386,7 @@ export async function computeSettlement(
       date,
       finished: true,
       wonFund: 0,
+      wonMatches: [],
       correct: new Map(),
       noWinFund: leftover,
       noWinSlots: slots,
@@ -391,6 +403,7 @@ export async function computeSettlement(
           date: watermark,
           finished: true,
           wonFund: 0,
+          wonMatches: [],
           correct: new Map(),
           noWinFund: carryAmount,
           noWinSlots: carrySlots,

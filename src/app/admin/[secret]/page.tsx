@@ -63,8 +63,7 @@ function BreakdownDetail({ b }: { b: SettleResult["breakdown"] }) {
                       <span>
                         {d.kind === "win" ? (
                           <>
-                            Ngày {dayLabel(d.date)} (trúng {d.correct}/{d.totalWin},
-                            chia theo tỉ lệ)
+                            Ngày {dayLabel(d.date)} (trúng {d.correct} tỉ số)
                           </>
                         ) : d.kind === "treo" ? (
                           <>🔁 Từ quỹ treo: {d.slots} slot</>
@@ -86,15 +85,15 @@ function BreakdownDetail({ b }: { b: SettleResult["breakdown"] }) {
           })}
         </ul>
         <p className="text-[11px] leading-relaxed text-white/40">
-          Mỗi ngày: <b>slot × số người chơi × 20k = mức ăn tối đa</b>; nhân{" "}
-          <b>tỉ lệ tỉ số trúng</b>
+          Mỗi <b>trận trúng</b>: quỹ trận đó (số người đoán × 20k) chia đều cho
+          người trúng trận đó. <b>Quỹ treo / ngày treo</b>: chia theo slot
           {b.scaled && (
             <>
               {" "}
-              rồi <b>giảm đều</b> (vì tổng vượt quỹ)
+              (<b>giảm đều</b> khi vượt quỹ)
             </>
-          )}{" "}
-          ra tiền thực nhận.
+          )}
+          .
         </p>
       </div>
 

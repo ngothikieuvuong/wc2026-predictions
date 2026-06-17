@@ -107,10 +107,7 @@ export default function HistoryPage() {
                           <li key={i} className="flex justify-between gap-2">
                             <span>
                               {d.kind === "win" ? (
-                                <>
-                                  Ngày {dayLabel(d.date)} (trúng {d.correct}/
-                                  {d.totalWin}, chia theo tỉ lệ)
-                                </>
+                                <>Ngày {dayLabel(d.date)} (trúng {d.correct} tỉ số)</>
                               ) : d.kind === "treo" ? (
                                 <>🔁 Từ quỹ treo: {d.slots} slot</>
                               ) : (
@@ -131,12 +128,12 @@ export default function HistoryPage() {
                 })}
               </ul>
               <p className="text-[11px] leading-relaxed text-white/40">
-                Quỹ ngày trúng chia theo <b>tỉ lệ tỉ số trúng</b>; quỹ treo & ngày treo
-                chia theo <b>slot</b>
+                Mỗi <b>trận trúng</b>: quỹ trận đó chia đều cho người trúng trận đó.
+                <b> Quỹ treo / ngày treo</b>: chia theo <b>slot</b>
                 {breakdown.scaled && (
                   <>
                     {" "}
-                    rồi <b>giảm đều</b> (vì tổng vượt quỹ)
+                    (<b>giảm đều</b> khi vượt quỹ)
                   </>
                 )}
                 .
