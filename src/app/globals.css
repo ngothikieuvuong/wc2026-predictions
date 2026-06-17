@@ -65,3 +65,10 @@ body {
 }
 .modal-fade { animation: modalFade 0.15s ease-out; }
 .modal-pop { animation: modalPop 0.18s ease-out; }
+
+/* Each flickering score during the random "spin" pops in. */
+@keyframes scoreTick {
+  from { transform: scale(0.8); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+.score-tick { animation: scoreTick 0.12s ease-out; }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import {
@@ -13,8 +13,174 @@ import type { Match, Prediction } from "@/lib/types";
 import { formatKickoff, isClosed } from "@/lib/format";
 import { matchHint } from "@/lib/strength";
 import TeamInfoButton from "@/components/TeamInfoButton";
+import Modal from "@/components/Modal";
 
 const NEW_PLAYER = "__new__";
+const MAX_GOALS = 6; // 0–6 per side (e.g. 6–0 max, never 7–0)
+
+// Pick a random score, then a 7s slot-machine spin before revealing it.
+//  - "Đội thắng": force a winner for the chosen team (else any, incl. draws),
+//  - "Không trùng": avoid scores other players already predicted for this match.
+function RandomScoreModal({
+  team1,
+  team2,
+  taken,
+  onUse,
+  onClose,
+}: {
+  team1: string;
+  team2: string;
+  taken: [number, number][];
+  onUse: (h: number, a: number) => void;
+  onClose: () => void;
+}) {
+  const [winner, setWinner] = useState<"any" | "home" | "away">("any");
+  const [noDup, setNoDup] = useState(true);
+  const [phase, setPhase] = useState<"setup" | "spin" | "done">("setup");
+  const [display, setDisplay] = useState<[number, number]>([0, 0]);
+  const [result, setResult] = useState<[number, number] | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const takenSet = new Set(taken.map(([h, a]) => `${h}-${a}`));
+
+  const pool = (useNoDup: boolean): [number, number][] => {
+    const out: [number, number][] = [];
+    for (let h = 0; h <= MAX_GOALS; h++)
+      for (let a = 0; a <= MAX_GOALS; a++) {
+        if (winner === "home" && !(h > a)) continue;
+        if (winner === "away" && !(a > h)) continue;
+        if (useNoDup && takenSet.has(`${h}-${a}`)) continue;
+        out.push([h, a]);
+      }
+    return out;
+  };
+
+  const spin = () => {
+    let p = pool(noDup);
+    if (p.length === 0) p = pool(false); // everything taken → relax no-dup
+    const final = p[Math.floor(Math.random() * p.length)];
+    setResult(final);
+    setPhase("spin");
+    const start = performance.now();
+    const DURATION = 7000;
+    const loop = () => {
+      const elapsed = performance.now() - start;
+      if (elapsed >= DURATION) {
+        setDisplay(final);
+        setPhase("done");
+        return;
+      }
+      setDisplay([
+        Math.floor(Math.random() * (MAX_GOALS + 1)),
+        Math.floor(Math.random() * (MAX_GOALS + 1)),
+      ]);
+      const prog = elapsed / DURATION;
+      timer.current = setTimeout(loop, 55 + prog * prog * 420); // ease-out
+    };
+    loop();
+  };
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
+
+  const footer =
+    phase === "done" && result ? (
+      <div className="flex gap-2">
+        <button
+          className="btn flex-1"
+          onClick={() => onUse(result[0], result[1])}
+        >
+          Dùng tỉ số này
+        </button>
+        <button className="btn-ghost flex-1" onClick={spin}>
+          🎲 Quay lại
+        </button>
+      </div>
+    ) : undefined;
+
+  return (
+    <Modal title="🎲 Random tỉ số" onClose={onClose} footer={footer}>
+      {phase === "setup" ? (
+        <div className="space-y-4">
+          <div>
+            <label className="label">Đội thắng</label>
+            <div className="flex gap-1 rounded-xl bg-black/30 p-1">
+              {(
+                [
+                  ["any", "Bất kỳ"],
+                  ["home", team1],
+                  ["away", team2],
+                ] as const
+              ).map(([k, lb]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setWinner(k)}
+                  className={`flex-1 truncate rounded-lg px-2 py-2 text-sm font-medium transition ${
+                    winner === k
+                      ? "bg-grass text-black"
+                      : "text-white/60 hover:bg-white/10"
+                  }`}
+                >
+                  {lb}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={noDup}
+              onChange={(e) => setNoDup(e.target.checked)}
+              className="h-4 w-4 accent-grass"
+            />
+            Không trùng tỉ số người khác đã đoán
+          </label>
+
+          <p className="text-[11px] text-white/40">
+            Tỉ số ngẫu nhiên trong khoảng 0–{MAX_GOALS} bàn mỗi đội.
+          </p>
+
+          <button type="button" className="btn w-full text-lg" onClick={spin}>
+            🎲 Quay số!
+          </button>
+        </div>
+      ) : (
+        <div className="py-4 text-center">
+          <p className="text-xs uppercase tracking-widest text-white/40">
+            {phase === "spin" ? "Đang quay…" : "Tỉ số may mắn của bạn"}
+          </p>
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <span className="w-20 truncate text-right text-sm text-white/60">
+              {team1}
+            </span>
+            <span
+              key={`${display[0]}-${display[1]}-${phase}`}
+              className={`score-tick rounded-2xl bg-black/40 px-5 py-3 font-mono text-5xl font-extrabold ${
+                phase === "done" ? "text-neon" : "text-white"
+              }`}
+            >
+              {display[0]}–{display[1]}
+            </span>
+            <span className="w-20 truncate text-left text-sm text-white/60">
+              {team2}
+            </span>
+          </div>
+          {phase === "spin" && (
+            <p className="mt-3 text-xs text-white/30">
+              Đang chọn tỉ số may mắn cho bạn… 🍀
+            </p>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
 
 // Score input with −/+ steppers for easy mobile entry.
 function ScoreStepper({
@@ -65,6 +231,7 @@ export default function PredictPage() {
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [others, setOthers] = useState<Prediction[]>([]);
+  const [showRandom, setShowRandom] = useState(false);
 
   // Effective player name: typed (new) or picked from the roster.
   const name = picked === NEW_PLAYER ? newName : picked;
@@ -231,10 +398,35 @@ export default function PredictPage() {
           })()}
 
         {selected && (
-          <div className="grid grid-cols-2 gap-2">
-            <ScoreStepper label={selected.team1} value={home} onChange={setHome} />
-            <ScoreStepper label={selected.team2} value={away} onChange={setAway} />
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <ScoreStepper label={selected.team1} value={home} onChange={setHome} />
+              <ScoreStepper label={selected.team2} value={away} onChange={setAway} />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRandom(true)}
+              className="btn-ghost w-full"
+            >
+              🎲 Random tỉ số
+            </button>
+          </>
+        )}
+
+        {showRandom && selected && (
+          <RandomScoreModal
+            team1={selected.team1}
+            team2={selected.team2}
+            taken={others.map(
+              (p) => [p.predicted_home, p.predicted_away] as [number, number]
+            )}
+            onUse={(h, a) => {
+              setHome(String(h));
+              setAway(String(a));
+              setShowRandom(false);
+            }}
+            onClose={() => setShowRandom(false)}
+          />
         )}
 
         {selected && others.length > 0 && (
