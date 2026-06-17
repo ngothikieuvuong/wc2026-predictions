@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
+import PageTransition from "@/components/PageTransition";
 
 export const metadata: Metadata = {
   title: "Nhà Tiên Tri WC",
@@ -17,7 +18,9 @@ export default function RootLayout({
       <body className="text-white antialiased">
         <div className="pitch-stripes min-h-screen">
           <NavBar />
-          <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
+          <main className="mx-auto max-w-3xl px-4 py-6">
+            <PageTransition>{children}</PageTransition>
+          </main>
         </div>
       </body>
     </html>

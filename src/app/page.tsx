@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   getJackpot,
@@ -35,6 +35,20 @@ export default function HomePage() {
     Awaited<ReturnType<typeof getPredictionsByMatch>>
   >([]);
   const [loading, setLoading] = useState(true);
+  // Pin a compact "Quỹ hiện tại" bar under the tabs once the big one scrolls off.
+  const jackpotRef = useRef<HTMLElement>(null);
+  const [showFundBar, setShowFundBar] = useState(false);
+
+  useEffect(() => {
+    const el = jackpotRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => setShowFundBar(!e.isIntersecting && e.boundingClientRect.top < 0),
+      { threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loading]);
 
   async function loadData() {
     const [j, f, s, w, lv, pr, st] = await Promise.all([
@@ -108,6 +122,27 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
+      {/* Compact fund bar pinned under the tabs while scrolling */}
+      <div
+        className={`fixed inset-x-0 z-20 transition-all duration-300 ${
+          showFundBar
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none -translate-y-2 opacity-0"
+        }`}
+        style={{ top: "var(--nav-h)" }}
+      >
+        <div className="mx-auto max-w-3xl px-4">
+          <div className="flex items-center justify-between rounded-b-xl border border-t-0 border-white/10 bg-[#0b1d12]/90 px-4 py-1.5 shadow-lux backdrop-blur-xl">
+            <span className="text-[11px] uppercase tracking-wider text-white/50">
+              Quỹ hiện tại
+            </span>
+            <span className="text-sm font-bold text-neon">
+              {jackpot === null ? "…" : formatVND(jackpot)}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <PendingWinnersBanner />
 
       {/* Live matches — with each prediction's status vs the live score */}
@@ -194,11 +229,11 @@ export default function HomePage() {
       )}
 
       {/* Jackpot */}
-      <section className="card text-center">
+      <section ref={jackpotRef} className="card text-center">
         <p className="text-sm uppercase tracking-widest text-white/50">
           Quỹ hiện tại
         </p>
-        <p className="mt-2 text-4xl font-extrabold text-neon drop-shadow sm:text-5xl">
+        <p className="mt-2 bg-gradient-to-b from-neon to-grass bg-clip-text text-4xl font-extrabold text-transparent drop-shadow sm:text-5xl">
           {loading || jackpot === null ? "…" : formatVND(jackpot)}
         </p>
 
@@ -253,10 +288,23 @@ export default function HomePage() {
                 </p>
                 {g.matches.map((m) => (
                   <MatchInfoButton key={m.id} team1={m.team1} team2={m.team2}>
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/25">
-                      <div className="font-bold">
-                        {m.team1} <span className="text-white/40">gặp</span>{" "}
-                        {m.team2}
+                    <div
+                      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition ${
+                        m.is_open
+                          ? "border-grass/40 bg-grass/10 hover:border-grass/60"
+                          : "border-white/10 bg-black/20 hover:border-white/25"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="font-bold">
+                          {m.team1} <span className="text-white/40">gặp</span>{" "}
+                          {m.team2}
+                        </div>
+                        {m.is_open && (
+                          <span className="mt-0.5 inline-block rounded-full bg-grass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-grass">
+                            ⚽ Mở đoán
+                          </span>
+                        )}
                       </div>
                       <div className="whitespace-nowrap text-sm text-white/60">
                         ⏱ {formatKickoff(m.kickoff_time)}

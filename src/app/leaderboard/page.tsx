@@ -32,7 +32,7 @@ export default function StatsPage() {
       <PendingWinnersBanner />
 
       <div>
-        <h1 className="text-2xl font-bold">Tổng kết</h1>
+        <h1 className="title-lux text-2xl">Tổng kết</h1>
         <p className="text-sm text-white/50">
           Xếp từ người lời nhiều nhất đến lỗ nhiều nhất.
         </p>
@@ -45,7 +45,7 @@ export default function StatsPage() {
           <p className="p-5 text-white/50">Chưa có dữ liệu.</p>
         ) : (
           <table className="w-full text-left text-sm sm:text-base">
-            <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-white/40">
+            <thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wider text-white/40">
               <tr>
                 <th className="px-3 py-3">Người chơi</th>
                 <th className="px-3 py-3 text-right">Chi</th>

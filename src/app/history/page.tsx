@@ -49,7 +49,7 @@ export default function HistoryPage() {
         >
           ← Về Tổng kết
         </Link>
-        <h1 className="mt-1 text-2xl font-bold">Lịch sử chia quỹ</h1>
+        <h1 className="title-lux mt-1 text-2xl">Lịch sử chia quỹ</h1>
         <p className="text-sm text-white/50">
           Chi tiết lần chia gần nhất và toàn bộ các lần tất toán đã xác nhận.
         </p>

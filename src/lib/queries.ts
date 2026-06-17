@@ -109,7 +109,8 @@ export async function getUpcomingSoon(): Promise<Match[]> {
   return next ? [next] : [];
 }
 
-// Upcoming matches grouped by game-day (21h rule), the next 2 days.
+// Upcoming matches grouped by game-day (21h rule), the next 2 days. Includes
+// matches not yet open for prediction (the home page highlights the open ones).
 export async function getUpcomingByDay(): Promise<
   { day: string; matches: Match[] }[]
 > {
@@ -117,7 +118,6 @@ export async function getUpcomingByDay(): Promise<
     .from("matches")
     .select("*")
     .eq("status", "upcoming")
-    .eq("is_open", true)
     .gte("kickoff_time", new Date().toISOString())
     .order("kickoff_time", { ascending: true });
 

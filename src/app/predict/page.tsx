@@ -461,7 +461,7 @@ export default function PredictPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Đoán tỉ số</h1>
+        <h1 className="title-lux text-2xl">Đoán tỉ số</h1>
         <p className="text-sm text-white/50">
           Góp 20.000₫ vào quỹ. Đoán trúng tỉ số nhận quỹ. Mỗi trận một lượt.
         </p>

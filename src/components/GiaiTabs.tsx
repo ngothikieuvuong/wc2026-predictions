@@ -122,32 +122,43 @@ export default function GiaiTabs({
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Lịch và kết quả</h1>
+        <h1 className="title-lux text-2xl">Lịch và kết quả</h1>
         <p className="text-sm text-white/50">
           Lịch thi đấu, kết quả các trận và bảng xếp hạng.
         </p>
       </div>
 
-      <Link
-        href="/predict"
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-grass px-6 py-3.5 text-lg font-extrabold text-black shadow-lg shadow-grass/30 transition hover:brightness-110 active:scale-[0.98]"
+      {/* Predict button + tabs freeze under the nav while scrolling */}
+      <div
+        className="sticky z-20 -mx-4 space-y-3 border-b border-white/10 bg-[#08160e]/80 px-4 py-3 backdrop-blur-xl"
+        style={{ top: "var(--nav-h)" }}
       >
-        ⚽ Dự Đoán Ngay
-      </Link>
+        <Link
+          href="/predict"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-lg font-extrabold text-black shadow-glow transition hover:brightness-110 active:scale-[0.98]"
+          style={{
+            background:
+              "linear-gradient(180deg,#28d567 0%,#1db954 60%,#15a049 100%)",
+          }}
+        >
+          ⚽ Dự Đoán Ngay
+        </Link>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 rounded-xl bg-black/30 p-1">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-lg px-2 py-2 text-sm font-medium transition ${
-              tab === t.key ? "bg-grass text-black" : "text-white/60 hover:bg-white/10"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+        <div className="flex gap-1 rounded-xl bg-black/30 p-1">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 rounded-lg px-2 py-2 text-sm font-medium transition-all duration-200 ${
+                tab === t.key
+                  ? "bg-gradient-to-b from-[#28d567] to-grass text-black shadow-glow"
+                  : "text-white/60 hover:bg-white/10"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error && (

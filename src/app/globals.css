@@ -18,9 +18,32 @@ input[type="number"] {
 
 body {
   background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(29, 185, 84, 0.12), transparent),
-    #07150d;
+    radial-gradient(900px 420px at 50% -8%, rgba(233, 201, 124, 0.1), transparent),
+    radial-gradient(1100px 560px at 50% 0%, rgba(29, 185, 84, 0.14), transparent),
+    linear-gradient(180deg, #08160e 0%, #061009 100%);
+  background-attachment: fixed;
   min-height: 100vh;
+}
+
+::selection {
+  background: rgba(29, 185, 84, 0.35);
+}
+
+/* Slim, premium scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 /* Subtle pitch stripes behind content */
@@ -35,19 +58,27 @@ body {
 }
 
 .card {
-  @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-5 shadow-lg;
+  @apply rounded-2xl border border-white/10 p-5 shadow-lux backdrop-blur;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
 }
 
 .btn {
-  @apply inline-flex items-center justify-center rounded-xl bg-grass px-4 py-2.5 font-semibold text-black transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 font-semibold text-black shadow-glow transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  background: linear-gradient(180deg, #28d567 0%, #1db954 60%, #15a049 100%);
 }
 
 .btn-ghost {
-  @apply inline-flex items-center justify-center rounded-xl border border-white/15 px-4 py-2.5 font-semibold text-white/90 transition hover:bg-white/10;
+  @apply inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 font-semibold text-white/90 transition-all duration-200 hover:border-white/25 hover:bg-white/10 active:scale-[0.98];
 }
 
 .input {
-  @apply w-full rounded-xl border border-white/15 bg-black/30 px-4 py-2.5 text-white placeholder-white/40 outline-none focus:border-grass;
+  @apply w-full rounded-xl border border-white/15 bg-black/30 px-4 py-2.5 text-white placeholder-white/40 outline-none transition focus:border-grass focus:ring-2 focus:ring-grass/30;
+}
+
+/* Gradient title accent */
+.title-lux {
+  @apply bg-gradient-to-r from-white via-goldsoft to-gold bg-clip-text font-extrabold tracking-tight text-transparent;
 }
 
 .label {
@@ -65,6 +96,13 @@ body {
 }
 .modal-fade { animation: modalFade 0.15s ease-out; }
 .modal-pop { animation: modalPop 0.18s ease-out; }
+
+/* Smooth page-to-page transition (keyed on route). */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.page-enter { animation: pageEnter 0.34s cubic-bezier(0.22, 0.61, 0.36, 1); }
 
 /* Each flickering score during the random "spin" pops in. */
 @keyframes scoreTick {

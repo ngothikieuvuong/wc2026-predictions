@@ -502,14 +502,6 @@ export default function PredictionsPage() {
     <div className="space-y-6">
       <PendingWinnersBanner />
 
-      <div>
-        <h1 className="text-2xl font-bold">Lượt đoán của mọi người</h1>
-        <p className="text-sm text-white/50">
-          Trận sắp diễn ra ở trên, rồi 2 trận vừa kết thúc; các trận cũ hơn nằm
-          gọn ở cuối. Nhấn giữ một lượt đoán để thả cảm xúc 💬
-        </p>
-      </div>
-
       {loading ? (
         <p className="text-white/40">Đang tải…</p>
       ) : rows.length === 0 ? (

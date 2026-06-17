@@ -15,9 +15,15 @@ const config: Config = {
         },
         grass: "#1db954",
         neon: "#39ff14",
+        gold: "#e9c97c",
+        goldsoft: "#f3e2b8",
       },
       fontFamily: {
         sans: ["system-ui", "Segoe UI", "Roboto", "sans-serif"],
+      },
+      boxShadow: {
+        glow: "0 8px 30px -8px rgba(29,185,84,0.45)",
+        lux: "0 10px 40px -12px rgba(0,0,0,0.55)",
       },
     },
   },

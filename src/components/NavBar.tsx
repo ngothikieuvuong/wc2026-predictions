@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { DEMO } from "@/lib/supabase";
@@ -27,6 +28,7 @@ export default function NavBar() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
 
   // Close the menu on outside click / route change.
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -40,6 +42,21 @@ export default function NavBar() {
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
 
+  // Expose the header height so pages can pin sticky bars right under it.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const set = () =>
+      document.documentElement.style.setProperty(
+        "--nav-h",
+        `${el.offsetHeight}px`
+      );
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   function goAdmin() {
     setMenuOpen(false);
     const p = window.prompt("Nhập mật khẩu:");
@@ -49,16 +66,25 @@ export default function NavBar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-black/40 backdrop-blur">
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-30 border-b border-white/10 bg-[#08160e]/80 shadow-lux backdrop-blur-xl"
+    >
       <div className="mx-auto max-w-3xl px-3">
         {/* Brand + menu */}
         <div className="flex items-center justify-between py-2.5">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-bold tracking-tight"
-          >
-            <span className="text-xl">🏆</span>
-            <span>Nhà Tiên Tri WC</span>
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-lux ring-1 ring-white/20">
+              <Image
+                src="/logo.png"
+                alt="World Cup 2026"
+                width={36}
+                height={36}
+                className="h-8 w-8 object-contain"
+                priority
+              />
+            </span>
+            <span className="title-lux text-[17px]">Nhà Tiên Tri WC</span>
             {DEMO && (
               <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
                 Bản thử
@@ -76,7 +102,7 @@ export default function NavBar() {
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full z-40 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 bg-neutral-900/95 shadow-xl backdrop-blur">
+              <div className="absolute right-0 top-full z-40 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 bg-neutral-900/95 shadow-lux backdrop-blur-xl">
                 {menuLinks.map((l) => (
                   <Link
                     key={l.href}
@@ -104,15 +130,17 @@ export default function NavBar() {
         </div>
 
         {/* Two main tabs — on every page */}
-        <nav className="flex gap-1 pb-2">
+        <nav className="flex gap-1.5 pb-2.5">
           {mainTabs.map((l) => {
             const active = pathname === l.href;
             return (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-sm font-semibold transition ${
-                  active ? "bg-grass text-black" : "bg-white/5 text-white/70 hover:bg-white/10"
+                className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-center text-sm font-semibold transition-all duration-200 ${
+                  active
+                    ? "bg-gradient-to-b from-[#28d567] to-grass text-black shadow-glow"
+                    : "border border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/10"
                 }`}
               >
                 {l.label}
