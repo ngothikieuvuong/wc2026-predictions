@@ -29,11 +29,11 @@ function ScoreStepper({
   const n = value === "" ? 0 : Number(value);
   const step = (d: number) => onChange(String(Math.max(0, n + d)));
   const btn =
-    "flex h-9 w-full items-center justify-center rounded-xl bg-white/10 text-2xl font-bold leading-none text-white/80 transition hover:bg-white/20 active:scale-95";
+    "flex h-7 w-full items-center justify-center rounded-lg bg-white/10 text-lg font-bold leading-none text-white/70 transition hover:bg-white/20 active:scale-95";
   return (
     <div className="min-w-0">
-      <label className="label">{label}</label>
-      <div className="flex flex-col gap-1">
+      <label className="label text-center">{label}</label>
+      <div className="mx-auto flex max-w-[8rem] flex-col gap-1">
         <button type="button" onClick={() => step(1)} className={btn} aria-label="Tăng">
           +
         </button>
@@ -41,7 +41,7 @@ function ScoreStepper({
           type="number"
           min={0}
           inputMode="numeric"
-          className="input !px-1 text-center text-2xl font-bold"
+          className="input !py-1.5 !px-1 text-center text-lg font-bold"
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
