@@ -411,18 +411,23 @@ export async function getPlayerHistory(name: string): Promise<
     .sort((a, b) => (a.kickoff_time < b.kickoff_time ? 1 : -1));
 }
 
-// Early winners on the active day whose pool can't settle yet because the day
-// still has matches to finish. Used for the "congrats, keep going / wait" banner.
+type WinMatch = {
+  team1: string;
+  team2: string;
+  home_score: number;
+  away_score: number;
+  winners: string[];
+};
+
+// Status banner for home / Mọi người / Tổng kết:
+//  - "matches": someone already nailed a score but the day still has matches to
+//    finish (keep playing / wait for the last match).
+//  - "admin": all of the period's matches are finished and there's a winner, but
+//    admin hasn't chốt sổ yet (wait for admin to settle).
 export async function getPendingWinners(): Promise<{
-  waiting: boolean;
+  mode: "matches" | "admin" | "";
   lastMatch: { team1: string; team2: string } | null;
-  matches: {
-    team1: string;
-    team2: string;
-    home_score: number;
-    away_score: number;
-    winners: string[];
-  }[];
+  matches: WinMatch[];
 }> {
   const [{ data: preds }, { data: matches }] = await Promise.all([
     supabase.from("predictions").select("*"),
@@ -430,10 +435,39 @@ export async function getPendingWinners(): Promise<{
   ]);
   const P = (preds as Prediction[]) ?? [];
   const M = (matches as Match[]) ?? [];
-  const active = activeDay(M, P);
   const byId = new Map(M.map((m) => [m.id, m]));
 
-  // Predicted matches on the active day.
+  const winnersOf = (m: Match): string[] =>
+    m.status === "finished" && m.home_score != null && m.away_score != null
+      ? P.filter(
+          (p) =>
+            p.match_id === m.id &&
+            p.predicted_home === m.home_score &&
+            p.predicted_away === m.away_score
+        ).map((p) => p.player_name)
+      : [];
+
+  const toWinMatch = (m: Match): WinMatch => ({
+    team1: m.team1,
+    team2: m.team2,
+    home_score: m.home_score as number,
+    away_score: m.away_score as number,
+    winners: winnersOf(m),
+  });
+
+  // 1) A fully-finished pool with a winner that admin hasn't settled yet.
+  const { computeSettlement, isSettlementCurrent } = await import("./admin");
+  const settle = await computeSettlement();
+  if (settle.breakdown.winners.length > 0 && !(await isSettlementCurrent(settle.net))) {
+    const paid = new Set(settle.paidDates);
+    const wm = M.filter((m) => paid.has(dayKey(m.kickoff_time)))
+      .map(toWinMatch)
+      .filter((x) => x.winners.length > 0);
+    if (wm.length > 0) return { mode: "admin", lastMatch: null, matches: wm };
+  }
+
+  // 2) Early winners on the active day while it still has matches to finish.
+  const active = activeDay(M, P);
   const dayIds = new Set<string>();
   for (const p of P) {
     const m = byId.get(p.match_id);
@@ -449,38 +483,18 @@ export async function getPendingWinners(): Promise<{
     dayMatches.every(
       (m) => m.status === "finished" && m.home_score != null && m.away_score != null
     );
-
-  // The last predicted match of the day (latest kickoff) — settlement waits for it.
   const last = dayMatches[dayMatches.length - 1];
-  const lastMatch = last ? { team1: last.team1, team2: last.team2 } : null;
+  const out = dayMatches.map(toWinMatch).filter((x) => x.winners.length > 0);
 
-  const out: {
-    team1: string;
-    team2: string;
-    home_score: number;
-    away_score: number;
-    winners: string[];
-  }[] = [];
-  for (const m of dayMatches) {
-    if (m.status !== "finished" || m.home_score == null || m.away_score == null)
-      continue;
-    const winners = P.filter(
-      (p) =>
-        p.match_id === m.id &&
-        p.predicted_home === m.home_score &&
-        p.predicted_away === m.away_score
-    ).map((p) => p.player_name);
-    if (winners.length > 0)
-      out.push({
-        team1: m.team1,
-        team2: m.team2,
-        home_score: m.home_score,
-        away_score: m.away_score,
-        winners,
-      });
+  if (!allFinished && out.length > 0) {
+    return {
+      mode: "matches",
+      lastMatch: last ? { team1: last.team1, team2: last.team2 } : null,
+      matches: out,
+    };
   }
 
-  return { waiting: !allFinished, lastMatch, matches: out };
+  return { mode: "", lastMatch: null, matches: [] };
 }
 
 // One person's money ledger (credit/debit): each prediction is −20.000đ

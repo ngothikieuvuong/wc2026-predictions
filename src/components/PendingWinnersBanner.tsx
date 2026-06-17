@@ -18,7 +18,7 @@ export default function PendingWinnersBanner() {
     };
   }, []);
 
-  if (!data || !data.waiting || data.matches.length === 0) return null;
+  if (!data || data.mode === "" || data.matches.length === 0) return null;
 
   return (
     <section className="card border-grass/40 bg-grass/5">
@@ -34,21 +34,28 @@ export default function PendingWinnersBanner() {
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-white/60">
-        Cố đoán thêm, hoặc chờ{" "}
-        {data.lastMatch ? (
-          <>
-            trận cuối của ngày —{" "}
-            <b className="text-white/80">
-              {data.lastMatch.team1} - {data.lastMatch.team2}
-            </b>{" "}
-            — kết thúc
-          </>
-        ) : (
-          "các trận còn lại kết thúc"
-        )}{" "}
-        để <b>chốt sổ ẳm quỹ</b> 💰
-      </p>
+
+      {data.mode === "matches" ? (
+        <p className="mt-2 text-xs text-white/60">
+          Cố đoán thêm, hoặc chờ{" "}
+          {data.lastMatch ? (
+            <>
+              trận cuối của ngày —{" "}
+              <b className="text-white/80">
+                {data.lastMatch.team1} - {data.lastMatch.team2}
+              </b>{" "}
+              — kết thúc
+            </>
+          ) : (
+            "các trận còn lại kết thúc"
+          )}{" "}
+          để <b>chốt sổ ẳm quỹ</b> 💰
+        </p>
+      ) : (
+        <p className="mt-2 text-xs font-semibold text-amber-300">
+          ⏳ Các trận của ngày đã xong — chờ admin <b>chốt sổ</b> để ẳm quỹ 💰
+        </p>
+      )}
     </section>
   );
 }
