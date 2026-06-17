@@ -5,103 +5,7 @@ import { getTeamInfo } from "@/lib/queries";
 import { getOdds, findOdds, type OddsRow } from "@/lib/oddsClient";
 import { getMatchLive, type MatchLive } from "@/lib/matchLiveClient";
 import { predictMatch, type Prediction } from "@/lib/predict";
-import { getTeamNews, type TeamNewsResult } from "@/lib/teamNewsClient";
 import LineupView from "@/components/LineupView";
-
-// On-demand injuries + projected lineups from API-Football (saves quota — only
-// fetched when the user taps). Degrades gracefully when no key / no data.
-function TeamNewsSection({ team1, team2 }: { team1: string; team2: string }) {
-  const [res, setRes] = useState<TeamNewsResult | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const run = async () => {
-    setLoading(true);
-    setRes(await getTeamNews(team1, team2));
-    setLoading(false);
-  };
-
-  if (!res) {
-    return (
-      <div className="border-t border-white/10 pt-3">
-        <button onClick={run} disabled={loading} className="btn-ghost w-full">
-          {loading ? "Đang lấy tin…" : "🩺 Tin đội bóng (chấn thương / đội hình)"}
-        </button>
-      </div>
-    );
-  }
-
-  if (!res.ok) {
-    const msg =
-      res.reason === "no-key"
-        ? "Chưa cấu hình nguồn tin (API key)."
-        : "Không lấy được tin lúc này.";
-    return (
-      <div className="border-t border-white/10 pt-3">
-        <p className="text-center text-xs text-white/40">{msg}</p>
-      </div>
-    );
-  }
-
-  if (!res.found)
-    return (
-      <div className="border-t border-white/10 pt-3">
-        <p className="text-center text-xs text-white/40">
-          Chưa có tin chấn thương / đội hình cho trận này.
-        </p>
-      </div>
-    );
-
-  const teams = [team1, team2];
-  return (
-    <div className="space-y-3 border-t border-white/10 pt-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-        🩺 Tin đội bóng
-      </p>
-      {teams.map((tName) => {
-        const inj = res.injuries.filter((i) =>
-          i.team.toLowerCase().includes(tName.toLowerCase().slice(0, 3))
-        );
-        const ln = res.lineups.find((l) =>
-          l.team.toLowerCase().includes(tName.toLowerCase().slice(0, 3))
-        );
-        return (
-          <div
-            key={tName}
-            className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm"
-          >
-            <p className="font-bold">{tName}</p>
-            {ln && ln.xi.length > 0 && (
-              <p className="mt-1 text-xs text-white/60">
-                Đội hình ({ln.formation}): {ln.xi.join(", ")}
-              </p>
-            )}
-            {res.injuries.length > 0 ? (
-              inj.length > 0 ? (
-                <ul className="mt-1.5 space-y-0.5 text-xs">
-                  {inj.map((i, k) => (
-                    <li key={k} className="text-red-300">
-                      🚑 {i.player}
-                      {i.reason ? ` — ${i.reason}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 text-xs text-white/40">Không có ca chấn thương.</p>
-              )
-            ) : (
-              !ln && (
-                <p className="mt-1 text-xs text-white/40">Chưa có dữ liệu.</p>
-              )
-            )}
-          </div>
-        );
-      })}
-      <p className="text-[11px] text-white/30">
-        Nguồn: API-Football. Đội hình chỉ có khi gần giờ bóng lăn.
-      </p>
-    </div>
-  );
-}
 
 // On-demand statistical score hint (free, no external AI). Computes only when
 // the user taps the button. Framed clearly as a non-serious reference.
@@ -405,9 +309,6 @@ export default function MatchDetails({
 
       {/* On-demand statistical score hint */}
       <PredictionSection team1={team1} team2={team2} />
-
-      {/* On-demand injuries + projected lineups (API-Football) */}
-      <TeamNewsSection team1={team1} team2={team2} />
 
       {/* Live stats once the match starts; otherwise reference odds */}
       {started ? (
