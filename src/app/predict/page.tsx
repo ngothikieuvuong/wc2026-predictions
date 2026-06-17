@@ -22,10 +22,10 @@ const MAX_GOALS = 6; // 0–6 per side (e.g. 6–0 max, never 7–0)
 const DEFAULT_OU_LINE = 3; // Tài = tổng > 3 bàn, Xỉu = tổng < 3 (khi không có kèo)
 
 // Random scores are EQUALLY likely except a few "không tưởng" cases are rarer:
-//  - the stronger team scoring ≥5  (~3%),
-//  - the weaker team scoring ≥4    (~3%, less likely than the favourite),
-//  - the whole match totalling >7  (~2%),
-//  - both teams ≥4                 (~0.2%).
+//  - the stronger team scoring ≥5  (~1%),
+//  - the weaker team scoring ≥4    (~1%, less likely than the favourite),
+//  - the whole match totalling >7  (~0.2%),
+//  - both teams ≥4                 (~0.02%).
 //  strongerIsHome: true/false by rank, or undefined when teams are even (then
 //  the higher-scoring side is treated as "stronger").
 function scoreWeight(h: number, a: number, strongerIsHome?: boolean): number {
@@ -35,8 +35,9 @@ function scoreWeight(h: number, a: number, strongerIsHome?: boolean): number {
     strongerIsHome === true ? a : strongerIsHome === false ? h : Math.min(h, a);
   let w = 1;
   if (h >= 4 && a >= 4) w *= 0.2; // both teams ≥4
-  if (sg >= 5) w *= 0.08; // stronger team ≥5
-  if (wg >= 4) w *= 0.05; // weaker team ≥4
+  if (sg >= 5) w *= 0.03; // stronger team ≥5
+  if (wg >= 4) w *= 0.02; // weaker team ≥4
+  if (h + a >= 8) w *= 0.3; // total > 7
   return w;
 }
 
