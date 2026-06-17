@@ -76,7 +76,7 @@ export default function NavBar() {
           <Link href="/" className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-lux ring-1 ring-white/20">
               <Image
-                src="/logo.png"
+                src="/wcLogo.webp"
                 alt="World Cup 2026"
                 width={36}
                 height={36}
