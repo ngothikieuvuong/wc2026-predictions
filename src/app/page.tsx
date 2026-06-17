@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   getJackpot,
   getUpcomingByDay,
-  getLatestWinner,
+  getLatestWinners,
   getFundByDay,
   getPredictionsByMatch,
 } from "@/lib/queries";
@@ -25,9 +25,9 @@ export default function HomePage() {
   const [soon, setSoon] = useState<
     Awaited<ReturnType<typeof getUpcomingByDay>>
   >([]);
-  const [winner, setWinner] = useState<Awaited<
-    ReturnType<typeof getLatestWinner>
-  > | null>(null);
+  const [winners, setWinners] = useState<
+    Awaited<ReturnType<typeof getLatestWinners>>
+  >([]);
   const [live, setLive] = useState<LiveScore[]>([]);
   const [predRows, setPredRows] = useState<
     Awaited<ReturnType<typeof getPredictionsByMatch>>
@@ -39,14 +39,14 @@ export default function HomePage() {
       getJackpot(),
       getFundByDay(),
       getUpcomingByDay(),
-      getLatestWinner(),
+      getLatestWinners(4),
       getLive(),
       getPredictionsByMatch(),
     ]);
     setJackpot(j);
     setFundByDay(f);
     setSoon(s);
-    setWinner(w);
+    setWinners(w);
     setLive(lv);
     setPredRows(pr);
     setLoading(false);
@@ -197,9 +197,6 @@ export default function HomePage() {
         <p className="mt-2 text-4xl font-extrabold text-neon drop-shadow sm:text-5xl">
           {loading || jackpot === null ? "…" : formatVND(jackpot)}
         </p>
-        <p className="mt-2 text-xs text-white/40">
-          Mỗi lượt góp 20.000₫ · người đoán trúng nhận quỹ
-        </p>
 
         {fundByDay.length > 0 && (
           <div className="mt-4 space-y-1 border-t border-white/10 pt-3 text-left text-sm">
@@ -225,6 +222,13 @@ export default function HomePage() {
             ))}
           </div>
         )}
+
+        <Link
+          href="/predict"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-grass px-6 py-4 text-xl font-extrabold text-black shadow-lg shadow-grass/30 transition hover:brightness-110 active:scale-[0.98]"
+        >
+          ⚽ Đoán Ngay
+        </Link>
       </section>
 
       {/* Upcoming matches, grouped by game-day */}
@@ -258,36 +262,49 @@ export default function HomePage() {
                 ))}
               </div>
             ))}
-            <Link href="/predict" className="btn mt-2 w-full">
-              Đoán ngay
+            <Link href="/giai" className="btn-ghost mt-2 w-full">
+              📅 Xem lịch đầy đủ
             </Link>
           </div>
         )}
       </section>
 
-      {/* Latest winner */}
+      {/* Recent winners */}
       <section className="card">
         <h2 className="mb-3 text-sm uppercase tracking-widest text-white/50">
-          Người trúng gần nhất
+          Danh sách đã trúng thưởng
         </h2>
         {loading ? (
           <p className="text-white/40">Đang tải…</p>
-        ) : winner ? (
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-lg font-bold">🏆 {winner.player_name}</p>
-              {winner.pay_date && (
-                <p className="text-sm text-white/50">
-                  Ngày {winner.pay_date.slice(8, 10)}/{winner.pay_date.slice(5, 7)}
-                </p>
-              )}
-            </div>
-            <p className="text-xl font-bold text-neon">
-              {formatVND(winner.amount)}
-            </p>
-          </div>
-        ) : (
+        ) : winners.length === 0 ? (
           <p className="text-white/50">Chưa có ai trúng — hãy là người đầu tiên!</p>
+        ) : (
+          <>
+            <ul className="divide-y divide-white/10">
+              {winners.map((w, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 py-2"
+                >
+                  <div>
+                    <p className="font-bold">🏆 {w.player_name}</p>
+                    {w.pay_date && (
+                      <p className="text-xs text-white/50">
+                        Ngày {w.pay_date.slice(8, 10)}/{w.pay_date.slice(5, 7)}
+                      </p>
+                    )}
+                  </div>
+                  <p className="font-bold text-neon">{formatVND(w.amount)}</p>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/leaderboard#lich-su-tat-toan"
+              className="btn-ghost mt-3 w-full"
+            >
+              Xem chi tiết
+            </Link>
+          </>
         )}
       </section>
     </div>

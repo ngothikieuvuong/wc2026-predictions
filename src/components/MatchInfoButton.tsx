@@ -2,20 +2,25 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import MatchDetails from "@/components/MatchDetails";
+import { matchSlug } from "@/lib/format";
 
 export default function MatchInfoButton({
   team1,
   team2,
   started = false,
+  showPredictionsLink = true,
   children,
 }: {
   team1: string;
   team2: string;
   started?: boolean;
+  showPredictionsLink?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   return (
     <>
@@ -47,9 +52,24 @@ export default function MatchInfoButton({
                 </button>
               </div>
 
+              {showPredictionsLink && (
+                <button
+                  className="btn mb-3 w-full"
+                  onClick={() => {
+                    setOpen(false);
+                    router.push(`/predictions#${matchSlug(team1, team2)}`);
+                  }}
+                >
+                  👥 Xem các dự đoán
+                </button>
+              )}
+
               <MatchDetails team1={team1} team2={team2} started={started} />
 
-              <button className="btn mt-4 w-full" onClick={() => setOpen(false)}>
+              <button
+                className="btn-ghost mt-4 w-full"
+                onClick={() => setOpen(false)}
+              >
                 Đóng
               </button>
             </div>

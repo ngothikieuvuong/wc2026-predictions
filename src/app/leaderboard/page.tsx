@@ -48,6 +48,14 @@ export default function StatsPage() {
     })();
   }, []);
 
+  // Scroll to the settlement-history section when linked with #lich-su-tat-toan.
+  useEffect(() => {
+    if (loading) return;
+    if (window.location.hash !== "#lich-su-tat-toan") return;
+    const el = document.getElementById("lich-su-tat-toan");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loading]);
+
   return (
     <div className="space-y-6">
       <PendingWinnersBanner />
@@ -210,7 +218,7 @@ export default function StatsPage() {
 
       {/* Settlement history */}
       {events.length > 0 && (
-        <div className="space-y-3">
+        <div id="lich-su-tat-toan" className="scroll-mt-24 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
             Lịch sử tất toán
           </h2>

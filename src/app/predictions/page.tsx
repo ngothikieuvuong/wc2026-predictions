@@ -14,7 +14,7 @@ import type { Match, Prediction, Reaction } from "@/lib/types";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
-import { formatKickoff, formatShort, isClosed } from "@/lib/format";
+import { formatKickoff, formatShort, isClosed, matchSlug } from "@/lib/format";
 import MatchInfoButton from "@/components/MatchInfoButton";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 
@@ -198,11 +198,15 @@ function MatchCard({
   };
   const sortedPreds = [...predictions].sort((a, b) => closeness(a) - closeness(b));
   return (
-    <section className="card space-y-3">
+    <section
+      id={matchSlug(match.team1, match.team2)}
+      className="card scroll-mt-28 space-y-3 transition"
+    >
       <MatchInfoButton
         team1={match.team1}
         team2={match.team2}
         started={finished || started}
+        showPredictionsLink={false}
       >
         <div className="flex items-start justify-between gap-3 rounded-lg px-1 py-0.5 transition hover:bg-white/5">
           <div>
@@ -439,6 +443,19 @@ export default function PredictionsPage() {
       if (changed) loadAll();
     });
   }, []);
+
+  // Linked from a match popup (#match-…): scroll to that match and flash it.
+  useEffect(() => {
+    if (loading) return;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    const el = document.getElementById(hash);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    el.classList.add("ring-2", "ring-grass");
+    const t = setTimeout(() => el.classList.remove("ring-2", "ring-grass"), 2500);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   // Sort by status: live on top, then upcoming (nearest first), then finished
   // (newest first).

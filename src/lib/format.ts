@@ -28,3 +28,16 @@ export function formatShort(iso: string): string {
 export function isClosed(kickoff: string): boolean {
   return new Date(kickoff).getTime() <= Date.now();
 }
+
+// Stable anchor id for a match, order-free on the team pair. Used to link a
+// match popup to its card on the "everyone's predictions" page.
+export function matchSlug(team1: string, team2: string): string {
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/đ/g, "d")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  return "match-" + [norm(team1), norm(team2)].sort().join("-");
+}

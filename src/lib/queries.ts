@@ -63,6 +63,23 @@ export async function getLatestWinner(): Promise<{
   };
 }
 
+// The most recent winners (newest first) for the home "đã trúng thưởng" list.
+export async function getLatestWinners(limit = 4): Promise<
+  { player_name: string; amount: number; pay_date: string | null }[]
+> {
+  const { data } = await supabase
+    .from("rewards")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .order("amount", { ascending: false })
+    .limit(limit);
+  return ((data as (Reward & { pay_date: string | null })[]) ?? []).map((r) => ({
+    player_name: r.player_name,
+    amount: Number(r.amount),
+    pay_date: r.pay_date ?? null,
+  }));
+}
+
 // Upcoming matches kicking off from now through the end of tomorrow (viewer's
 // local day). Falls back to the single next match if nothing in that window.
 export async function getUpcomingSoon(): Promise<Match[]> {

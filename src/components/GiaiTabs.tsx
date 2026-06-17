@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { GroupTable, BracketRound, Fixture } from "@/lib/tournament";
-import { getMatchResults } from "@/lib/queries";
+import { getMatchResults, getOpenMatches } from "@/lib/queries";
 import { autoSync } from "@/lib/syncClient";
-import { formatKickoff } from "@/lib/format";
+import { formatKickoff, matchSlug } from "@/lib/format";
 import MatchInfoButton from "@/components/MatchInfoButton";
+
+// Small green badge marking a match that's open for prediction.
+function OpenBadge() {
+  return (
+    <span className="shrink-0 whitespace-nowrap rounded-full bg-grass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-grass">
+      Mở đoán
+    </span>
+  );
+}
 
 const isStarted = (iso: string) =>
   !!iso && new Date(iso).getTime() <= Date.now();
@@ -74,11 +84,21 @@ export default function GiaiTabs({
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("nhanh");
   const [results, setResults] = useState<Results | null>(null);
+  // Team-pair keys of matches the admin has opened for prediction.
+  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
+  const isMatchOpen = (home: string, away: string) =>
+    openKeys.has(matchSlug(home, away));
   // Which round sections are expanded. Default: Vòng bảng open, knockout closed.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const isOpen = (k: string) => expanded[k] ?? k === "Vòng bảng";
   const toggle = (k: string) =>
     setExpanded((e) => ({ ...e, [k]: !isOpen(k) }));
+
+  useEffect(() => {
+    getOpenMatches().then((ms) =>
+      setOpenKeys(new Set(ms.map((m) => matchSlug(m.team1, m.team2))))
+    );
+  }, []);
 
   useEffect(() => {
     if (tab === "ketqua" && results === null) {
@@ -107,6 +127,13 @@ export default function GiaiTabs({
           Lịch thi đấu, kết quả các trận và bảng xếp hạng.
         </p>
       </div>
+
+      <Link
+        href="/predict"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-grass px-6 py-3.5 text-lg font-extrabold text-black shadow-lg shadow-grass/30 transition hover:brightness-110 active:scale-[0.98]"
+      >
+        ⚽ Dự Đoán Ngay
+      </Link>
 
       {/* Tab bar */}
       <div className="flex gap-1 rounded-xl bg-black/30 p-1">
@@ -193,13 +220,20 @@ export default function GiaiTabs({
                       team2={m.away}
                       started={isStarted(m.date)}
                     >
-                      <div className="flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm transition hover:bg-white/10">
+                      <div
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-white/10 ${
+                          isMatchOpen(m.home, m.away)
+                            ? "bg-grass/10 ring-1 ring-grass/40"
+                            : "bg-black/20"
+                        }`}
+                      >
                         <span className="w-11 shrink-0 text-xs text-white/40">
                           {viTime(m.date)}
                         </span>
                         <span className="flex-1 text-right font-medium">{m.home}</span>
                         <span className="text-xs text-white/40">vs</span>
                         <span className="flex-1 font-medium">{m.away}</span>
+                        {isMatchOpen(m.home, m.away) && <OpenBadge />}
                       </div>
                     </MatchInfoButton>
                   ))}
@@ -218,13 +252,19 @@ export default function GiaiTabs({
             >
               <ul className="space-y-1.5">
                 {round.matches.map((m, i) => {
+                  const open = m.teamsKnown && isMatchOpen(m.home, m.away);
                   const row = (
-                    <div className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-sm transition hover:bg-white/10">
+                    <div
+                      className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-white/10 ${
+                        open ? "bg-grass/10 ring-1 ring-grass/40" : "bg-black/20"
+                      }`}
+                    >
                       <span className="flex-1 text-right font-medium">{m.home}</span>
                       <span className="min-w-14 text-center font-bold text-white/80">
                         {m.played ? `${m.hs}–${m.as}` : "vs"}
                       </span>
                       <span className="flex-1 font-medium">{m.away}</span>
+                      {open && <OpenBadge />}
                     </div>
                   );
                   return (
