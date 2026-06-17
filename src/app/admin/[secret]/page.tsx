@@ -363,9 +363,41 @@ function AdminPanel() {
 
 // "What-if" settlement: admin types hypothetical scores for unplayed matches
 // and previews how the pot would divide — no DB writes.
+function NumStepper({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const btn =
+    "flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-lg font-bold leading-none text-white/70 transition hover:bg-white/20 active:scale-95";
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(0, value - 1))}
+        className={btn}
+        aria-label="Giảm"
+      >
+        −
+      </button>
+      <span className="w-5 text-center font-mono text-base font-bold">{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(value + 1)}
+        className={btn}
+        aria-label="Tăng"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
 function SettleSimulator() {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [scores, setScores] = useState<Record<string, { h: string; a: string }>>(
+  const [scores, setScores] = useState<Record<string, { h: number; a: number }>>(
     {}
   );
   const [result, setResult] = useState<SettleResult | null>(null);
@@ -376,21 +408,18 @@ function SettleSimulator() {
     if (open && matches.length === 0) getPendingScoreMatches().then(setMatches);
   }, [open, matches.length]);
 
-  const setScore = (id: string, k: "h" | "a", v: string) =>
+  const setScore = (id: string, k: "h" | "a", v: number) =>
     setScores((s) => ({
       ...s,
-      [id]: { h: s[id]?.h ?? "", a: s[id]?.a ?? "", [k]: v },
+      [id]: { h: s[id]?.h ?? 0, a: s[id]?.a ?? 0, [k]: v },
     }));
 
   async function run() {
-    const overrides = matches
-      .filter((m) => scores[m.id]?.h !== "" && scores[m.id]?.a !== "")
-      .filter((m) => scores[m.id] != null)
-      .map((m) => ({
-        match_id: m.id,
-        home: Number(scores[m.id].h),
-        away: Number(scores[m.id].a),
-      }));
+    const overrides = matches.map((m) => ({
+      match_id: m.id,
+      home: scores[m.id]?.h ?? 0,
+      away: scores[m.id]?.a ?? 0,
+    }));
     setBusy(true);
     setResult(await computeSettlement(overrides));
     setBusy(false);
@@ -418,9 +447,8 @@ function SettleSimulator() {
       {open && (
         <>
           <p className="text-xs text-white/50">
-            Nhập tỉ số giả định cho các trận chưa đá để xem nếu kết quả như vậy
-            thì chia tiền thế nào. Nhập <b>đủ các trận trong ngày</b> mới tính
-            được ngày đó. Không lưu gì cả.
+            Chỉnh tỉ số giả định (bấm +/−) cho các trận chưa đá để xem nếu kết
+            quả như vậy thì chia tiền thế nào. Không lưu gì cả.
           </p>
 
           {matches.length === 0 ? (
@@ -435,30 +463,22 @@ function SettleSimulator() {
                     Ngày {dayLabel(g.day)}
                   </p>
                   {g.items.map((m) => (
-                    <div key={m.id} className="flex items-center gap-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate text-right font-medium">
-                        {m.team1}
-                      </span>
-                      <input
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        value={scores[m.id]?.h ?? ""}
-                        onChange={(e) => setScore(m.id, "h", e.target.value)}
-                        className="w-11 shrink-0 rounded-lg border border-white/15 bg-black/30 py-1 text-center text-white outline-none focus:border-grass"
-                      />
-                      <span className="shrink-0 text-white/40">–</span>
-                      <input
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        value={scores[m.id]?.a ?? ""}
-                        onChange={(e) => setScore(m.id, "a", e.target.value)}
-                        className="w-11 shrink-0 rounded-lg border border-white/15 bg-black/30 py-1 text-center text-white outline-none focus:border-grass"
-                      />
-                      <span className="min-w-0 flex-1 truncate font-medium">
+                    <div key={m.id} className="rounded-lg bg-black/20 p-2">
+                      <p className="mb-1.5 text-center text-sm font-medium">
+                        {m.team1} <span className="text-white/40">–</span>{" "}
                         {m.team2}
-                      </span>
+                      </p>
+                      <div className="flex items-center justify-center gap-3">
+                        <NumStepper
+                          value={scores[m.id]?.h ?? 0}
+                          onChange={(v) => setScore(m.id, "h", v)}
+                        />
+                        <span className="text-white/40">:</span>
+                        <NumStepper
+                          value={scores[m.id]?.a ?? 0}
+                          onChange={(v) => setScore(m.id, "a", v)}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
