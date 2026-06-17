@@ -73,17 +73,15 @@ export default function NavBar() {
       <div className="mx-auto max-w-3xl px-3">
         {/* Brand + menu */}
         <div className="flex items-center justify-between py-2.5">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex shrink-0 items-center rounded-md bg-white p-1 shadow-lux ring-1 ring-white/20">
-              <Image
-                src="/wcLogo.webp"
-                alt="World Cup 2026"
-                width={400}
-                height={240}
-                className="h-8 w-auto object-contain"
-                priority
-              />
-            </span>
+          <Link href="/" className="flex items-center gap-2">
+            <Image
+              src="/cupLogo.webp"
+              alt="World Cup 2026"
+              width={63}
+              height={141}
+              className="h-11 w-auto object-contain drop-shadow-[0_2px_8px_rgba(233,201,124,0.35)]"
+              priority
+            />
             <span className="title-lux text-[17px]">Nhà Tiên Tri WC</span>
             {DEMO && (
               <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
