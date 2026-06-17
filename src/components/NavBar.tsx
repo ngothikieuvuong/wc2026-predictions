@@ -19,6 +19,7 @@ const menuLinks = [
   { href: "/predict", label: "⚽ Đoán ngay" },
   { href: "/giai", label: "📅 Lịch & Kết quả" },
   { href: "/leaderboard", label: "🏆 Tổng kết" },
+  { href: "/history", label: "📜 Lịch sử chia quỹ" },
 ];
 
 export default function NavBar() {

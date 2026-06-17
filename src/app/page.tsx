@@ -303,7 +303,7 @@ export default function HomePage() {
               ))}
             </ul>
             <Link
-              href="/leaderboard#lich-su-tat-toan"
+              href="/history#lich-su-tat-toan"
               className="btn-ghost mt-3 w-full"
             >
               Xem chi tiết
