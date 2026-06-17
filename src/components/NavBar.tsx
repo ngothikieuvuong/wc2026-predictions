@@ -85,7 +85,9 @@ export default function NavBar() {
                 priority
               />
             </span>
-            <span className="title-lux text-lg">Nhà Tiên Tri WC</span>
+            <span className="title-lux whitespace-nowrap text-2xl">
+              Nhà Tiên Tri WC
+            </span>
             {DEMO && (
               <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
                 Bản thử
