@@ -220,10 +220,7 @@ function AdminPanel() {
                             <li key={i} className="flex justify-between gap-2">
                               <span>
                                 {d.carry ? (
-                                  <>
-                                    🔁 Quỹ treo: {d.slots}/{d.players} slot ={" "}
-                                    {formatVND(d.max)}
-                                  </>
+                                  <>🔁 Từ quỹ treo: {d.slots} slot</>
                                 ) : (
                                   <>
                                     Ngày {dayLabel(d.date)}: {d.slots} slot ×{" "}
