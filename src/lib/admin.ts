@@ -37,6 +37,15 @@ export type SettleResult = {
       correct: number;
       maxClaim: number; // their max-claim cap
       amount: number;
+      // Per-day breakdown: slots × players → max-claim, and that day's payout.
+      days: {
+        date: string;
+        carry: boolean;
+        slots: number;
+        players: number;
+        max: number;
+        amount: number;
+      }[];
     }[];
   };
   // The carried treo as a fund-by-day entry (date + amount + participants).
@@ -161,6 +170,16 @@ export async function computeSettlement(): Promise<SettleResult> {
   const correctBy = new Map<string, number>();
   const maxClaimBy = new Map<string, number>(); // each winner's max-claim cap
   let scaledFlag = false; // whether any pool was scaled down (over the fund)
+  // Per-winner, per-day breakdown for the preview explanation.
+  type DayLine = {
+    date: string;
+    carry: boolean;
+    slots: number;
+    players: number;
+    max: number; // slots × players × stake
+    amount: number; // this day's share of the final payout (× ratio × scale)
+  };
+  const winnerDays = new Map<string, DayLine[]>();
 
   const fundOf = (d: DayInfo) => d.carryFund ?? d.totalSlots * STAKE;
 
@@ -201,12 +220,31 @@ export async function computeSettlement(): Promise<SettleResult> {
 
     let paidWinners = 0;
     for (const [name, c] of winners) {
-      const w = (tentative.get(name) ?? 0) * scale;
+      const ratio = c / totalWin;
+      const w = (maxClaim.get(name) ?? 0) * ratio * scale;
       addPay(name, winDay.date, w);
       winBy.set(name, (winBy.get(name) ?? 0) + w);
       correctBy.set(name, (correctBy.get(name) ?? 0) + c);
       maxClaimBy.set(name, (maxClaimBy.get(name) ?? 0) + (maxClaim.get(name) ?? 0));
       paidWinners += w;
+
+      // Per-day detail: each pool day this winner has slots in.
+      const lines = winnerDays.get(name) ?? [];
+      for (const d of poolDays) {
+        const sl = d.slots.get(name) ?? 0;
+        if (sl <= 0) continue;
+        const players = d.slots.size;
+        const max = sl * players * STAKE;
+        lines.push({
+          date: d.date,
+          carry: d.carryFund !== undefined,
+          slots: sl,
+          players,
+          max,
+          amount: max * ratio * scale,
+        });
+      }
+      winnerDays.set(name, lines);
     }
 
     return Math.max(0, totalFund - paidWinners); // leftover → carried (treo)
@@ -302,6 +340,14 @@ export async function computeSettlement(): Promise<SettleResult> {
         correct: correctBy.get(name) ?? 0,
         maxClaim: round(maxClaimBy.get(name) ?? 0),
         amount: round(amount),
+        days: (winnerDays.get(name) ?? []).map((d) => ({
+          date: d.date,
+          carry: d.carry,
+          slots: d.slots,
+          players: d.players,
+          max: round(d.max),
+          amount: round(d.amount),
+        })),
       }))
       .sort((a, b) => b.amount - a.amount),
   };

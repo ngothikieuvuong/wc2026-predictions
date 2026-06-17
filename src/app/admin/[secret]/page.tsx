@@ -18,7 +18,7 @@ import type { SettleResult } from "@/lib/admin";
 import { getJackpot, getFundByDay } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatKickoff, formatShort, formatVND } from "@/lib/format";
-import { dayKey } from "@/lib/day";
+import { dayKey, dayLabel } from "@/lib/day";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
 
@@ -196,39 +196,54 @@ function AdminPanel() {
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
                   🎯 Người trúng tỉ số — vì sao chia vậy?
                 </p>
-                <ul className="divide-y divide-white/10">
-                  {review.breakdown.winners.map((w) => (
-                    <li key={w.name} className="py-1.5 text-sm">
-                      <div className="flex items-center justify-between">
-                        <b>{w.name}</b>
-                        <span className="font-bold text-neon">
-                          {formatVND(w.amount)}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-white/40">
-                        trúng <b className="text-white/70">{w.correct}</b>/
-                        {review.breakdown.totalCorrect} tỉ số (tỉ lệ{" "}
-                        {Math.round(
-                          (w.correct / (review.breakdown.totalCorrect || 1)) * 100
-                        )}
-                        %) · mức ăn tối đa{" "}
-                        <b className="text-white/70">{formatVND(w.maxClaim)}</b>
-                      </p>
-                    </li>
-                  ))}
+                <ul className="space-y-2">
+                  {review.breakdown.winners.map((w) => {
+                    const pct = Math.round(
+                      (w.correct / (review.breakdown.totalCorrect || 1)) * 100
+                    );
+                    return (
+                      <li key={w.name} className="rounded-lg bg-black/20 p-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>
+                            <b>{w.name}</b>{" "}
+                            <span className="text-[11px] text-white/40">
+                              trúng {w.correct}/{review.breakdown.totalCorrect} ·
+                              tỉ lệ {pct}%
+                            </span>
+                          </span>
+                          <span className="font-bold text-neon">
+                            {formatVND(w.amount)}
+                          </span>
+                        </div>
+                        <ul className="mt-1 space-y-0.5 text-[11px] text-white/50">
+                          {w.days.map((d, i) => (
+                            <li key={i} className="flex justify-between gap-2">
+                              <span>
+                                {d.carry ? "Quỹ treo trước" : `Ngày ${dayLabel(d.date)}`}
+                                : {d.slots} slot × {d.players} người ={" "}
+                                {formatVND(d.max)}
+                              </span>
+                              <span className="shrink-0 text-white/70">
+                                → {formatVND(d.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <p className="text-[11px] leading-relaxed text-white/40">
-                  Cách tính mỗi người: <b>tạm tính = mức ăn tối đa × tỉ lệ tỉ số
-                  trúng</b>
-                  {review.breakdown.scaled ? (
+                  Mỗi ngày: <b>slot × số người chơi × 20k = mức ăn tối đa</b>; nhân{" "}
+                  <b>tỉ lệ tỉ số trúng</b>
+                  {review.breakdown.scaled && (
                     <>
-                      ; tổng vượt quỹ nên <b>giảm đều</b> cho khớp quỹ.
+                      {" "}
+                      rồi <b>giảm đều</b> (vì tổng vượt quỹ)
                     </>
-                  ) : (
-                    <>. Phần chưa ôm hết quỹ giữ làm quỹ treo.</>
                   )}{" "}
-                  Khác nhau là do <b>số tỉ số trúng</b> (tỉ lệ) và <b>mức ăn tối đa</b>{" "}
-                  (chơi nhiều slot/ngày → trần cao hơn).
+                  ra tiền thực nhận. Khác nhau do <b>số tỉ số trúng</b> và <b>mức ăn
+                  tối đa</b> (chơi nhiều slot/ngày → trần cao hơn).
                 </p>
               </div>
             )}
