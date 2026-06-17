@@ -219,9 +219,9 @@ function AdminPanel() {
                           {w.days.map((d, i) => (
                             <li key={i} className="flex justify-between gap-2">
                               <span>
-                                {d.carry ? "Quỹ treo trước" : `Ngày ${dayLabel(d.date)}`}
-                                : {d.slots} slot × {d.players} người ={" "}
-                                {formatVND(d.max)}
+                                {d.carry ? "🔁 Treo · " : ""}Ngày{" "}
+                                {dayLabel(d.date)}: {d.slots} slot × {d.players}{" "}
+                                người = {formatVND(d.max)}
                               </span>
                               <span className="shrink-0 text-white/70">
                                 → {formatVND(d.amount)}

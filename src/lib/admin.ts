@@ -64,6 +64,7 @@ export async function settlementState(
   watermark: string;
   carryAmount: number;
   carrySlots: Map<string, number>;
+  paidPlayers: Set<string>;
 }> {
   const { data: rewards } = await supabase
     .from("rewards")
@@ -90,7 +91,12 @@ export async function settlementState(
       carrySlots.set(p.player_name, (carrySlots.get(p.player_name) ?? 0) + 1);
     }
   }
-  return { watermark, carryAmount: Math.max(0, settledFund - paidTotal), carrySlots };
+  return {
+    watermark,
+    carryAmount: Math.max(0, settledFund - paidTotal),
+    carrySlots,
+    paidPlayers,
+  };
 }
 
 // INCREMENTAL day-based settlement (no DB writes — applySettlement persists).
@@ -110,22 +116,10 @@ export async function computeSettlement(): Promise<SettleResult> {
   const preds = (predsData as Prediction[]) ?? [];
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
-  const { watermark, carryAmount, carrySlots } = await settlementState(
+  const { watermark, carryAmount, paidPlayers } = await settlementState(
     matches,
     preds
   );
-
-  // Predicted matches grouped by day — only days AFTER the watermark (the
-  // already-settled days are skipped entirely).
-  const predictedIds = new Set(preds.map((p) => p.match_id));
-  const matchesByDay = new Map<string, Match[]>();
-  for (const m of matches) {
-    if (!predictedIds.has(m.id)) continue;
-    const d = dayKey(m.kickoff_time);
-    if (watermark && d <= watermark) continue; // already chốt'd
-    if (!matchesByDay.has(d)) matchesByDay.set(d, []);
-    matchesByDay.get(d)!.push(m);
-  }
 
   type DayInfo = {
     date: string;
@@ -133,11 +127,26 @@ export async function computeSettlement(): Promise<SettleResult> {
     totalSlots: number;
     slots: Map<string, number>; // name -> slots placed that day
     correct: Map<string, number>; // name -> correct slots that day
-    carryFund?: number; // for a synthetic "carried treo" day: its fund = leftover
+    carryFund?: number; // synthetic day: its fund (0 for carry slot-days, the
+    // leftover for the single leftover-fund day)
   };
 
-  const infos: DayInfo[] = [...matchesByDay.keys()].sort().map((d) => {
-    const dms = matchesByDay.get(d)!;
+  // Predicted matches grouped by day, split at the watermark.
+  const predictedIds = new Set(preds.map((p) => p.match_id));
+  const settledByDay = new Map<string, Match[]>(); // ≤ watermark (already chốt'd)
+  const newByDay = new Map<string, Match[]>(); // > watermark (to settle now)
+  for (const m of matches) {
+    if (!predictedIds.has(m.id)) continue;
+    const d = dayKey(m.kickoff_time);
+    const target =
+      watermark && d <= watermark ? settledByDay : newByDay;
+    if (!target.has(d)) target.set(d, []);
+    target.get(d)!.push(m);
+  }
+
+  // New days: full DayInfo with correct scores.
+  const infos: DayInfo[] = [...newByDay.keys()].sort().map((d) => {
+    const dms = newByDay.get(d)!;
     const ids = new Set(dms.map((m) => m.id));
     const finished = dms.every(
       (m) => m.status === "finished" && m.home_score != null && m.away_score != null
@@ -159,6 +168,21 @@ export async function computeSettlement(): Promise<SettleResult> {
       }
     }
     return { date: d, finished, totalSlots, slots, correct };
+  });
+
+  // Carried treo as PER-DAY "carry slot-days" (accurate max-claim per day),
+  // excluding players who already got paid, each contributing 0 fund. The
+  // leftover money is added once via a separate fund-only day.
+  const carrySlotDays: DayInfo[] = [...settledByDay.keys()].sort().map((d) => {
+    const ids = new Set(settledByDay.get(d)!.map((m) => m.id));
+    const slots = new Map<string, number>();
+    let totalSlots = 0;
+    for (const p of preds) {
+      if (!ids.has(p.match_id) || paidPlayers.has(p.player_name)) continue;
+      slots.set(p.player_name, (slots.get(p.player_name) ?? 0) + 1);
+      totalSlots++;
+    }
+    return { date: d, finished: true, totalSlots, slots, correct: new Map(), carryFund: 0 };
   });
 
   const pay = new Map<string, number>(); // "name|date" -> amount
@@ -261,21 +285,18 @@ export async function computeSettlement(): Promise<SettleResult> {
     return { date, finished: true, totalSlots, slots, correct: new Map(), carryFund: leftover };
   };
 
-  // Seed the pool with the carried treo from previous settlements (its fund is
-  // the leftover money; it keeps slots for max-claim but no correct scores).
-  const carryStart: DayInfo | null =
-    carryAmount > 0
-      ? {
-          date: watermark,
-          finished: true,
-          totalSlots: [...carrySlots.values()].reduce((a, b) => a + b, 0),
-          slots: carrySlots,
-          correct: new Map(),
-          carryFund: carryAmount,
-        }
-      : null;
-
-  let pool: DayInfo[] = carryStart ? [carryStart] : [];
+  // Seed the pool with the carried treo: the per-day carry slot-days (max-claim
+  // capacity, 0 fund) + one leftover-fund day carrying the leftover money.
+  const leftoverFundDay: DayInfo = {
+    date: watermark,
+    finished: true,
+    totalSlots: 0,
+    slots: new Map(),
+    correct: new Map(),
+    carryFund: carryAmount,
+  };
+  let pool: DayInfo[] =
+    carryAmount > 0 ? [...carrySlotDays, leftoverFundDay] : [];
   const paidReal = new Set<string>(); // NEW real days whose pot has been settled
   let settledFund = 0; // NEW real money that entered settled pools this period
 
