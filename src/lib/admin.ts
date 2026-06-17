@@ -37,13 +37,14 @@ export type SettleResult = {
       correct: number;
       maxClaim: number; // their max-claim cap
       amount: number;
-      // Per-day breakdown: slots × players → max-claim, and that day's payout.
+      // Per-source breakdown: how the payout was made up.
       days: {
+        kind: "win" | "treo" | "other";
         date: string;
-        carry: boolean;
         slots: number;
         players: number;
-        max: number;
+        correct: number;
+        totalWin: number;
         amount: number;
       }[];
     }[];
@@ -176,98 +177,120 @@ export async function computeSettlement(): Promise<SettleResult> {
   const correctBy = new Map<string, number>();
   const maxClaimBy = new Map<string, number>(); // each winner's max-claim cap
   let scaledFlag = false; // whether any pool was scaled down (over the fund)
-  // Per-winner, per-day breakdown for the preview explanation.
+  // Per-winner, per-source breakdown for the preview explanation.
+  //  - "win": the winning day, split by win-ratio (correct scores),
+  //  - "treo": the carried treo, split by slots (max-claim), prioritised,
+  //  - "other": a carried no-winner day, split by slots (max-claim).
   type DayLine = {
+    kind: "win" | "treo" | "other";
     date: string;
-    carry: boolean;
-    slots: number;
-    players: number;
-    max: number; // slots × players × stake
-    amount: number; // this day's share of the final payout (× ratio × scale)
+    slots: number; // winner's slots that day
+    players: number; // players that day (for "other")
+    correct: number; // correct scores (for "win")
+    totalWin: number; // total correct scores among winners (for "win")
+    amount: number; // this source's share of the winner's payout
   };
   const winnerDays = new Map<string, DayLine[]>();
 
-  // Settle one pool. The carried treo and the new days are TWO separate fund
-  // sources, each distributed and scaled on its own so the treo is paid out as
-  // fully as possible (prioritised), and a scale-down never pushes a source
-  // below its own money (no "treo of the treo"):
-  //  - max-claim[w] from a source = Σ its days (w's slots × players × stake),
-  //  - tentative[w] = max-claim[w] × win-ratio (correct scores on the win day),
-  //  - paid from a source = tentative × min(1, sourceFund / Σ tentative),
-  //  - each source's leftover (fund − paid) carries forward.
+  // Settle one pool with THREE separate fund sources, each on its own rule:
+  //  - WINNING DAY: split by win-ratio (correct scores) — winners share the
+  //    day's pot by how many scores each nailed (no max-claim cap).
+  //  - TREO (carried leftover): split by slots (max-claim = slots × players ×
+  //    stake), prioritised — paid out in full if the winners' max-claim covers
+  //    it, otherwise scaled down to exactly the treo (the rest still carries).
+  //  - OTHER carried no-winner days: split by slots (max-claim), scaled down if
+  //    the winners' max-claim exceeds that day's fund.
+  // Winners who got paid drop out of the next carry (see makeCarry).
   const settlePool = (poolDays: DayInfo[], winDay: DayInfo): number => {
-    const treoDays = poolDays.filter((d) => d.carryFund !== undefined);
-    const realDays = poolDays.filter((d) => d.carryFund === undefined);
-    const treoFund = treoDays.reduce((s, d) => s + (d.carryFund ?? 0), 0);
-    const realFund = realDays.reduce((s, d) => s + d.totalSlots * STAKE, 0);
+    const winners = [...winDay.correct.entries()].filter(([, c]) => c > 0);
+    const totalWin = winners.reduce((s, [, c]) => s + c, 0);
 
+    const treoDays = poolDays.filter((d) => d.carryFund !== undefined);
+    const otherDays = poolDays.filter(
+      (d) => d.carryFund === undefined && d !== winDay
+    );
+    const treoFund = treoDays.reduce((s, d) => s + (d.carryFund ?? 0), 0);
+    const otherFund = otherDays.reduce((s, d) => s + d.totalSlots * STAKE, 0);
+    const winFund = winDay.totalSlots * STAKE;
+
+    // Max-claim per winner from the treo and from the other carried days.
     const treoMax = new Map<string, number>();
-    const realMax = new Map<string, number>();
+    const otherMax = new Map<string, number>();
     for (const d of treoDays) {
       const np = d.slots.size;
       for (const [name, sl] of d.slots)
         treoMax.set(name, (treoMax.get(name) ?? 0) + sl * np * STAKE);
     }
-    for (const d of realDays) {
+    for (const d of otherDays) {
       const np = d.slots.size;
       for (const [name, sl] of d.slots)
-        realMax.set(name, (realMax.get(name) ?? 0) + sl * np * STAKE);
+        otherMax.set(name, (otherMax.get(name) ?? 0) + sl * np * STAKE);
     }
-
-    const winners = [...winDay.correct.entries()].filter(([, c]) => c > 0);
-    const totalWin = winners.reduce((s, [, c]) => s + c, 0);
-
     let sumTreo = 0;
-    let sumReal = 0;
-    for (const [name, c] of winners) {
-      const r = c / totalWin;
-      sumTreo += (treoMax.get(name) ?? 0) * r;
-      sumReal += (realMax.get(name) ?? 0) * r;
+    let sumOther = 0;
+    for (const [name] of winners) {
+      sumTreo += treoMax.get(name) ?? 0;
+      sumOther += otherMax.get(name) ?? 0;
     }
-    // Prioritise the treo: pay it in full if winners can absorb it, else scale
-    // down to exactly the treo amount (not below).
     const treoScale = sumTreo > treoFund && sumTreo > 0 ? treoFund / sumTreo : 1;
-    const realScale = sumReal > realFund && sumReal > 0 ? realFund / sumReal : 1;
-    if (treoScale < 1 || realScale < 1) scaledFlag = true;
+    const otherScale =
+      sumOther > otherFund && sumOther > 0 ? otherFund / sumOther : 1;
+    if (treoScale < 1 || otherScale < 1) scaledFlag = true;
 
     let paidWinners = 0;
     for (const [name, c] of winners) {
-      const r = c / totalWin;
-      const wTreo = (treoMax.get(name) ?? 0) * r * treoScale;
-      const wReal = (realMax.get(name) ?? 0) * r * realScale;
-      const w = wTreo + wReal;
+      const winPay = (c / totalWin) * winFund; // winning day by ratio
+      const treoPay = (treoMax.get(name) ?? 0) * treoScale; // treo by slots
+      const otherPay = (otherMax.get(name) ?? 0) * otherScale; // other by slots
+      const w = winPay + treoPay + otherPay;
       addPay(name, winDay.date, w);
       winBy.set(name, (winBy.get(name) ?? 0) + w);
       correctBy.set(name, (correctBy.get(name) ?? 0) + c);
       maxClaimBy.set(
         name,
-        (maxClaimBy.get(name) ?? 0) + (treoMax.get(name) ?? 0) + (realMax.get(name) ?? 0)
+        (maxClaimBy.get(name) ?? 0) + (treoMax.get(name) ?? 0) + (otherMax.get(name) ?? 0)
       );
       paidWinners += w;
 
-      // Per-day detail.
       const lines = winnerDays.get(name) ?? [];
+      lines.push({
+        kind: "win",
+        date: winDay.date,
+        slots: winDay.slots.get(name) ?? 0,
+        players: winDay.slots.size,
+        correct: c,
+        totalWin,
+        amount: winPay,
+      });
       const treoSlots = treoDays.reduce((s, d) => s + (d.slots.get(name) ?? 0), 0);
       if (treoSlots > 0)
         lines.push({
+          kind: "treo",
           date: treoDays[0].date,
-          carry: true,
           slots: treoSlots,
           players: 0,
-          max: treoMax.get(name) ?? 0,
-          amount: wTreo,
+          correct: 0,
+          totalWin: 0,
+          amount: treoPay,
         });
-      for (const d of realDays) {
+      for (const d of otherDays) {
         const sl = d.slots.get(name) ?? 0;
         if (sl <= 0) continue;
-        const players = d.slots.size;
-        const max = sl * players * STAKE;
-        lines.push({ date: d.date, carry: false, slots: sl, players, max, amount: max * r * realScale });
+        lines.push({
+          kind: "other",
+          date: d.date,
+          slots: sl,
+          players: d.slots.size,
+          correct: 0,
+          totalWin: 0,
+          amount: (sl * d.slots.size * STAKE) * otherScale,
+        });
       }
       winnerDays.set(name, lines);
     }
 
-    return Math.max(0, treoFund + realFund - paidWinners); // leftover carries
+    // Each source's leftover carries (the winning day is always fully paid).
+    return Math.max(0, treoFund + otherFund + winFund - paidWinners);
   };
 
   // A carried treo day: its fund = leftover, slots = the pool's non-winner slots
@@ -371,11 +394,12 @@ export async function computeSettlement(): Promise<SettleResult> {
         maxClaim: round(maxClaimBy.get(name) ?? 0),
         amount: round(amount),
         days: (winnerDays.get(name) ?? []).map((d) => ({
+          kind: d.kind,
           date: d.date,
-          carry: d.carry,
           slots: d.slots,
           players: d.players,
-          max: round(d.max),
+          correct: d.correct,
+          totalWin: d.totalWin,
           amount: round(d.amount),
         })),
       }))

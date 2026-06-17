@@ -219,12 +219,17 @@ function AdminPanel() {
                           {w.days.map((d, i) => (
                             <li key={i} className="flex justify-between gap-2">
                               <span>
-                                {d.carry ? (
+                                {d.kind === "win" ? (
+                                  <>
+                                    Ngày {dayLabel(d.date)} (trúng {d.correct}/
+                                    {d.totalWin}, chia theo tỉ lệ)
+                                  </>
+                                ) : d.kind === "treo" ? (
                                   <>🔁 Từ quỹ treo: {d.slots} slot</>
                                 ) : (
                                   <>
-                                    Ngày {dayLabel(d.date)}: {d.slots} slot ×{" "}
-                                    {d.players} người = {formatVND(d.max)}
+                                    Ngày treo {dayLabel(d.date)}: {d.slots} slot ×{" "}
+                                    {d.players} người
                                   </>
                                 )}
                               </span>
