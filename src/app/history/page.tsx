@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+
+const HISTORY_SHOWN = 5;
 import { getSettlements } from "@/lib/queries";
 import { getLastSettlementDetail, type SettleResult } from "@/lib/admin";
 import { formatVND, formatShort } from "@/lib/format";
@@ -15,6 +17,7 @@ export default function HistoryPage() {
     null
   );
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -157,7 +160,7 @@ export default function HistoryPage() {
           <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
             Lịch sử tất toán
           </h2>
-          {events.map((e, i) => (
+          {(showAll ? events : events.slice(0, HISTORY_SHOWN)).map((e, i) => (
             <div key={i} className="card">
               <p className="mb-2 text-xs text-white/40">⏱ {formatShort(e.time)}</p>
               <ul className="divide-y divide-white/5">
@@ -177,6 +180,16 @@ export default function HistoryPage() {
               </ul>
             </div>
           ))}
+          {events.length > HISTORY_SHOWN && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="btn-ghost w-full"
+            >
+              {showAll
+                ? "Thu gọn"
+                : `Xem thêm ${events.length - HISTORY_SHOWN} lần cũ hơn ▾`}
+            </button>
+          )}
         </div>
       ) : (
         !loading &&

@@ -96,6 +96,8 @@ export default function GiaiTabs({
   // Whether the predict/tab bar is frozen under the nav → shrink it.
   const [stuck, setStuck] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [showAllResults, setShowAllResults] = useState(false);
+  const RESULTS_SHOWN = 10;
 
   useEffect(() => {
     getOpenMatches().then((ms) =>
@@ -331,7 +333,7 @@ export default function GiaiTabs({
         </div>
       )}
 
-      {/* Results */}
+      {/* Results — most recent first; older ones collapse behind a button */}
       {tab === "ketqua" && (
         <div className="card p-0 overflow-hidden">
           {results === null ? (
@@ -340,7 +342,7 @@ export default function GiaiTabs({
             <p className="p-4 text-white/50">Chưa có trận nào kết thúc.</p>
           ) : (
             <ul className="divide-y divide-white/5">
-              {results.map((m) => (
+              {(showAllResults ? results : results.slice(0, RESULTS_SHOWN)).map((m) => (
                 <li key={m.id}>
                   <MatchInfoButton team1={m.team1} team2={m.team2} started>
                     <div className="px-4 py-3 transition hover:bg-white/5">
@@ -367,6 +369,18 @@ export default function GiaiTabs({
                   </MatchInfoButton>
                 </li>
               ))}
+              {results.length > RESULTS_SHOWN && (
+                <li>
+                  <button
+                    onClick={() => setShowAllResults((v) => !v)}
+                    className="w-full px-4 py-3 text-center text-sm font-semibold text-white/60 transition hover:bg-white/5"
+                  >
+                    {showAllResults
+                      ? "Thu gọn"
+                      : `Xem thêm ${results.length - RESULTS_SHOWN} trận cũ hơn ▾`}
+                  </button>
+                </li>
+              )}
             </ul>
           )}
         </div>

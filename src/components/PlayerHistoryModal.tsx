@@ -15,6 +15,8 @@ export default function PlayerHistoryModal({
   onClose: () => void;
 }) {
   const [data, setData] = useState<Ledger | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const SHOWN = 8;
 
   useEffect(() => {
     let alive = true;
@@ -49,7 +51,7 @@ export default function PlayerHistoryModal({
             </div>
 
             <ul className="divide-y divide-white/5">
-              {data.items.map((it, i) => (
+              {(showAll ? data.items : data.items.slice(0, SHOWN)).map((it, i) => (
                 <li
                   key={i}
                   className="flex items-center justify-between gap-3 py-2.5"
@@ -75,6 +77,16 @@ export default function PlayerHistoryModal({
                 </li>
               ))}
             </ul>
+            {data.items.length > SHOWN && (
+              <button
+                onClick={() => setShowAll((v) => !v)}
+                className="btn-ghost mt-3 w-full"
+              >
+                {showAll
+                  ? "Thu gọn"
+                  : `Xem thêm ${data.items.length - SHOWN} giao dịch cũ hơn ▾`}
+              </button>
+            )}
           </>
         )}
     </Modal>
