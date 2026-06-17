@@ -81,8 +81,9 @@ function RandomScoreModal({
       for (let a = 0; a <= MAX_GOALS; a++) {
         if (winner === "home" && !(h > a)) continue;
         if (winner === "away" && !(a > h)) continue;
+        // Tài = tổng > mức; Xỉu = tổng ≤ mức (vd mức 3: 3–0 / 2–1 vẫn là Xỉu).
         if (useOu && ou === "over" && !(h + a > line)) continue;
-        if (useOu && ou === "under" && !(h + a < line)) continue;
+        if (useOu && ou === "under" && !(h + a <= line)) continue;
         if (useNoDup && takenSet.has(`${h}-${a}`)) continue;
         out.push([h, a]);
       }
@@ -193,7 +194,7 @@ function RandomScoreModal({
             </div>
             {ou !== "any" && (
               <p className="mt-1 text-[11px] text-white/40">
-                {ou === "over" ? "Tổng bàn > " : "Tổng bàn < "}
+                {ou === "over" ? "Tổng bàn > " : "Tổng bàn ≤ "}
                 {line} ({lineFromOdds ? "theo kèo" : "mặc định"})
               </p>
             )}
