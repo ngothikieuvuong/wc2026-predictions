@@ -29,11 +29,11 @@ function ScoreStepper({
   const n = value === "" ? 0 : Number(value);
   const step = (d: number) => onChange(String(Math.max(0, n + d)));
   const btn =
-    "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-2xl font-bold text-white/80 transition hover:bg-white/20 active:scale-95";
+    "flex h-11 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xl font-bold text-white/80 transition hover:bg-white/20 active:scale-95";
   return (
-    <div>
+    <div className="min-w-0">
       <label className="label">{label}</label>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <button type="button" onClick={() => step(-1)} className={btn} aria-label="Giảm">
           −
         </button>
@@ -41,7 +41,7 @@ function ScoreStepper({
           type="number"
           min={0}
           inputMode="numeric"
-          className="input min-w-0 flex-1 text-center text-xl"
+          className="input min-w-0 flex-1 !px-0 text-center text-xl"
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -231,7 +231,7 @@ export default function PredictPage() {
           })()}
 
         {selected && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <ScoreStepper label={selected.team1} value={home} onChange={setHome} />
             <ScoreStepper label={selected.team2} value={away} onChange={setAway} />
           </div>
