@@ -21,6 +21,30 @@ const NEW_PLAYER = "__new__";
 const MAX_GOALS = 6; // 0–6 per side (e.g. 6–0 max, never 7–0)
 const DEFAULT_OU_LINE = 3; // Tài = tổng > 3 bàn, Xỉu = tổng < 3 (khi không có kèo)
 
+// Realism weighting so the roller favours plausible scores. Goals per side
+// follow ~Poisson(1.4) (real football), making 1–0/1–1/2–1 common and blowouts
+// like 5–5/6–6 vanishingly rare; a team scoring ≥4 lands only ~10% of the time.
+const REALISM_MU = 1.4;
+const factorial = (n: number) => {
+  let r = 1;
+  for (let i = 2; i <= n; i++) r *= i;
+  return r;
+};
+const poissonW = (k: number) =>
+  (Math.exp(-REALISM_MU) * Math.pow(REALISM_MU, k)) / factorial(k);
+const scoreWeight = (h: number, a: number) => poissonW(h) * poissonW(a);
+
+// Weighted random pick from candidate [home, away] scores.
+function pickWeighted(cands: [number, number][]): [number, number] {
+  const total = cands.reduce((s, [h, a]) => s + scoreWeight(h, a), 0);
+  let r = Math.random() * total;
+  for (const c of cands) {
+    r -= scoreWeight(c[0], c[1]);
+    if (r <= 0) return c;
+  }
+  return cands[cands.length - 1];
+}
+
 // "2.5/3" → 2.75 · "3" → 3 · "" → null
 function parseOuLine(s: string | undefined): number | null {
   if (!s) return null;
@@ -96,7 +120,7 @@ function RandomScoreModal({
     let p = pool(noDup, true);
     if (p.length === 0) p = pool(false, true);
     if (p.length === 0) p = pool(false, false);
-    const final = p[Math.floor(Math.random() * p.length)];
+    const final = pickWeighted(p); // realistic scores far more likely
     setResult(final);
     setPhase("spin");
     const start = performance.now();
@@ -108,8 +132,9 @@ function RandomScoreModal({
         setPhase("done");
         return;
       }
-      // Flicker only through VALID candidates (e.g. Xỉu never flashes 6–0).
-      setDisplay(p[Math.floor(Math.random() * p.length)]);
+      // Flicker through valid candidates, weighted like the result (so wild
+      // scores rarely flash either).
+      setDisplay(pickWeighted(p));
       const prog = elapsed / DURATION;
       timer.current = setTimeout(loop, 55 + prog * prog * 420); // ease-out
     };
