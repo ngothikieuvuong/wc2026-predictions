@@ -288,23 +288,10 @@ export default function HomePage() {
                 </p>
                 {g.matches.map((m) => (
                   <MatchInfoButton key={m.id} team1={m.team1} team2={m.team2}>
-                    <div
-                      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition ${
-                        m.is_open
-                          ? "border-grass/40 bg-grass/10 hover:border-grass/60"
-                          : "border-white/10 bg-black/20 hover:border-white/25"
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="font-bold">
-                          {m.team1} <span className="text-white/40">gặp</span>{" "}
-                          {m.team2}
-                        </div>
-                        {m.is_open && (
-                          <span className="mt-0.5 inline-block rounded-full bg-grass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-grass">
-                            ⚽ Mở đoán
-                          </span>
-                        )}
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/25">
+                      <div className="font-bold">
+                        {m.team1} <span className="text-white/40">gặp</span>{" "}
+                        {m.team2}
                       </div>
                       <div className="whitespace-nowrap text-sm text-white/60">
                         ⏱ {formatKickoff(m.kickoff_time)}
