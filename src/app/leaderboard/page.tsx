@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getStats, getSettlements } from "@/lib/queries";
 import { getLastSettlementDetail, type SettleResult } from "@/lib/admin";
 import { formatVND, formatShort } from "@/lib/format";
+import { dayLabel } from "@/lib/day";
 import PlayerHistoryModal from "@/components/PlayerHistoryModal";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 
@@ -112,7 +113,8 @@ export default function StatsPage() {
         )}
       </div>
 
-      {/* How the settled fund was divided */}
+      {/* How the settled fund was divided — same detail as the admin preview,
+          but only after the admin has confirmed (chốt sổ) this settlement. */}
       {breakdown && breakdown.winners.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
@@ -125,7 +127,8 @@ export default function StatsPage() {
               người trúng
               {breakdown.carried > 0 && (
                 <>
-                  , còn <b>{formatVND(breakdown.carried)}</b> giữ làm quỹ treo
+                  , còn <b>{formatVND(breakdown.carried)}</b> giữ làm quỹ treo cho đợt
+                  sau
                 </>
               )}
               .
@@ -133,28 +136,72 @@ export default function StatsPage() {
 
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-                🎯 Người trúng tỉ số
+                🎯 Người trúng tỉ số — vì sao chia vậy?
               </p>
-              <ul className="divide-y divide-white/10">
-                {breakdown.winners.map((w) => (
-                  <li
-                    key={w.name}
-                    className="flex items-center justify-between py-1.5 text-sm"
-                  >
-                    <span>
-                      <b>{w.name}</b>{" "}
-                      <span className="text-white/40">· trúng {w.correct} tỉ số</span>
-                    </span>
-                    <span className="font-bold text-neon">{formatVND(w.amount)}</span>
-                  </li>
-                ))}
+              <ul className="space-y-2">
+                {breakdown.winners.map((w) => {
+                  const pct = Math.round(
+                    (w.correct / (breakdown.totalCorrect || 1)) * 100
+                  );
+                  return (
+                    <li key={w.name} className="rounded-lg bg-black/20 p-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span>
+                          <b>{w.name}</b>{" "}
+                          <span className="text-[11px] text-white/40">
+                            trúng {w.correct}/{breakdown.totalCorrect} · tỉ lệ {pct}%
+                          </span>
+                        </span>
+                        <span className="font-bold text-neon">
+                          {formatVND(w.amount)}
+                        </span>
+                      </div>
+                      <ul className="mt-1 space-y-0.5 text-[11px] text-white/50">
+                        {w.days.map((d, i) => (
+                          <li key={i} className="flex justify-between gap-2">
+                            <span>
+                              {d.kind === "win" ? (
+                                <>
+                                  Ngày {dayLabel(d.date)} (trúng {d.correct}/
+                                  {d.totalWin}, chia theo tỉ lệ)
+                                </>
+                              ) : d.kind === "treo" ? (
+                                <>🔁 Từ quỹ treo: {d.slots} slot</>
+                              ) : (
+                                <>
+                                  Ngày treo {dayLabel(d.date)}: {d.slots} slot ×{" "}
+                                  {d.players} người
+                                </>
+                              )}
+                            </span>
+                            <span className="shrink-0 text-white/70">
+                              → {formatVND(d.amount)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  );
+                })}
               </ul>
+              <p className="text-[11px] leading-relaxed text-white/40">
+                Quỹ ngày trúng chia theo <b>tỉ lệ tỉ số trúng</b>; quỹ treo & ngày treo
+                chia theo <b>slot</b>
+                {breakdown.scaled && (
+                  <>
+                    {" "}
+                    rồi <b>giảm đều</b> (vì tổng vượt quỹ)
+                  </>
+                )}
+                .
+              </p>
             </div>
 
             {breakdown.carried > 0 && (
               <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-[11px] text-amber-300">
-                Còn <b>{formatVND(breakdown.carried)}</b> giữ làm <b>quỹ treo</b> —
-                cộng vào đợt tất toán sau, chia theo công thức bình thường.
+                Người trúng không ôm hết quỹ — còn{" "}
+                <b>{formatVND(breakdown.carried)}</b> giữ làm <b>quỹ treo</b>, cộng vào
+                đợt tất toán sau.
               </p>
             )}
           </div>
