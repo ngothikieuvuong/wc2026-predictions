@@ -404,20 +404,36 @@ export async function computeSettlement(): Promise<SettleResult> {
   // + any carried treo amount (kept in the fund for the next settlement).
   const pendingReal = pool.filter((d) => d.carryFund === undefined);
   const carryDay = pool.find((d) => d.carryFund !== undefined);
-  const carried = carryDay?.carryFund ?? 0;
-  // The carried treo as a fund-by-day entry: dated at the settlement day, with
-  // the participants from the just-settled period.
-  const carriedTreo = carryDay
-    ? {
-        date: carryDay.date,
-        amount: Math.round(carryDay.carryFund ?? 0),
-        participants: [...carryDay.noWinSlots.keys()],
-      }
-    : null;
 
-  const payouts = [...pay.entries()].map(([k, amount]) => {
+  // Round money UP to the nearest 1.000đ (clean cash amounts). Each winner's
+  // total is the sum of their rounded per-source lines, so the breakdown always
+  // foots; the payout stored in rewards uses that same total.
+  const round = (n: number) => Math.round(n);
+  const roundK = (n: number) => Math.ceil(n / 1000) * 1000;
+
+  // Rounded per-winner day lines + total.
+  const roundedDays = new Map<string, ReturnType<typeof mapDays>>();
+  function mapDays(name: string) {
+    return (winnerDays.get(name) ?? []).map((d) => ({
+      kind: d.kind,
+      date: d.date,
+      slots: d.slots,
+      players: d.players,
+      correct: d.correct,
+      totalWin: d.totalWin,
+      amount: roundK(d.amount),
+    }));
+  }
+  const totalByName = new Map<string, number>();
+  for (const name of winBy.keys()) {
+    const days = mapDays(name);
+    roundedDays.set(name, days);
+    totalByName.set(name, days.reduce((s, d) => s + d.amount, 0));
+  }
+
+  const payouts = [...pay.entries()].map(([k]) => {
     const [player_name, pay_date] = k.split("|");
-    return { player_name, pay_date, amount: Math.round(amount) };
+    return { player_name, pay_date, amount: totalByName.get(player_name) ?? 0 };
   });
 
   const totalPaid = payouts.reduce((s, p) => s + p.amount, 0);
@@ -431,33 +447,36 @@ export async function computeSettlement(): Promise<SettleResult> {
 
   // Win breakdown + carried treo. Fund for THIS settlement = carried leftover
   // from before + the new days' money settled now (never re-adds old days).
-  const round = (n: number) => Math.round(n);
-  const winTotal = round([...winBy.values()].reduce((s, v) => s + v, 0));
+  const fund = round(carryAmount + settledFund);
+  const winTotal = [...totalByName.values()].reduce((s, v) => s + v, 0);
   const totalCorrect = [...correctBy.values()].reduce((s, v) => s + v, 0);
   const breakdown = {
-    fund: round(carryAmount + settledFund),
+    fund,
     winTotal,
-    carried: round(carried),
+    carried: Math.max(0, fund - winTotal), // leftover after the rounded payouts
     totalCorrect,
     scaled: scaledFlag,
     winners: [...winBy.entries()]
-      .map(([name, amount]) => ({
+      .map(([name]) => ({
         name,
         correct: correctBy.get(name) ?? 0,
         maxClaim: round(maxClaimBy.get(name) ?? 0),
-        amount: round(amount),
-        days: (winnerDays.get(name) ?? []).map((d) => ({
-          kind: d.kind,
-          date: d.date,
-          slots: d.slots,
-          players: d.players,
-          correct: d.correct,
-          totalWin: d.totalWin,
-          amount: round(d.amount),
-        })),
+        amount: totalByName.get(name) ?? 0,
+        days: roundedDays.get(name) ?? [],
       }))
       .sort((a, b) => b.amount - a.amount),
   };
+
+  // The carried treo as a fund-by-day entry (matches breakdown.carried after
+  // the rounded payouts; null when winners absorbed everything).
+  const carriedTreo =
+    carryDay && breakdown.carried > 0
+      ? {
+          date: carryDay.date,
+          amount: breakdown.carried,
+          participants: [...carryDay.noWinSlots.keys()],
+        }
+      : null;
 
   return {
     settledDays,
