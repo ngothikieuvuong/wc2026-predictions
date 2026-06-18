@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getStats, getSettlements } from "@/lib/queries";
-import { formatVND } from "@/lib/format";
+import { Money } from "@/components/Money";
 import PlayerHistoryModal from "@/components/PlayerHistoryModal";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 import ProfitChart from "@/components/ProfitChart";
@@ -71,10 +71,10 @@ export default function StatsPage() {
                       </button>
                     </td>
                     <td className="px-3 py-3 text-right text-white/70">
-                      {formatVND(r.chi)}
+                      <Money value={r.chi} />
                     </td>
                     <td className="px-3 py-3 text-right text-white/70">
-                      {formatVND(r.thu)}
+                      <Money value={r.thu} />
                     </td>
                     <td
                       className={`px-3 py-3 text-right font-bold ${
@@ -82,7 +82,7 @@ export default function StatsPage() {
                       }`}
                     >
                       {pos ? "+" : ""}
-                      {formatVND(r.loiLo)}
+                      <Money value={r.loiLo} />
                     </td>
                   </tr>
                 );

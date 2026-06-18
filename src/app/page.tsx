@@ -10,7 +10,8 @@ import {
   getPredictionsByMatch,
   getStats,
 } from "@/lib/queries";
-import { formatVND, formatKickoff } from "@/lib/format";
+import { formatKickoff } from "@/lib/format";
+import { Money } from "@/components/Money";
 import { dayLabel } from "@/lib/day";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
@@ -137,7 +138,7 @@ export default function HomePage() {
               Quỹ hiện tại
             </span>
             <span className="text-sm font-bold text-neon">
-              {jackpot === null ? "…" : formatVND(jackpot)}
+              {jackpot === null ? "…" : <Money value={jackpot} />}
             </span>
           </div>
         </div>
@@ -234,7 +235,7 @@ export default function HomePage() {
           Quỹ hiện tại
         </p>
         <p className="mt-2 bg-gradient-to-b from-neon to-grass bg-clip-text text-4xl font-extrabold text-transparent drop-shadow sm:text-5xl">
-          {loading || jackpot === null ? "…" : formatVND(jackpot)}
+          {loading || jackpot === null ? "…" : <Money value={jackpot} />}
         </p>
 
         {fundByDay.length > 0 && (
@@ -256,7 +257,7 @@ export default function HomePage() {
                   </span>
                   {!d.counted && <span className="text-white/30"> · chưa tính</span>}
                 </span>
-                <span className="shrink-0 font-semibold">{formatVND(d.pot)}</span>
+                <span className="shrink-0 font-semibold"><Money value={d.pot} /></span>
               </div>
             ))}
           </div>
@@ -333,7 +334,7 @@ export default function HomePage() {
                       </p>
                     )}
                   </div>
-                  <p className="font-bold text-neon">{formatVND(w.amount)}</p>
+                  <p className="font-bold text-neon"><Money value={w.amount} /></p>
                 </li>
               ))}
             </ul>
@@ -376,7 +377,7 @@ export default function HomePage() {
                         }`}
                       >
                         {pos ? "+" : ""}
-                        {formatVND(s.loiLo)}
+                        <Money value={s.loiLo} />
                       </span>
                     </li>
                   );

@@ -747,6 +747,12 @@ export async function getPendingScoreMatches(): Promise<Match[]> {
   return ((m as Match[]) ?? []).filter((x) => predicted.has(x.id));
 }
 
+// Remove a name from the roster (predictions already made keep their name).
+export async function deletePlayer(name: string): Promise<void> {
+  const { error } = await supabase.from("players").delete().eq("name", name);
+  if (error) throw error;
+}
+
 export async function setMatchOpen(matchId: string, open: boolean): Promise<void> {
   const { error } = await supabase
     .from("matches")

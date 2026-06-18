@@ -1,6 +1,6 @@
 "use client";
 
-import { formatVND } from "@/lib/format";
+import { Money } from "@/components/Money";
 
 type Settlement = { created_at: string; cum: { name: string; value: number }[] };
 
@@ -133,7 +133,7 @@ export default function ProfitChart({
               }
             >
               {s.final > 0 ? "+" : ""}
-              {formatVND(s.final)}
+              <Money value={s.final} />
             </span>
           </li>
         ))}

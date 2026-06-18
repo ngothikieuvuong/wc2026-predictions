@@ -6,7 +6,8 @@ import Link from "next/link";
 const HISTORY_SHOWN = 5;
 import { getSettlements } from "@/lib/queries";
 import { getLastSettlementDetail, type SettleResult } from "@/lib/admin";
-import { formatVND, formatShort } from "@/lib/format";
+import { formatShort } from "@/lib/format";
+import { Money } from "@/components/Money";
 import { dayLabel } from "@/lib/day";
 
 type Event = { time: string; lines: { name: string; delta: number }[] };
@@ -68,12 +69,12 @@ export default function HistoryPage() {
           </h2>
           <div className="card space-y-3">
             <p className="text-xs text-white/50">
-              Tổng quỹ <b className="text-white/80">{formatVND(breakdown.fund)}</b> →
-              thưởng <b className="text-neon">{formatVND(breakdown.winTotal)}</b> cho
+              Tổng quỹ <b className="text-white/80"><Money value={breakdown.fund} /></b> →
+              thưởng <b className="text-neon"><Money value={breakdown.winTotal} /></b> cho
               người trúng
               {breakdown.carried > 0 && (
                 <>
-                  , còn <b>{formatVND(breakdown.carried)}</b> giữ làm quỹ treo cho đợt
+                  , còn <b><Money value={breakdown.carried} /></b> giữ làm quỹ treo cho đợt
                   sau
                 </>
               )}
@@ -99,7 +100,7 @@ export default function HistoryPage() {
                           </span>
                         </span>
                         <span className="font-bold text-neon">
-                          {formatVND(w.amount)}
+                          <Money value={w.amount} />
                         </span>
                       </div>
                       <ul className="mt-1 space-y-0.5 text-[11px] text-white/50">
@@ -118,7 +119,7 @@ export default function HistoryPage() {
                               )}
                             </span>
                             <span className="shrink-0 text-white/70">
-                              → {formatVND(d.amount)}
+                              → <Money value={d.amount} />
                             </span>
                           </li>
                         ))}
@@ -143,7 +144,7 @@ export default function HistoryPage() {
             {breakdown.carried > 0 && (
               <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-[11px] text-amber-300">
                 Người trúng không ôm hết quỹ — còn{" "}
-                <b>{formatVND(breakdown.carried)}</b> giữ làm <b>quỹ treo</b>, cộng vào
+                <b><Money value={breakdown.carried} /></b> giữ làm <b>quỹ treo</b>, cộng vào
                 đợt tất toán sau.
               </p>
             )}
@@ -170,7 +171,7 @@ export default function HistoryPage() {
                       }`}
                     >
                       {l.delta > 0 ? "+" : ""}
-                      {formatVND(l.delta)}
+                      <Money value={l.delta} />
                     </span>
                   </li>
                 ))}

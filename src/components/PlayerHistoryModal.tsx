@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getPlayerLedger } from "@/lib/queries";
-import { formatVND, formatShort } from "@/lib/format";
+import { formatShort } from "@/lib/format";
+import { Money } from "@/components/Money";
 import Modal from "@/components/Modal";
 
 type Ledger = Awaited<ReturnType<typeof getPlayerLedger>>;
@@ -46,7 +47,7 @@ export default function PlayerHistoryModal({
                 }`}
               >
                 {data.total > 0 ? "+" : ""}
-                {formatVND(data.total)}
+                <Money value={data.total} />
               </span>
             </div>
 
@@ -72,7 +73,7 @@ export default function PlayerHistoryModal({
                     }`}
                   >
                     {it.amount > 0 ? "+" : ""}
-                    {formatVND(it.amount)}
+                    <Money value={it.amount} />
                   </span>
                 </li>
               ))}

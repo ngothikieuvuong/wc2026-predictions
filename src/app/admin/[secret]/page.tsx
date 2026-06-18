@@ -14,9 +14,10 @@ import {
   getUpcomingMatches,
   setMatchOpen,
   getPendingScoreMatches,
+  deletePlayer,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
-import { getJackpot, getFundByDay, getPlayers } from "@/lib/queries";
+import { getJackpot, getFundByDay, getPlayers, addPlayer } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatKickoff, formatShort, formatVND } from "@/lib/format";
 import { dayKey, dayLabel } from "@/lib/day";
@@ -341,6 +342,9 @@ function AdminPanel() {
         )}
       </section>
 
+      {/* Manage players */}
+      <ManagePlayers onChanged={(text) => setBanner(text)} />
+
       {/* What-if settlement simulator */}
       <SettleSimulator />
 
@@ -357,6 +361,86 @@ function AdminPanel() {
         }}
       />
     </div>
+  );
+}
+
+// Add / remove players in the roster.
+function ManagePlayers({ onChanged }: { onChanged: (t: string) => void }) {
+  const [list, setList] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = () => getPlayers().then(setList);
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function add() {
+    const n = name.trim();
+    if (!n) return;
+    setBusy(true);
+    try {
+      await addPlayer(n);
+      onChanged(`✅ Đã thêm ${n}`);
+      setName("");
+      await load();
+    } catch (e) {
+      onChanged((e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  async function remove(n: string) {
+    if (!window.confirm(`Xoá người chơi "${n}"?`)) return;
+    setBusy(true);
+    try {
+      await deletePlayer(n);
+      onChanged(`Đã xoá ${n}`);
+      await load();
+    } catch (e) {
+      onChanged((e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <section className="card space-y-3">
+      <p className="font-bold">👥 Người chơi ({list.length})</p>
+      <div className="flex flex-wrap gap-2">
+        {list.length === 0 ? (
+          <span className="text-sm text-white/50">Chưa có người chơi.</span>
+        ) : (
+          list.map((n) => (
+            <span
+              key={n}
+              className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm"
+            >
+              {n}
+              <button
+                onClick={() => remove(n)}
+                disabled={busy}
+                className="text-white/40 transition hover:text-red-400"
+                aria-label={`Xoá ${n}`}
+              >
+                ✕
+              </button>
+            </span>
+          ))
+        )}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          placeholder="Tên người chơi mới"
+          className="input"
+        />
+        <button onClick={add} disabled={busy || !name.trim()} className="btn">
+          + Thêm
+        </button>
+      </div>
+    </section>
   );
 }
 

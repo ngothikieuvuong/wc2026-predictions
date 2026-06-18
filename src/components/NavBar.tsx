@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { DEMO } from "@/lib/supabase";
 import RulesButton from "@/components/RulesButton";
+import { useHideMoney } from "@/components/Money";
 
 const SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
 
@@ -26,6 +27,7 @@ const menuLinks = [
 export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { hidden: moneyHidden, toggle: toggleMoney } = useHideMoney();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -140,6 +142,15 @@ export default function NavBar() {
                 <RulesButton className="block w-full px-4 py-3 text-left text-sm font-medium text-white/80 transition hover:bg-white/10">
                   📖 Luật chơi
                 </RulesButton>
+                <button
+                  onClick={() => {
+                    toggleMoney();
+                    setMenuOpen(false);
+                  }}
+                  className="block w-full px-4 py-3 text-left text-sm font-medium text-white/80 transition hover:bg-white/10"
+                >
+                  {moneyHidden ? "👁️ Hiện số tiền" : "🙈 Ẩn số tiền"}
+                </button>
                 <button
                   onClick={goAdmin}
                   className="block w-full border-t border-white/10 px-4 py-3 text-left text-sm font-medium text-white/50 transition hover:bg-white/10 hover:text-white"
