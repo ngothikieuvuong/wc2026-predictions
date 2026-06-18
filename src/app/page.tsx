@@ -335,6 +335,9 @@ export default function HomePage() {
                   <MatchInfoButton key={m.id} team1={m.team1} team2={m.team2}>
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/25">
                       <div className="font-bold">
+                        {m.is_open && (
+                          <span title="Đang mở đoán">🔥 </span>
+                        )}
                         {m.team1} <span className="text-white/40">gặp</span>{" "}
                         {m.team2}
                       </div>
