@@ -200,17 +200,34 @@ function MatchCard({
   return (
     <section
       id={matchSlug(match.team1, match.team2)}
-      className="card scroll-mt-28 space-y-3 transition"
+      className={`card scroll-mt-28 space-y-3 transition ${
+        started ? "border-red-500/40 ring-1 ring-red-500/30" : ""
+      }`}
     >
+      {/* Live: prominent score banner like the home page */}
+      {started && (
+        <div className="flex items-center justify-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-red-300">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-400" />
+            Đang diễn ra
+          </span>
+          {liveInfo?.minute && (
+            <span className="text-xs font-semibold text-red-300">
+              {liveInfo.minute}
+            </span>
+          )}
+        </div>
+      )}
+
       <MatchInfoButton
         team1={match.team1}
         team2={match.team2}
         started={finished || started}
         showPredictionsLink={false}
       >
-        <div className="flex items-start justify-between gap-3 rounded-lg px-1 py-0.5 transition hover:bg-white/5">
-          <div>
-            <p className="text-lg font-bold underline decoration-white/20 underline-offset-2">
+        <div className="flex items-center justify-between gap-3 rounded-lg px-1 py-0.5 transition hover:bg-white/5">
+          <div className="min-w-0">
+            <p className="font-bold underline decoration-white/20 underline-offset-2">
               {match.team1} <span className="text-white/40">gặp</span> {match.team2}
             </p>
             <p className="text-xs text-white/50">⏱ {formatKickoff(match.kickoff_time)}</p>
@@ -220,11 +237,8 @@ function MatchCard({
               KQ: {match.home_score}–{match.away_score}
             </span>
           ) : started ? (
-            <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-red-500/20 px-2.5 py-0.5 text-xs font-semibold text-red-300">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
-              {liveInfo
-                ? `${liveInfo.t1}–${liveInfo.t2}${liveInfo.minute ? ` · ${liveInfo.minute}` : ""}`
-                : "Đang diễn ra"}
+            <span className="shrink-0 font-mono text-2xl font-extrabold text-red-300">
+              {liveInfo ? `${liveInfo.t1}–${liveInfo.t2}` : "?–?"}
             </span>
           ) : (
             <span className="whitespace-nowrap rounded-full bg-grass/20 px-2.5 py-0.5 text-xs font-semibold text-grass">

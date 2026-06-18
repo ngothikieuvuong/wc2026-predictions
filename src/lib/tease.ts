@@ -8,6 +8,19 @@ export const LOSE_MSGS = [
   "Sai một li, đi quỹ luôn 😎",
   "Hẹn trận sau nha 🙃",
   "Tiền sắp vào quỹ rồi 💸",
+  "Đoán kiểu này thì nuôi quỹ cả mùa 🤡",
+  "Thôi xong, cúng quỹ tập 2 😭",
+  "Nhụt rồi, tiếc ghê chưa 🫠",
+  "Tỉ số này chắc đoán cho vui 😏",
+  "Cao thủ dự đoán… hụt 🥲",
+  "Quỹ cảm ơn lòng hảo tâm 🙏",
+  "Lại góp gạo nuôi quỹ rồi 🍚",
+  "Trượt vỏ chuối ngọt xớt 🍌",
+  "Nhà tiên tri tập sự đây rồi 🔮",
+  "Đoán xa quá, gần lại chút đi 😅",
+  "Tạch nhẹ nhàng mà đau 💀",
+  "20k bay màu nha 🦋",
+  "Sai số sai cả niềm tin 😩",
 ];
 
 export function loseMessage(seed: string): string {
@@ -23,6 +36,13 @@ export const ALL_MISS_MSGS = [
   "Cả nhà tạch, quỹ phình to 🤑",
   "Chưa ai trúng, quỹ lại dày thêm 😏",
   "Quỹ nay lại béo, dè de 🤭",
+  "Toang tập thể, quỹ cười khành khạch 😹",
+  "Cả làng trượt, quỹ lên hương 🚀",
+  "Không một ai, quỹ ăn trọn 🐷",
+  "Đoán đông mà chẳng ai trúng 🤦",
+  "Quỹ: cảm ơn tất cả 💰",
+  "Một mùa bội thu cho… quỹ 🌾",
+  "Cả hội cúng quỹ, vui phết 🎁",
 ];
 
 export function allMissMessage(seed: string): string {
@@ -38,6 +58,14 @@ export const WIN_MSGS = [
   "🔥 {n} đang trúng, đỉnh thật!",
   "💰 {n} sắp ẵm quỹ tới nơi!",
   "🥳 {n} đang dẫn, quá ngon!",
+  "🧠 Nhà tiên tri {n} xuất hiện!",
+  "🎯 {n} bắn trúng phóc luôn!",
+  "👑 {n} đang là ông/bà hoàng tỉ số!",
+  "🚀 {n} bay thẳng tới quỹ!",
+  "😎 {n} đoán như thần, nể!",
+  "🍀 {n} hôm nay đỏ quá đỏ!",
+  "💵 Quỹ đang gọi tên {n}!",
+  "⭐ {n} đỉnh của chóp!",
 ];
 
 export function winMessage(seed: string, names: string[]): string {

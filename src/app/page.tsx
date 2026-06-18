@@ -244,8 +244,13 @@ export default function HomePage() {
               Quỹ theo trận
             </p>
             {fundByMatch.map((g) => (
-              <div key={g.date} className={g.counted ? "" : "opacity-40"}>
-                <div className="mb-1 flex items-baseline justify-between gap-2">
+              <div
+                key={g.date}
+                className={`rounded-xl border border-white/10 bg-black/20 p-3 ${
+                  g.counted ? "" : "opacity-40"
+                }`}
+              >
+                <div className="mb-1.5 flex items-baseline justify-between gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
                     {g.treo !== null ? "🔁 Quỹ treo" : `Ngày ${dayLabel(g.date)}`}
                     {!g.counted && (
