@@ -17,6 +17,10 @@ export default function StatsPage() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [historyName, setHistoryName] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<"name" | "chi" | "thu" | "loiLo">(
+    "loiLo"
+  );
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     (async () => {
@@ -27,15 +31,29 @@ export default function StatsPage() {
     })();
   }, []);
 
+  const sortBy = (key: typeof sortKey) => {
+    if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir(key === "name" ? "asc" : "desc");
+    }
+  };
+  const sorted = [...rows].sort((a, b) => {
+    const r =
+      sortKey === "name"
+        ? a.name.localeCompare(b.name, "vi")
+        : a[sortKey] - b[sortKey];
+    return sortDir === "asc" ? r : -r;
+  });
+  const arrow = (key: typeof sortKey) =>
+    sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+
   return (
     <div className="space-y-6">
       <PendingWinnersBanner />
 
       <div>
         <h1 className="title-lux text-2xl">Tổng kết</h1>
-        <p className="text-sm text-white/50">
-          Xếp từ người lời nhiều nhất đến lỗ nhiều nhất.
-        </p>
       </div>
 
       <div className="card p-0 overflow-hidden">
@@ -47,14 +65,30 @@ export default function StatsPage() {
           <table className="w-full text-left text-sm sm:text-base">
             <thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wider text-white/40">
               <tr>
-                <th className="px-3 py-3">Người chơi</th>
-                <th className="px-3 py-3 text-right">Chi</th>
-                <th className="px-3 py-3 text-right">Thu</th>
-                <th className="px-3 py-3 text-right">Lời/Lỗ</th>
+                <th className="px-3 py-3">
+                  <button onClick={() => sortBy("name")} className="hover:text-white">
+                    Người chơi{arrow("name")}
+                  </button>
+                </th>
+                <th className="px-3 py-3 text-right">
+                  <button onClick={() => sortBy("chi")} className="hover:text-white">
+                    Chi{arrow("chi")}
+                  </button>
+                </th>
+                <th className="px-3 py-3 text-right">
+                  <button onClick={() => sortBy("thu")} className="hover:text-white">
+                    Thu{arrow("thu")}
+                  </button>
+                </th>
+                <th className="px-3 py-3 text-right">
+                  <button onClick={() => sortBy("loiLo")} className="hover:text-white">
+                    Lời/Lỗ{arrow("loiLo")}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
+              {sorted.map((r) => {
                 const pos = r.loiLo > 0;
                 const neg = r.loiLo < 0;
                 return (
