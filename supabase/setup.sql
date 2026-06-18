@@ -166,3 +166,16 @@ insert into matches (team1, team2, kickoff_time, status) values
 -- Key/value settings (e.g. stake = price per prediction; default 20000 if unset).
 create table if not exists settings (key text primary key, value text);
 alter table settings disable row level security;
+
+-- Manual fund adjustments: admin "trích quỹ" (give pool money to a person:
+-- player_name set) or "sửa quỹ treo" (general correction: player_name null).
+-- amount = money taken OUT of the pool. Separate from settlement rewards so it
+-- never affects the watermark / treo-capacity logic.
+create table if not exists adjustments (
+  id           uuid primary key default gen_random_uuid(),
+  player_name  text,
+  amount       numeric not null,
+  note         text,
+  created_at   timestamptz not null default now()
+);
+alter table adjustments disable row level security;

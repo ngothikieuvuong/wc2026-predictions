@@ -128,12 +128,80 @@ export async function settlementState(
       carrySlots.set(p.player_name, (carrySlots.get(p.player_name) ?? 0) + 1);
     }
   }
+  const adjustTotal = await getAdjustTotal(); // manual withdrawals from the pool
   return {
     watermark,
-    carryAmount: Math.max(0, settledFund - paidTotal),
+    carryAmount: Math.max(0, settledFund - paidTotal - adjustTotal),
     carrySlots,
     paidPlayers,
   };
+}
+
+// Manual fund adjustments (admin "trích quỹ" / "sửa quỹ treo"). Each row is an
+// amount taken OUT of the pool — given to a player (player_name set) or a
+// general correction (player_name null). Kept separate from settlement rewards
+// so it never affects the watermark / treo-capacity logic.
+export async function getAdjustTotal(): Promise<number> {
+  const { data } = await supabase.from("adjustments").select("amount");
+  return ((data as { amount: number }[]) ?? []).reduce(
+    (s, a) => s + Number(a.amount),
+    0
+  );
+}
+
+export async function getAdjustments(): Promise<
+  { id: string; player_name: string | null; amount: number; note: string | null; created_at: string }[]
+> {
+  const { data } = await supabase
+    .from("adjustments")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data as any[]) ?? [];
+}
+
+// Give money from the pool to a person (records a withdrawal).
+export async function addPayout(
+  playerName: string,
+  amount: number,
+  note?: string
+): Promise<void> {
+  const { error } = await supabase.from("adjustments").insert({
+    player_name: playerName,
+    amount: Math.round(amount),
+    note: note ?? "Trích quỹ",
+  });
+  if (error) throw error;
+}
+
+export async function deleteAdjustment(id: string): Promise<void> {
+  const { error } = await supabase.from("adjustments").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Current carried treo amount (already net of manual adjustments).
+export async function getCarry(): Promise<number> {
+  const [{ data: m }, { data: p }] = await Promise.all([
+    supabase.from("matches").select("*"),
+    supabase.from("predictions").select("*"),
+  ]);
+  const { carryAmount } = await settlementState(
+    (m as Match[]) ?? [],
+    (p as Prediction[]) ?? []
+  );
+  return carryAmount;
+}
+
+// Set the treo total to a specific value (records a general correction).
+export async function setTreoTotal(newTotal: number): Promise<void> {
+  const current = await getCarry();
+  const delta = Math.round(current - newTotal); // taken out of the pool
+  if (delta === 0) return;
+  const { error } = await supabase.from("adjustments").insert({
+    player_name: null,
+    amount: delta,
+    note: "Sửa quỹ treo",
+  });
+  if (error) throw error;
 }
 
 // INCREMENTAL day-based settlement (no DB writes — applySettlement persists).

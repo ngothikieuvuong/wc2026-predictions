@@ -17,6 +17,11 @@ import {
   deletePlayer,
   getStake,
   setStake,
+  getCarry,
+  addPayout,
+  setTreoTotal,
+  getAdjustments,
+  deleteAdjustment,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
 import { getJackpot, getFundByDay, getPlayers, addPlayer } from "@/lib/queries";
@@ -347,6 +352,14 @@ function AdminPanel() {
       {/* Price per prediction */}
       <ManageStake onChanged={(text) => setBanner(text)} />
 
+      {/* Withdraw fund / edit carried treo */}
+      <ManageFund
+        onChanged={(text) => {
+          setBanner(text);
+          refresh();
+        }}
+      />
+
       {/* Manage players */}
       <ManagePlayers onChanged={(text) => setBanner(text)} />
 
@@ -424,6 +437,192 @@ function ManageStake({ onChanged }: { onChanged: (t: string) => void }) {
           Lưu
         </button>
       </div>
+    </section>
+  );
+}
+
+// Trích quỹ cho 1 người + sửa tổng quỹ treo (manual fund adjustments).
+function ManageFund({ onChanged }: { onChanged: (t: string) => void }) {
+  const [treo, setTreo] = useState<number | null>(null);
+  const [players, setPlayers] = useState<string[]>([]);
+  const [adjustments, setAdjustments] = useState<
+    Awaited<ReturnType<typeof getAdjustments>>
+  >([]);
+  const [busy, setBusy] = useState(false);
+
+  // Give-to-person form.
+  const [who, setWho] = useState("");
+  const [giveAmt, setGiveAmt] = useState("");
+
+  // Edit-treo form.
+  const [treoVal, setTreoVal] = useState("");
+
+  async function load() {
+    const [c, p, a] = await Promise.all([
+      getCarry(),
+      getPlayers(),
+      getAdjustments(),
+    ]);
+    setTreo(c);
+    setTreoVal(String(Math.round(c)));
+    setPlayers(p);
+    setAdjustments(a);
+  }
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function give() {
+    const amt = Math.round(Number(giveAmt));
+    if (!who) return onChanged("Chọn người nhận đã.");
+    if (!Number.isFinite(amt) || amt === 0) return onChanged("Số tiền không hợp lệ.");
+    if (!window.confirm(`Trích ${formatVND(amt)} từ quỹ gửi cho ${who}?`)) return;
+    setBusy(true);
+    try {
+      await addPayout(who, amt);
+      onChanged(`✅ Đã trích ${formatVND(amt)} cho ${who}.`);
+      setGiveAmt("");
+      setWho("");
+      await load();
+    } catch (e) {
+      onChanged((e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  async function saveTreo() {
+    const n = Math.round(Number(treoVal));
+    if (!Number.isFinite(n) || n < 0) return onChanged("Số quỹ treo không hợp lệ.");
+    if (treo !== null && n === Math.round(treo)) return;
+    if (
+      !window.confirm(
+        `Đặt tổng quỹ treo thành ${formatVND(n)}? (hiện ${formatVND(treo ?? 0)})`
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await setTreoTotal(n);
+      onChanged(`✅ Đã đặt quỹ treo = ${formatVND(n)}.`);
+      await load();
+    } catch (e) {
+      onChanged((e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  async function undo(id: string) {
+    if (!window.confirm("Hoàn tác điều chỉnh này? Tiền quay lại quỹ.")) return;
+    setBusy(true);
+    try {
+      await deleteAdjustment(id);
+      onChanged("↩ Đã hoàn tác điều chỉnh.");
+      await load();
+    } catch (e) {
+      onChanged((e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <section className="card space-y-4">
+      <div>
+        <p className="font-bold">💸 Trích quỹ / sửa quỹ treo</p>
+        <p className="text-xs text-white/50">
+          Quỹ treo hiện tại:{" "}
+          <b className="text-white/80">{treo === null ? "…" : formatVND(treo)}</b>
+        </p>
+      </div>
+
+      {/* Give money from the fund to a person */}
+      <div className="space-y-2 rounded-xl border border-white/10 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+          Trích quỹ gửi cho 1 người
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={who}
+            onChange={(e) => setWho(e.target.value)}
+            className="rounded-lg border border-white/15 bg-black/30 px-2 py-2 text-base"
+          >
+            <option value="">Ai?</option>
+            {players.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            step={1000}
+            inputMode="numeric"
+            value={giveAmt}
+            onChange={(e) => setGiveAmt(e.target.value)}
+            className="input flex-1"
+            placeholder="Số tiền (vd 50000)"
+          />
+          <button onClick={give} disabled={busy} className="btn">
+            Gửi
+          </button>
+        </div>
+        <p className="text-[11px] text-white/40">
+          Trừ vào quỹ và cộng cho người đó (hiện ở Tổng kết &amp; lịch sử của họ).
+        </p>
+      </div>
+
+      {/* Set the carried treo to a specific number */}
+      <div className="space-y-2 rounded-xl border border-white/10 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+          Sửa tổng quỹ treo
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            step={1000}
+            inputMode="numeric"
+            value={treoVal}
+            onChange={(e) => setTreoVal(e.target.value)}
+            className="input flex-1"
+            placeholder="0"
+          />
+          <button onClick={saveTreo} disabled={busy} className="btn">
+            Lưu
+          </button>
+        </div>
+        <p className="text-[11px] text-white/40">
+          Đặt thẳng số quỹ treo (phần chênh được ghi nhận là điều chỉnh, có thể hoàn tác).
+        </p>
+      </div>
+
+      {/* History of manual adjustments (undoable) */}
+      {adjustments.length > 0 && (
+        <div className="space-y-1.5 border-t border-white/10 pt-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+            Điều chỉnh đã ghi
+          </p>
+          {adjustments.map((a) => (
+            <div key={a.id} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 truncate text-white/70">
+                {a.player_name ? `→ ${a.player_name}` : a.note || "Điều chỉnh"}{" "}
+                <span className="text-white/40">{formatShort(a.created_at)}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <b className={Number(a.amount) >= 0 ? "text-amber-300" : "text-neon"}>
+                  {formatVND(Number(a.amount))}
+                </b>
+                <button
+                  onClick={() => undo(a.id)}
+                  disabled={busy}
+                  className="text-white/40 hover:text-red-400"
+                  aria-label="Hoàn tác"
+                >
+                  ✕
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

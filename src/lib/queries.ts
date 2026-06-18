@@ -8,11 +8,13 @@ import { dayKey, dayLabel, activeDay } from "./day";
 export async function getJackpot(): Promise<number> {
   const { getStake } = await import("./admin");
   const STAKE = await getStake();
-  const [{ data: preds }, { data: matches }, { data: rewards }] = await Promise.all([
-    supabase.from("predictions").select("match_id"),
-    supabase.from("matches").select("id, kickoff_time, home_score, away_score"),
-    supabase.from("rewards").select("amount"),
-  ]);
+  const [{ data: preds }, { data: matches }, { data: rewards }, { data: adjustments }] =
+    await Promise.all([
+      supabase.from("predictions").select("match_id"),
+      supabase.from("matches").select("id, kickoff_time, home_score, away_score"),
+      supabase.from("rewards").select("amount"),
+      supabase.from("adjustments").select("amount"),
+    ]);
   const P = (preds as { match_id: string }[]) ?? [];
   const M = (matches as Match[]) ?? [];
   const active = activeDay(M, P);
@@ -26,7 +28,12 @@ export async function getJackpot(): Promise<number> {
     (s: number, r: { amount: number }) => s + Number(r.amount),
     0
   );
-  return collected - paid;
+  // Manual withdrawals from the pool (admin "trích quỹ" / "sửa quỹ treo").
+  const adjusted = ((adjustments as { amount: number }[]) ?? []).reduce(
+    (s, a) => s + Number(a.amount),
+    0
+  );
+  return collected - paid - adjusted;
 }
 
 export async function getNextMatch(): Promise<Match | null> {
@@ -699,11 +706,13 @@ export async function getPlayerLedger(name: string): Promise<{
 }> {
   const { getStake } = await import("./admin");
   const STAKE = await getStake();
-  const [{ data: preds }, { data: matches }, { data: rewards }] = await Promise.all([
-    supabase.from("predictions").select("*").eq("player_name", name),
-    supabase.from("matches").select("*"),
-    supabase.from("rewards").select("*").eq("player_name", name),
-  ]);
+  const [{ data: preds }, { data: matches }, { data: rewards }, { data: adjustments }] =
+    await Promise.all([
+      supabase.from("predictions").select("*").eq("player_name", name),
+      supabase.from("matches").select("*"),
+      supabase.from("rewards").select("*").eq("player_name", name),
+      supabase.from("adjustments").select("*").eq("player_name", name),
+    ]);
   const byId = new Map(((matches as Match[]) ?? []).map((m) => [m.id, m]));
 
   const items: {
@@ -734,6 +743,18 @@ export async function getPlayerLedger(name: string): Promise<{
       sub: r.pay_date ? `tất toán ngày ${dayLabel(r.pay_date)}` : "",
       amount: Number(r.amount),
       time: r.created_at,
+    });
+  }
+
+  // Manual payouts from the fund (admin gave this person money).
+  for (const a of (adjustments as { amount: number; note: string | null; created_at: string }[]) ??
+    []) {
+    items.push({
+      kind: "win",
+      label: a.note || "Trích quỹ",
+      sub: "admin chuyển từ quỹ",
+      amount: Number(a.amount),
+      time: a.created_at,
     });
   }
 
@@ -787,11 +808,13 @@ export async function getStats(): Promise<
 > {
   const { getStake } = await import("./admin");
   const STAKE = await getStake();
-  const [{ data: players }, { data: preds }, { data: rewards }] = await Promise.all([
-    supabase.from("players").select("name"),
-    supabase.from("predictions").select("player_name"),
-    supabase.from("rewards").select("player_name, amount"),
-  ]);
+  const [{ data: players }, { data: preds }, { data: rewards }, { data: adjustments }] =
+    await Promise.all([
+      supabase.from("players").select("name"),
+      supabase.from("predictions").select("player_name"),
+      supabase.from("rewards").select("player_name, amount"),
+      supabase.from("adjustments").select("player_name, amount"),
+    ]);
 
   const chiByName = new Map<string, number>(); // count of predictions
   for (const p of (preds as { player_name: string }[]) ?? []) {
@@ -800,6 +823,11 @@ export async function getStats(): Promise<
   const thuByName = new Map<string, number>();
   for (const r of (rewards as { player_name: string; amount: number }[]) ?? []) {
     thuByName.set(r.player_name, (thuByName.get(r.player_name) ?? 0) + Number(r.amount));
+  }
+  // Manual payouts count as money received by that person.
+  for (const a of (adjustments as { player_name: string | null; amount: number }[]) ?? []) {
+    if (!a.player_name) continue; // general corrections aren't anyone's income
+    thuByName.set(a.player_name, (thuByName.get(a.player_name) ?? 0) + Number(a.amount));
   }
 
   // Union of roster + anyone who has activity.
