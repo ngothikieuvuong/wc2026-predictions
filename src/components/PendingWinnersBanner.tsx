@@ -5,8 +5,9 @@ import { getPendingWinners } from "@/lib/queries";
 
 type Data = Awaited<ReturnType<typeof getPendingWinners>>;
 
-// Shown on home / Mọi người / Tổng kết when someone already nailed a score on
-// the active day but the day still has matches left before it can be settled.
+// Shown on home / Mọi người / Tổng kết when someone has nailed a match's score
+// that admin hasn't chốt'd yet (per-match: each winning match is settleable
+// right away).
 export default function PendingWinnersBanner() {
   const [data, setData] = useState<Data | null>(null);
 
@@ -35,27 +36,9 @@ export default function PendingWinnersBanner() {
         ))}
       </ul>
 
-      {data.mode === "matches" ? (
-        <p className="mt-2 text-xs text-white/60">
-          Cố đoán thêm, hoặc chờ{" "}
-          {data.lastMatch ? (
-            <>
-              trận cuối của ngày —{" "}
-              <b className="text-white/80">
-                {data.lastMatch.team1} - {data.lastMatch.team2}
-              </b>{" "}
-              — kết thúc
-            </>
-          ) : (
-            "các trận còn lại kết thúc"
-          )}{" "}
-          để <b>chốt sổ ẳm quỹ</b> 💰
-        </p>
-      ) : (
-        <p className="mt-2 text-xs font-semibold text-amber-300">
-          ⏳ Các trận của ngày đã xong — chờ admin <b>chốt sổ</b> để ẳm quỹ 💰
-        </p>
-      )}
+      <p className="mt-2 text-xs font-semibold text-amber-300">
+        ⏳ Chờ admin <b>chốt sổ</b> trận này để ẳm quỹ 💰
+      </p>
     </section>
   );
 }

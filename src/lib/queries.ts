@@ -621,14 +621,12 @@ type WinMatch = {
   winners: string[];
 };
 
-// Status banner for home / Mọi người / Tổng kết:
-//  - "matches": someone already nailed a score but the day still has matches to
-//    finish (keep playing / wait for the last match).
-//  - "admin": all of the period's matches are finished and there's a winner, but
-//    admin hasn't chốt sổ yet (wait for admin to settle).
+// Status banner for home / Mọi người / Tổng kết. With per-match settlement,
+// every finished match with a winner can be chốt'd right away — so the only
+// pending state is "đã trúng, chờ admin chốt sổ" (mode "admin"). The match_ids
+// computeSettlement is about to pay are exactly the unsettled winning matches.
 export async function getPendingWinners(): Promise<{
-  mode: "matches" | "admin" | "";
-  lastMatch: { team1: string; team2: string } | null;
+  mode: "admin" | "";
   matches: WinMatch[];
 }> {
   const [{ data: preds }, { data: matches }] = await Promise.all([
@@ -637,7 +635,6 @@ export async function getPendingWinners(): Promise<{
   ]);
   const P = (preds as Prediction[]) ?? [];
   const M = (matches as Match[]) ?? [];
-  const byId = new Map(M.map((m) => [m.id, m]));
 
   const winnersOf = (m: Match): string[] =>
     m.status === "finished" && m.home_score != null && m.away_score != null
@@ -657,47 +654,18 @@ export async function getPendingWinners(): Promise<{
     winners: winnersOf(m),
   });
 
-  // 1) A fully-finished pool with a winner that admin hasn't chốt'd yet
-  //    (computeSettlement is incremental, so winners here = not yet settled).
   const { computeSettlement } = await import("./admin");
   const settle = await computeSettlement();
-  if (settle.breakdown.winners.length > 0) {
-    const paid = new Set(settle.paidDates);
-    const wm = M.filter((m) => paid.has(dayKey(m.kickoff_time)))
-      .map(toWinMatch)
-      .filter((x) => x.winners.length > 0);
-    if (wm.length > 0) return { mode: "admin", lastMatch: null, matches: wm };
-  }
+  const ids = new Set(
+    settle.payouts.map((p) => p.match_id).filter((x): x is string => !!x)
+  );
+  if (ids.size === 0) return { mode: "", matches: [] };
 
-  // 2) Early winners on the active day while it still has matches to finish.
-  const active = activeDay(M, P);
-  const dayIds = new Set<string>();
-  for (const p of P) {
-    const m = byId.get(p.match_id);
-    if (m && dayKey(m.kickoff_time) === active) dayIds.add(m.id);
-  }
-  const dayMatches = [...dayIds]
-    .map((id) => byId.get(id)!)
-    .filter(Boolean)
-    .sort((a, b) => (a.kickoff_time < b.kickoff_time ? -1 : 1));
-
-  const allFinished =
-    dayMatches.length > 0 &&
-    dayMatches.every(
-      (m) => m.status === "finished" && m.home_score != null && m.away_score != null
-    );
-  const last = dayMatches[dayMatches.length - 1];
-  const out = dayMatches.map(toWinMatch).filter((x) => x.winners.length > 0);
-
-  if (!allFinished && out.length > 0) {
-    return {
-      mode: "matches",
-      lastMatch: last ? { team1: last.team1, team2: last.team2 } : null,
-      matches: out,
-    };
-  }
-
-  return { mode: "", lastMatch: null, matches: [] };
+  const wm = M.filter((m) => ids.has(m.id))
+    .sort((a, b) => (a.kickoff_time < b.kickoff_time ? -1 : 1))
+    .map(toWinMatch)
+    .filter((x) => x.winners.length > 0);
+  return wm.length > 0 ? { mode: "admin", matches: wm } : { mode: "", matches: [] };
 }
 
 // One person's money ledger (credit/debit): each prediction is −20.000đ
