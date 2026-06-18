@@ -5,7 +5,68 @@ import { getTeamInfo } from "@/lib/queries";
 import { getOdds, findOdds, type OddsRow } from "@/lib/oddsClient";
 import { getMatchLive, type MatchLive } from "@/lib/matchLiveClient";
 import { predictMatch, type Prediction } from "@/lib/predict";
+import { getGroups, groupStatus, type GroupAnalysis } from "@/lib/groups";
 import LineupView from "@/components/LineupView";
+
+// Group-stage qualification read for both teams (current points + chances).
+function GroupStatusSection({
+  team1,
+  team2,
+}: {
+  team1: string;
+  team2: string;
+}) {
+  const [rows, setRows] = useState<(GroupAnalysis | null)[]>([null, null]);
+
+  useEffect(() => {
+    let alive = true;
+    getGroups().then((g) => {
+      if (alive) setRows([groupStatus(g, team1), groupStatus(g, team2)]);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [team1, team2]);
+
+  const items: { team: string; a: GroupAnalysis }[] = [];
+  if (rows[0]) items.push({ team: team1, a: rows[0] });
+  if (rows[1]) items.push({ team: team2, a: rows[1] });
+  if (items.length === 0) return null; // knockout / no group data
+
+  const tone = (v: GroupAnalysis["verdict"]) =>
+    v === "done-top2" || v === "secured"
+      ? "text-grass"
+      : v === "out"
+      ? "text-red-400"
+      : "text-amber-300";
+
+  return (
+    <div className="space-y-2 border-t border-white/10 pt-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+        🧮 Cơ hội đi tiếp (vòng bảng)
+      </p>
+      {items.map(({ team, a }) => (
+        <div
+          key={team}
+          className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-bold">{team}</span>
+            <span className="text-[11px] text-white/50">
+              Bảng {a.group} · hạng {a.pos} · <b className="text-white/80">{a.pts}đ</b>{" "}
+              (đã đá {a.played}/3)
+            </span>
+          </div>
+          <p className={`mt-1 font-semibold ${tone(a.verdict)}`}>{a.label}</p>
+        </div>
+      ))}
+      <p className="text-[11px] text-white/30">
+        Top 2 mỗi bảng đi tiếp (+ vài đội hạng 3 tốt nhất). Nhận định dựa trên
+        điểm — chỉ để tham khảo.
+      </p>
+    </div>
+  );
+}
 
 // On-demand statistical score hint (free, no external AI). Computes only when
 // the user taps the button. Framed clearly as a non-serious reference.
@@ -306,6 +367,9 @@ export default function MatchDetails({
           ))}
         </div>
       )}
+
+      {/* Group-stage qualification analysis */}
+      <GroupStatusSection team1={team1} team2={team2} />
 
       {/* On-demand statistical score hint */}
       <PredictionSection team1={team1} team2={team2} />

@@ -318,6 +318,102 @@ export async function getFundByMatch(): Promise<
   return out.sort((x, y) => (x.date < y.date ? -1 : 1));
 }
 
+// Group-stage standings computed from OUR match results (the game's source of
+// truth). Groups are derived by clustering the round-robin: each group's 4
+// teams all play each other, so connected components of size 4 are the groups.
+// Labelled A.. by earliest kickoff (approx. real order).
+export async function getGroupStandings(): Promise<
+  {
+    name: string;
+    rows: {
+      name: string;
+      P: number;
+      W: number;
+      D: number;
+      L: number;
+      GF: number;
+      GA: number;
+      GD: number;
+      Pts: number;
+    }[];
+  }[]
+> {
+  const { data } = await supabase.from("matches").select("*");
+  const M = (data as Match[]) ?? [];
+
+  const adj = new Map<string, Set<string>>();
+  const link = (a: string, b: string) => {
+    if (!adj.has(a)) adj.set(a, new Set());
+    adj.get(a)!.add(b);
+  };
+  for (const m of M) {
+    link(m.team1, m.team2);
+    link(m.team2, m.team1);
+  }
+
+  // Connected components.
+  const seen = new Set<string>();
+  const comps: string[][] = [];
+  for (const t of adj.keys()) {
+    if (seen.has(t)) continue;
+    const stack = [t];
+    const comp: string[] = [];
+    seen.add(t);
+    while (stack.length) {
+      const x = stack.pop()!;
+      comp.push(x);
+      for (const n of adj.get(x) ?? [])
+        if (!seen.has(n)) {
+          seen.add(n);
+          stack.push(n);
+        }
+    }
+    comps.push(comp);
+  }
+  const groups = comps.filter((c) => c.length === 4); // a proper group of 4
+
+  const rowsFor = (teams: string[]) => {
+    const tset = new Set(teams);
+    const row = new Map<
+      string,
+      { name: string; P: number; W: number; D: number; L: number; GF: number; GA: number; GD: number; Pts: number }
+    >();
+    teams.forEach((t) =>
+      row.set(t, { name: t, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 })
+    );
+    for (const m of M) {
+      if (!tset.has(m.team1) || !tset.has(m.team2)) continue;
+      if (m.status !== "finished" || m.home_score == null || m.away_score == null)
+        continue;
+      const h = row.get(m.team1)!;
+      const a = row.get(m.team2)!;
+      h.P++; a.P++;
+      h.GF += m.home_score; h.GA += m.away_score;
+      a.GF += m.away_score; a.GA += m.home_score;
+      if (m.home_score > m.away_score) { h.W++; a.L++; h.Pts += 3; }
+      else if (m.home_score < m.away_score) { a.W++; h.L++; a.Pts += 3; }
+      else { h.D++; a.D++; h.Pts++; a.Pts++; }
+      h.GD = h.GF - h.GA; a.GD = a.GF - a.GA;
+    }
+    return [...row.values()].sort(
+      (x, y) => y.Pts - x.Pts || y.GD - x.GD || y.GF - x.GF || x.name.localeCompare(y.name)
+    );
+  };
+
+  const earliest = (teams: string[]) =>
+    Math.min(
+      ...M.filter((m) => teams.includes(m.team1)).map((m) =>
+        new Date(m.kickoff_time).getTime()
+      )
+    );
+  groups.sort((a, b) => earliest(a) - earliest(b));
+  const LETTERS = "ABCDEFGHIJKL".split("");
+  return groups.map((teams, i) => ({
+    name: LETTERS[i] ?? String(i + 1),
+    rows: rowsFor(teams),
+  }));
+}
+
 // Quick info for two teams: FIFA rank + their results so far in the tournament.
 export async function getTeamInfo(
   teamA: string,
