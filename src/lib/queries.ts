@@ -101,15 +101,16 @@ export async function getJustWon(): Promise<{
     .from("rewards")
     .select("player_name, amount, match_id, created_at")
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50);
   const R =
     (data as { player_name: string; amount: number; match_id: string | null; created_at: string }[]) ??
     [];
   if (R.length === 0) return { wins: [], until: null };
 
+  // All rewards from one chốt share the exact same created_at (single insert),
+  // so the most-recent settlement = rows whose created_at equals the newest.
   const settledAt = R[0].created_at;
-  const latest = new Date(settledAt).getTime();
-  const batch = R.filter((r) => latest - new Date(r.created_at).getTime() < 5000);
+  const batch = R.filter((r) => r.created_at === settledAt);
 
   const ids = [...new Set(batch.map((r) => r.match_id).filter((x): x is string => !!x))];
   const teamById = new Map<string, { team1: string; team2: string }>();
