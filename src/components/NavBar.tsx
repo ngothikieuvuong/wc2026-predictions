@@ -91,19 +91,38 @@ export default function NavBar() {
           <Link href="/" className="flex items-center gap-2.5">
             <span
               className="logo-float relative flex shrink-0 items-center justify-center"
-              style={{ perspective: "150px" }}
+              style={{ perspective: "300px" }}
             >
               <span className="logo-glow" aria-hidden />
-              <Image
-                src="/trophy.webp"
-                alt="World Cup 2026"
-                width={63}
-                height={141}
-                className={`logo-spin relative w-auto object-contain drop-shadow-[0_2px_10px_rgba(233,201,124,0.55)] transition-all duration-200 ${
-                  scrolled ? "h-8" : "h-12"
-                }`}
-                priority
-              />
+              {/* Two trophy faces back-to-back → spins like a solid 3D object */}
+              <span
+                className="logo-spin relative inline-block"
+                style={{ transformStyle: "preserve-3d" }}
+              >
+                <Image
+                  src="/trophy.webp"
+                  alt="World Cup 2026"
+                  width={63}
+                  height={141}
+                  className={`block w-auto object-contain drop-shadow-[0_2px_10px_rgba(233,201,124,0.55)] transition-all duration-200 ${
+                    scrolled ? "h-8" : "h-12"
+                  }`}
+                  style={{ backfaceVisibility: "hidden" }}
+                  priority
+                />
+                <Image
+                  src="/trophy.webp"
+                  alt=""
+                  aria-hidden
+                  width={63}
+                  height={141}
+                  className="absolute left-0 top-0 block h-full w-auto object-contain drop-shadow-[0_2px_10px_rgba(233,201,124,0.55)]"
+                  style={{
+                    backfaceVisibility: "hidden",
+                    transform: "rotateY(180deg)",
+                  }}
+                />
+              </span>
             </span>
             <span
               className={`title-lux whitespace-nowrap transition-all duration-200 ${
