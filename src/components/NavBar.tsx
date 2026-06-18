@@ -95,7 +95,7 @@ export default function NavBar() {
             >
               <span className="logo-glow" aria-hidden />
               <Image
-                src="/cupLogo.webp"
+                src="/trophy.webp"
                 alt="World Cup 2026"
                 width={63}
                 height={141}
