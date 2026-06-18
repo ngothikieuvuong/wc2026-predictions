@@ -6,6 +6,7 @@ import type { GroupTable, BracketRound, Fixture } from "@/lib/tournament";
 import { getMatchResults, getOpenMatches } from "@/lib/queries";
 import { autoSync } from "@/lib/syncClient";
 import { formatKickoff, matchSlug } from "@/lib/format";
+import { useRefresh } from "@/components/Refresh";
 import MatchInfoButton from "@/components/MatchInfoButton";
 
 // Small green badge marking a match that's open for prediction.
@@ -104,6 +105,17 @@ export default function GiaiTabs({
       setOpenKeys(new Set(ms.map((m) => matchSlug(m.team1, m.team2))))
     );
   }, []);
+
+  // Re-fetch results + open flags when the global refresh button is tapped.
+  const { tick } = useRefresh();
+  useEffect(() => {
+    if (!tick) return;
+    getOpenMatches().then((ms) =>
+      setOpenKeys(new Set(ms.map((m) => matchSlug(m.team1, m.team2))))
+    );
+    setResults(null);
+    if (tab === "ketqua") getMatchResults().then(setResults);
+  }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = sentinelRef.current;

@@ -13,6 +13,11 @@ export function getLive(): Promise<LiveScore[]> {
   return cache;
 }
 
+// Drop the cache so the next getLive() refetches — for the manual refresh.
+export function resetLive(): void {
+  cache = null;
+}
+
 function norm(s: string): string {
   return s
     .toLowerCase()

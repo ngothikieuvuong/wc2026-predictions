@@ -12,3 +12,13 @@ export function autoSync(): Promise<boolean> {
   }
   return p;
 }
+
+// Force a fresh sync (bypasses the per-load cache) — for the manual refresh
+// button. Stores the new promise so a later autoSync() reuses it.
+export function runSync(): Promise<boolean> {
+  p = fetch("/api/sync", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((j) => !!j?.ok && Array.isArray(j.updated) && j.updated.length > 0)
+    .catch(() => false);
+  return p;
+}

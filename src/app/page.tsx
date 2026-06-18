@@ -15,6 +15,8 @@ import { Money } from "@/components/Money";
 import { dayLabel } from "@/lib/day";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
+import LiveBar from "@/components/LiveBar";
+import { useRefresh } from "@/components/Refresh";
 import MatchInfoButton from "@/components/MatchInfoButton";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
@@ -121,16 +123,25 @@ export default function HomePage() {
     });
   }, []);
 
+  // Re-fetch when the global "Cập nhật tỉ số" button is tapped.
+  const { tick } = useRefresh();
+  useEffect(() => {
+    if (tick) loadData();
+  }, [tick]);
+
   return (
     <div className="space-y-6">
-      {/* Compact fund bar pinned under the tabs while scrolling */}
+      {/* Live score bar — freezes under the nav on scroll */}
+      <LiveBar live={live} />
+
+      {/* Compact fund bar pinned under the tabs while scrolling (below live bar) */}
       <div
         className={`fixed inset-x-0 z-20 transition-all duration-300 ${
           showFundBar
             ? "translate-y-0 opacity-100"
             : "pointer-events-none -translate-y-2 opacity-0"
         }`}
-        style={{ top: "var(--nav-h)" }}
+        style={{ top: "calc(var(--nav-h) + var(--live-h, 0px))" }}
       >
         <div className="mx-auto max-w-3xl px-4">
           <div className="flex items-center justify-between rounded-b-xl border border-t-0 border-white/10 bg-[#0b1d12]/90 px-4 py-1.5 shadow-lux backdrop-blur-xl">

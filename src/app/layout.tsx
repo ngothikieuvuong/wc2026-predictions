@@ -3,6 +3,7 @@ import "./globals.css";
 import NavBar from "@/components/NavBar";
 import PageTransition from "@/components/PageTransition";
 import { HideMoneyProvider } from "@/components/Money";
+import { RefreshProvider } from "@/components/Refresh";
 
 export const metadata: Metadata = {
   title: "Nhà Tiên Tri WC",
@@ -18,12 +19,14 @@ export default function RootLayout({
     <html lang="vi">
       <body className="text-white antialiased">
         <HideMoneyProvider>
-          <div className="pitch-stripes min-h-screen">
-            <NavBar />
-            <main className="mx-auto max-w-3xl px-4 py-6">
-              <PageTransition>{children}</PageTransition>
-            </main>
-          </div>
+          <RefreshProvider>
+            <div className="pitch-stripes min-h-screen">
+              <NavBar />
+              <main className="mx-auto max-w-3xl px-4 py-6">
+                <PageTransition>{children}</PageTransition>
+              </main>
+            </div>
+          </RefreshProvider>
         </HideMoneyProvider>
       </body>
     </html>

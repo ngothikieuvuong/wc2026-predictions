@@ -13,6 +13,8 @@ import {
 import type { Match, Prediction, Reaction } from "@/lib/types";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
 import { autoSync } from "@/lib/syncClient";
+import LiveBar from "@/components/LiveBar";
+import { useRefresh } from "@/components/Refresh";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 import { formatKickoff, formatShort, isClosed, matchSlug } from "@/lib/format";
 import MatchInfoButton from "@/components/MatchInfoButton";
@@ -455,6 +457,12 @@ export default function PredictionsPage() {
     });
   }, []);
 
+  // Re-fetch when the global "Cập nhật tỉ số" button is tapped.
+  const { tick } = useRefresh();
+  useEffect(() => {
+    if (tick) loadAll();
+  }, [tick]);
+
   // Linked from a match popup (#match-…): scroll to that match and flash it.
   // If the match sits in the collapsed group, expand it first, then scroll.
   useEffect(() => {
@@ -514,6 +522,7 @@ export default function PredictionsPage() {
 
   return (
     <div className="space-y-6">
+      <LiveBar live={liveScores} />
       <PendingWinnersBanner />
 
       {loading ? (
