@@ -207,18 +207,20 @@ export async function getFundByDay(): Promise<
   const active = activeDay(M, P);
   const byId = new Map(M.map((m) => [m.id, m]));
 
-  // Days already chốt'd (≤ watermark) drop out; the leftover treo shows once.
-  const { settlementState, getStake } = await import("./admin");
+  // Per-match settlement: matches resolve one at a time, so the "in-play" pots
+  // are the NOT-yet-played matches; resolved money is either paid out or sits in
+  // the single carried treo (computed by the engine).
+  const { getStake, computeSettlement } = await import("./admin");
   const STAKE = await getStake();
-  const { watermark, carryAmount, carrySlots } = await settlementState(M, P);
+  const { carriedTreo } = await computeSettlement();
 
   type Agg = { slots: number; names: Set<string> };
   const agg = new Map<string, Agg>();
   for (const p of P) {
     const m = byId.get(p.match_id);
     if (!m) continue;
+    if (m.home_score != null && m.away_score != null) continue; // already resolved
     const d = dayKey(m.kickoff_time);
-    if (watermark && d <= watermark) continue; // already settled
     let a = agg.get(d);
     if (!a) {
       a = { slots: 0, names: new Set() };
@@ -235,12 +237,12 @@ export async function getFundByDay(): Promise<
     counted: date <= active,
   }));
 
-  // The carried-over leftover (treo) from past settlements as its own entry.
-  if (carryAmount > 0) {
+  // The carried treo (leftover from no-winner matches) as its own entry.
+  if (carriedTreo && carriedTreo.amount > 0) {
     out.push({
-      date: watermark,
-      participants: [...carrySlots.keys()],
-      pot: carryAmount,
+      date: carriedTreo.date || "",
+      participants: carriedTreo.participants,
+      pot: carriedTreo.amount,
       counted: true,
     });
   }
@@ -269,11 +271,12 @@ export async function getFundByMatch(): Promise<
   const active = activeDay(M, P);
   const byId = new Map(M.map((m) => [m.id, m]));
 
-  const { settlementState, getStake } = await import("./admin");
+  const { getStake, computeSettlement } = await import("./admin");
   const STAKE = await getStake();
-  const { watermark, carryAmount, carrySlots } = await settlementState(M, P);
+  const { carriedTreo } = await computeSettlement();
 
-  // Aggregate predictions per match (only unsettled days).
+  // Aggregate predictions per NOT-yet-played match (resolved money is paid out
+  // or sits in the carried treo, shown once below).
   const perMatch = new Map<
     string,
     { match: Match; names: Set<string>; slots: number }
@@ -281,8 +284,7 @@ export async function getFundByMatch(): Promise<
   for (const p of P) {
     const m = byId.get(p.match_id);
     if (!m) continue;
-    const d = dayKey(m.kickoff_time);
-    if (watermark && d <= watermark) continue;
+    if (m.home_score != null && m.away_score != null) continue; // already resolved
     let e = perMatch.get(m.id);
     if (!e) {
       e = { match: m, names: new Set(), slots: 0 };
@@ -316,12 +318,12 @@ export async function getFundByMatch(): Promise<
       })),
   }));
 
-  if (carryAmount > 0) {
+  if (carriedTreo && carriedTreo.amount > 0) {
     out.push({
-      date: watermark,
+      date: carriedTreo.date || "",
       counted: true,
-      treo: carryAmount,
-      treoNames: [...carrySlots.keys()].sort((a, b) => a.localeCompare(b, "vi")),
+      treo: carriedTreo.amount,
+      treoNames: [...carriedTreo.participants].sort((a, b) => a.localeCompare(b, "vi")),
       matches: [],
     });
   }
