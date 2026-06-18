@@ -221,7 +221,7 @@ export default function GiaiTabs({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="🔎 Tìm theo đội…"
-            className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white placeholder-white/40 outline-none focus:border-grass"
+            className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-base text-white placeholder-white/40 outline-none focus:border-grass"
           />
           {q && (
             <button
