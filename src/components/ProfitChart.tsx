@@ -4,14 +4,9 @@ import { Money } from "@/components/Money";
 
 type Settlement = { created_at: string; cum: { name: string; value: number }[] };
 
-// A distinct colour per player (cycles if there are more than 10).
-const COLORS = [
-  "#1db954", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7",
-  "#ec4899", "#14b8a6", "#eab308", "#f97316", "#22d3ee",
-];
-
-// Cumulative profit/loss per player across the season's settlement events —
-// a multi-line chart so you can see who's climbing and who's nose-diving.
+// Cumulative profit/loss per player — shown as "small multiples": one row per
+// person with their own sparkline (no overlapping colours to confuse), sorted
+// best → worst, green = winning, red = losing. Easy to scan who's up/down.
 export default function ProfitChart({
   settlements,
 }: {
@@ -29,14 +24,16 @@ export default function ProfitChart({
     s.cum.find((c) => c.name === name)?.value ?? 0;
 
   // Each line starts at 0 (đầu mùa), then one point per settlement.
-  const series = names.map((name, i) => ({
-    name,
-    color: COLORS[i % COLORS.length],
-    values: [0, ...settlements.map((s) => valueAt(s, name))],
-    final: valueAt(settlements[settlements.length - 1], name),
-  }));
+  const series = names
+    .map((name) => ({
+      name,
+      values: [0, ...settlements.map((s) => valueAt(s, name))],
+      final: valueAt(settlements[settlements.length - 1], name),
+    }))
+    .sort((a, b) => b.final - a.final);
   const cols = settlements.length + 1;
 
+  // Shared y-scale across everyone so the heights are comparable.
   const allVals = series.flatMap((s) => s.values).concat(0);
   let min = Math.min(...allVals);
   let max = Math.max(...allVals);
@@ -45,102 +42,68 @@ export default function ProfitChart({
     max += 1000;
   }
   const span = max - min;
-  min -= span * 0.12;
-  max += span * 0.12;
+  min -= span * 0.15;
+  max += span * 0.15;
 
-  const W = 320, H = 200, L = 6, Rr = 6, T = 10, Bb = 20;
-  const x = (i: number) => L + (i * (W - L - Rr)) / Math.max(1, cols - 1);
-  const y = (v: number) => T + (1 - (v - min) / (max - min)) * (H - T - Bb);
+  const W = 100, H = 28;
+  const x = (i: number) => (cols <= 1 ? W / 2 : (i * W) / (cols - 1));
+  const y = (v: number) => H - ((v - min) / (max - min)) * H;
   const zeroY = y(0);
 
-  const labels = [
-    "Đầu",
-    ...settlements.map((s) => {
-      const d = new Date(s.created_at);
-      return `${d.getDate()}/${d.getMonth() + 1}`;
-    }),
-  ];
-  const legend = [...series].sort((a, b) => b.final - a.final);
-
   return (
-    <div>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        {/* Zero baseline (break-even) */}
-        {min < 0 && max > 0 && (
-          <line
-            x1={L}
-            x2={W - Rr}
-            y1={zeroY}
-            y2={zeroY}
-            stroke="rgba(255,255,255,0.28)"
-            strokeDasharray="3 3"
-            strokeWidth={0.7}
-          />
-        )}
-        {/* X labels (settlement dates) */}
-        {labels.map((lb, i) => (
-          <text
-            key={i}
-            x={x(i)}
-            y={H - 5}
-            fontSize={7}
-            fill="rgba(255,255,255,0.4)"
-            textAnchor="middle"
-          >
-            {lb}
-          </text>
-        ))}
-        {/* One line + dots per player */}
-        {series.map((s) => (
-          <g key={s.name}>
-            <polyline
-              fill="none"
-              stroke={s.color}
-              strokeWidth={1.8}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              points={s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}
-            />
-            {s.values.map((v, i) => (
-              <circle key={i} cx={x(i)} cy={y(v)} r={1.8} fill={s.color} />
-            ))}
-          </g>
-        ))}
-      </svg>
-
-      {/* Legend with each player's current total */}
-      <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
-        {legend.map((s) => (
-          <li key={s.name} className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-1.5">
-              <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ background: s.color }}
-              />
-              <span className="truncate">{s.name}</span>
+    <div className="space-y-2.5">
+      {series.map((s) => {
+        const up = s.final > 0;
+        const down = s.final < 0;
+        const color = up ? "#22c55e" : down ? "#ef4444" : "#9ca3af";
+        const pts = s.values
+          .map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`)
+          .join(" ");
+        return (
+          <div key={s.name} className="flex items-center gap-2.5">
+            <span className="w-16 shrink-0 truncate text-sm font-medium sm:w-20">
+              {s.name}
             </span>
-            <span
-              className={
-                s.final > 0
-                  ? "text-neon"
-                  : s.final < 0
-                  ? "text-red-400"
-                  : "text-white/50"
-              }
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              preserveAspectRatio="none"
+              className="h-7 flex-1 rounded bg-black/20"
             >
-              {s.final > 0 ? "+" : ""}
+              <line
+                x1={0}
+                x2={W}
+                y1={zeroY}
+                y2={zeroY}
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                vectorEffect="non-scaling-stroke"
+              />
+              <polyline
+                fill="none"
+                stroke={color}
+                strokeWidth={1.8}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+                points={pts}
+              />
+            </svg>
+            <span
+              className={`w-20 shrink-0 text-right text-sm font-bold ${
+                up ? "text-neon" : down ? "text-red-400" : "text-white/50"
+              }`}
+            >
+              {up ? "+" : ""}
               <Money value={s.final} />
             </span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2 text-[11px] text-white/30">
-        Trục dọc: lời/lỗ tích lũy · trục ngang: các lần chia quỹ. Đường đi lên =
-        đang ăn, đi xuống = đang thua.
+          </div>
+        );
+      })}
+      <p className="mt-1 text-[11px] leading-relaxed text-white/30">
+        Mỗi người một đường riêng theo các lần chia quỹ — <b>xanh</b> đang lời,{" "}
+        <b>đỏ</b> đang lỗ; đường vắt qua vạch đứt = hòa vốn. Xếp từ lời nhất xuống
+        lỗ nhất.
       </p>
     </div>
   );
