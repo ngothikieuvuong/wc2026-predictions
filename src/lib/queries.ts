@@ -300,7 +300,7 @@ export async function getFundByMatch(): Promise<
       .map((x) => ({
         team1: x.match.team1,
         team2: x.match.team2,
-        participants: x.names,
+        participants: [...x.names].sort((a, b) => a.localeCompare(b, "vi")),
         pot: x.pot,
       })),
   }));
@@ -310,7 +310,7 @@ export async function getFundByMatch(): Promise<
       date: watermark,
       counted: true,
       treo: carryAmount,
-      treoNames: [...carrySlots.keys()],
+      treoNames: [...carrySlots.keys()].sort((a, b) => a.localeCompare(b, "vi")),
       matches: [],
     });
   }
