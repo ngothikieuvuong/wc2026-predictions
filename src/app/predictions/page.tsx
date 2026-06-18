@@ -523,6 +523,24 @@ export default function PredictionsPage() {
   return (
     <div className="space-y-6">
       <LiveBar live={liveScores} />
+
+      {/* Đoán Ngay — freezes under the nav (below the live bar) on scroll */}
+      <div
+        className="sticky z-20 -mx-4 border-b border-white/10 bg-[#08160e]/80 px-4 py-2 backdrop-blur-xl"
+        style={{ top: "calc(var(--nav-h) + var(--live-h, 0px))" }}
+      >
+        <Link
+          href="/predict"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-2.5 font-extrabold text-black shadow-glow transition hover:brightness-110 active:scale-[0.98]"
+          style={{
+            background:
+              "linear-gradient(180deg,#28d567 0%,#1db954 60%,#15a049 100%)",
+          }}
+        >
+          ⚽ Đoán Ngay
+        </Link>
+      </div>
+
       <PendingWinnersBanner />
 
       {loading ? (
