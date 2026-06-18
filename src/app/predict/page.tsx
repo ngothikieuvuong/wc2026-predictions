@@ -10,7 +10,8 @@ import {
   getPredictionsForMatch,
 } from "@/lib/queries";
 import type { Match, Prediction } from "@/lib/types";
-import { formatKickoff, isClosed } from "@/lib/format";
+import { formatKickoff, isClosed, formatVND } from "@/lib/format";
+import { getStake } from "@/lib/admin";
 import { matchHint, teamRank } from "@/lib/strength";
 import { getOdds, findOdds } from "@/lib/oddsClient";
 import { predictMatch, type Prediction as ScorePrediction } from "@/lib/predict";
@@ -422,15 +423,21 @@ export default function PredictPage() {
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [others, setOthers] = useState<Prediction[]>([]);
   const [showRandom, setShowRandom] = useState(false);
+  const [stake, setStakeVal] = useState(20000);
 
   // Effective player name: typed (new) or picked from the roster.
   const name = picked === NEW_PLAYER ? newName : picked;
 
   useEffect(() => {
     (async () => {
-      const [m, p] = await Promise.all([getOpenMatches(), getPlayers()]);
+      const [m, p, st] = await Promise.all([
+        getOpenMatches(),
+        getPlayers(),
+        getStake(),
+      ]);
       setMatches(m);
       setPlayers(p);
+      setStakeVal(st);
       setLoading(false);
     })();
   }, []);
@@ -504,7 +511,7 @@ export default function PredictPage() {
       <div>
         <h1 className="title-lux text-2xl">Đoán tỉ số</h1>
         <p className="text-sm text-white/50">
-          Góp 20.000₫ vào quỹ. Đoán trúng tỉ số nhận quỹ. Mỗi trận một lượt.
+          Góp {formatVND(stake)} vào quỹ. Đoán trúng tỉ số nhận quỹ. Mỗi trận một lượt.
         </p>
       </div>
 

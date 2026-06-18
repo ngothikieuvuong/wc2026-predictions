@@ -162,3 +162,7 @@ insert into matches (team1, team2, kickoff_time, status) values
   ('CHDC Congo', 'Uzbekistan', '2026-06-28T07:30:00+07:00', 'upcoming'),
   ('Algeria', 'Áo', '2026-06-28T10:00:00+07:00', 'upcoming'),
   ('Jordan', 'Argentina', '2026-06-28T10:00:00+07:00', 'upcoming');
+
+-- Key/value settings (e.g. stake = price per prediction; default 20000 if unset).
+create table if not exists settings (key text primary key, value text);
+alter table settings disable row level security;

@@ -15,6 +15,8 @@ import {
   setMatchOpen,
   getPendingScoreMatches,
   deletePlayer,
+  getStake,
+  setStake,
 } from "@/lib/admin";
 import type { SettleResult } from "@/lib/admin";
 import { getJackpot, getFundByDay, getPlayers, addPlayer } from "@/lib/queries";
@@ -342,6 +344,9 @@ function AdminPanel() {
         )}
       </section>
 
+      {/* Price per prediction */}
+      <ManageStake onChanged={(text) => setBanner(text)} />
+
       {/* Manage players */}
       <ManagePlayers onChanged={(text) => setBanner(text)} />
 
@@ -361,6 +366,65 @@ function AdminPanel() {
         }}
       />
     </div>
+  );
+}
+
+// Set the price per prediction (default 20.000đ).
+function ManageStake({ onChanged }: { onChanged: (t: string) => void }) {
+  const [val, setVal] = useState("");
+  const [current, setCurrent] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getStake().then((s) => {
+      setCurrent(s);
+      setVal(String(s));
+    });
+  }, []);
+
+  async function save() {
+    const n = Math.round(Number(val));
+    if (!Number.isFinite(n) || n <= 0) {
+      onChanged("Giá không hợp lệ.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await setStake(n);
+      setCurrent(n);
+      onChanged(`✅ Đã đặt giá ${formatVND(n)} / lượt đoán.`);
+    } catch (e) {
+      onChanged((e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <section className="card space-y-3">
+      <p className="font-bold">💵 Giá mỗi lượt đoán</p>
+      <p className="text-xs text-white/50">
+        Hiện tại:{" "}
+        <b className="text-white/80">
+          {current === null ? "…" : formatVND(current)}
+        </b>{" "}
+        / 1 tỉ số. Đổi giá áp cho <b>toàn bộ</b> lượt đoán (kể cả đã đặt).
+      </p>
+      <div className="flex gap-2">
+        <input
+          type="number"
+          min={1000}
+          step={1000}
+          inputMode="numeric"
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          className="input"
+          placeholder="20000"
+        />
+        <button onClick={save} disabled={busy} className="btn">
+          Lưu
+        </button>
+      </div>
+    </section>
   );
 }
 

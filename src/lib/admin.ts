@@ -2,7 +2,26 @@ import { supabase } from "./supabase";
 import type { Match, Prediction, Reward } from "./types";
 import { dayKey, activeDay } from "./day";
 
-const STAKE = 20000;
+const DEFAULT_STAKE = 20000;
+
+// Price per prediction (slot), admin-configurable via the settings table.
+// Defaults to 20.000đ when unset. Functions doing money math fetch this.
+export async function getStake(): Promise<number> {
+  const { data } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "stake")
+    .maybeSingle();
+  const v = Number((data as { value: string } | null)?.value);
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_STAKE;
+}
+
+export async function setStake(value: number): Promise<void> {
+  const { error } = await supabase
+    .from("settings")
+    .upsert({ key: "stake", value: String(Math.round(value)) });
+  if (error) throw error;
+}
 
 // Save a match's final score (marks it finished). No payout here — settlement
 // is day-based via settleAll().
@@ -67,6 +86,7 @@ export async function settlementState(
   carrySlots: Map<string, number>;
   paidPlayers: Set<string>;
 }> {
+  const STAKE = await getStake();
   const { data: rewards } = await supabase
     .from("rewards")
     .select("player_name, pay_date, amount");
@@ -136,6 +156,7 @@ export async function computeSettlement(
     predicted_away: number;
   }[]
 ): Promise<SettleResult> {
+  const STAKE = await getStake();
   const [{ data: matchesData }, { data: predsData }] = await Promise.all([
     supabase.from("matches").select("*"),
     supabase.from("predictions").select("*"),
@@ -601,6 +622,7 @@ const normNet = (arr: { name: string; value: number }[]) =>
 // Cumulative net per person from settled money: received (all rewards) − stake
 // on settled days (≤ watermark). Used for the Tổng kết history snapshots.
 async function cumulativeNet(): Promise<{ name: string; value: number }[]> {
+  const STAKE = await getStake();
   const [{ data: m }, { data: p }, { data: r }] = await Promise.all([
     supabase.from("matches").select("id, kickoff_time"),
     supabase.from("predictions").select("player_name, match_id"),

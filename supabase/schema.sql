@@ -84,3 +84,7 @@ alter table rewards     disable row level security;
 alter table players     disable row level security;
 alter table settlements disable row level security;
 alter table reactions   disable row level security;
+
+-- Key/value settings (e.g. stake = price per prediction; default 20000 if unset).
+create table if not exists settings (key text primary key, value text);
+alter table settings disable row level security;

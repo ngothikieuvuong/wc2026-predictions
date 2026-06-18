@@ -1,4 +1,4 @@
-import { supabase, STAKE_VND } from "./supabase";
+import { supabase } from "./supabase";
 import type { Match, Prediction, Reward, Reaction } from "./types";
 import { dayKey, dayLabel, activeDay } from "./day";
 
@@ -6,6 +6,8 @@ import { dayKey, dayLabel, activeDay } from "./day";
 // play). Future days aren't in the pot yet; once a day's matches finish with
 // no winner, the next day rolls in. Minus what's been paid out.
 export async function getJackpot(): Promise<number> {
+  const { getStake } = await import("./admin");
+  const STAKE = await getStake();
   const [{ data: preds }, { data: matches }, { data: rewards }] = await Promise.all([
     supabase.from("predictions").select("match_id"),
     supabase.from("matches").select("id, kickoff_time, home_score, away_score"),
@@ -18,7 +20,7 @@ export async function getJackpot(): Promise<number> {
   let collected = 0;
   for (const p of P) {
     const d = dayOf.get(p.match_id);
-    if (d && d <= active) collected += STAKE_VND;
+    if (d && d <= active) collected += STAKE;
   }
   const paid = (rewards ?? []).reduce(
     (s: number, r: { amount: number }) => s + Number(r.amount),
@@ -199,7 +201,8 @@ export async function getFundByDay(): Promise<
   const byId = new Map(M.map((m) => [m.id, m]));
 
   // Days already chốt'd (≤ watermark) drop out; the leftover treo shows once.
-  const { settlementState } = await import("./admin");
+  const { settlementState, getStake } = await import("./admin");
+  const STAKE = await getStake();
   const { watermark, carryAmount, carrySlots } = await settlementState(M, P);
 
   type Agg = { slots: number; names: Set<string> };
@@ -221,7 +224,7 @@ export async function getFundByDay(): Promise<
   const out = [...agg.entries()].map(([date, a]) => ({
     date,
     participants: [...a.names],
-    pot: a.slots * STAKE_VND,
+    pot: a.slots * STAKE,
     counted: date <= active,
   }));
 
@@ -259,7 +262,8 @@ export async function getFundByMatch(): Promise<
   const active = activeDay(M, P);
   const byId = new Map(M.map((m) => [m.id, m]));
 
-  const { settlementState } = await import("./admin");
+  const { settlementState, getStake } = await import("./admin");
+  const STAKE = await getStake();
   const { watermark, carryAmount, carrySlots } = await settlementState(M, P);
 
   // Aggregate predictions per match (only unsettled days).
@@ -286,7 +290,7 @@ export async function getFundByMatch(): Promise<
   for (const e of perMatch.values()) {
     const d = dayKey(e.match.kickoff_time);
     const arr = byDay.get(d) ?? [];
-    arr.push({ match: e.match, names: [...e.names], pot: e.slots * STAKE_VND });
+    arr.push({ match: e.match, names: [...e.names], pot: e.slots * STAKE });
     byDay.set(d, arr);
   }
 
@@ -693,6 +697,8 @@ export async function getPlayerLedger(name: string): Promise<{
   total: number;
   items: { kind: "stake" | "win"; label: string; sub: string; amount: number; time: string }[];
 }> {
+  const { getStake } = await import("./admin");
+  const STAKE = await getStake();
   const [{ data: preds }, { data: matches }, { data: rewards }] = await Promise.all([
     supabase.from("predictions").select("*").eq("player_name", name),
     supabase.from("matches").select("*"),
@@ -716,7 +722,7 @@ export async function getPlayerLedger(name: string): Promise<{
       sub: m
         ? `${m.team1} – ${m.team2} · đoán ${p.predicted_home}–${p.predicted_away}`
         : "",
-      amount: -STAKE_VND,
+      amount: -STAKE,
       time: p.created_at,
     });
   }
@@ -779,6 +785,8 @@ export async function getSettlements(): Promise<
 export async function getStats(): Promise<
   { name: string; chi: number; thu: number; loiLo: number }[]
 > {
+  const { getStake } = await import("./admin");
+  const STAKE = await getStake();
   const [{ data: players }, { data: preds }, { data: rewards }] = await Promise.all([
     supabase.from("players").select("name"),
     supabase.from("predictions").select("player_name"),
@@ -803,7 +811,7 @@ export async function getStats(): Promise<
 
   return [...names]
     .map((name) => {
-      const chi = (chiByName.get(name) ?? 0) * STAKE_VND;
+      const chi = (chiByName.get(name) ?? 0) * STAKE;
       const thu = thuByName.get(name) ?? 0;
       return { name, chi, thu, loiLo: thu - chi };
     })
