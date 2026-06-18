@@ -333,11 +333,16 @@ export default function HomePage() {
                 </p>
                 {g.matches.map((m) => (
                   <MatchInfoButton key={m.id} team1={m.team1} team2={m.team2}>
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/25">
+                    <div className="relative flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/25">
+                      {m.is_open && (
+                        <span
+                          title="Đang mở đoán"
+                          className="absolute -right-1.5 -top-2 text-base drop-shadow"
+                        >
+                          🔥
+                        </span>
+                      )}
                       <div className="font-bold">
-                        {m.is_open && (
-                          <span title="Đang mở đoán">🔥 </span>
-                        )}
                         {m.team1} <span className="text-white/40">gặp</span>{" "}
                         {m.team2}
                       </div>
