@@ -89,6 +89,61 @@ export async function getLatestWinners(limit = 4): Promise<
   }));
 }
 
+// The most-recently chốt'd settlement, for the "Tiền về tiền về" celebration.
+// Returns the winners of the latest settlement batch (with the match they
+// nailed) plus `until` = kickoff of the next match after the chốt — the banner
+// shows until that match starts.
+export async function getJustWon(): Promise<{
+  wins: { player_name: string; amount: number; team1: string | null; team2: string | null }[];
+  until: string | null;
+}> {
+  const { data } = await supabase
+    .from("rewards")
+    .select("player_name, amount, match_id, created_at")
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const R =
+    (data as { player_name: string; amount: number; match_id: string | null; created_at: string }[]) ??
+    [];
+  if (R.length === 0) return { wins: [], until: null };
+
+  const settledAt = R[0].created_at;
+  const latest = new Date(settledAt).getTime();
+  const batch = R.filter((r) => latest - new Date(r.created_at).getTime() < 5000);
+
+  const ids = [...new Set(batch.map((r) => r.match_id).filter((x): x is string => !!x))];
+  const teamById = new Map<string, { team1: string; team2: string }>();
+  if (ids.length) {
+    const { data: ms } = await supabase
+      .from("matches")
+      .select("id, team1, team2")
+      .in("id", ids);
+    for (const m of (ms as { id: string; team1: string; team2: string }[]) ?? [])
+      teamById.set(m.id, { team1: m.team1, team2: m.team2 });
+  }
+  const wins = batch.map((r) => {
+    const m = r.match_id ? teamById.get(r.match_id) : undefined;
+    return {
+      player_name: r.player_name,
+      amount: Number(r.amount),
+      team1: m?.team1 ?? null,
+      team2: m?.team2 ?? null,
+    };
+  });
+
+  // Hide once the next match (kicking off after the chốt) begins.
+  const { data: nextM } = await supabase
+    .from("matches")
+    .select("kickoff_time")
+    .gt("kickoff_time", settledAt)
+    .order("kickoff_time", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const until = (nextM as { kickoff_time: string } | null)?.kickoff_time ?? null;
+
+  return { wins, until };
+}
+
 // Upcoming matches kicking off from now through the end of tomorrow (viewer's
 // local day). Falls back to the single next match if nothing in that window.
 export async function getUpcomingSoon(): Promise<Match[]> {

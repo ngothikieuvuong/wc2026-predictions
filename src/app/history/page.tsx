@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const HISTORY_SHOWN = 5;
 import { getSettlements } from "@/lib/queries";
 import { getLastSettlementDetail, type SettleResult } from "@/lib/admin";
 import { formatShort } from "@/lib/format";
@@ -43,6 +42,37 @@ export default function HistoryPage() {
       setLoading(false);
     })();
   }, []);
+
+  // VN calendar day of a settlement timestamp (for grouping older events).
+  const vnDay = (iso: string) => {
+    const d = new Date(new Date(iso).getTime() + 7 * 3600 * 1000);
+    return d.toISOString().slice(0, 10);
+  };
+  const older = events.slice(1); // everything except the most recent
+  const olderGroups: { day: string; items: Event[] }[] = [];
+  for (const e of older) {
+    const day = vnDay(e.time);
+    const last = olderGroups[olderGroups.length - 1];
+    if (last && last.day === day) last.items.push(e);
+    else olderGroups.push({ day, items: [e] });
+  }
+
+  const EventCard = ({ e }: { e: Event }) => (
+    <div className="card">
+      <p className="mb-2 text-xs text-white/40">⏱ {formatShort(e.time)}</p>
+      <ul className="divide-y divide-white/5">
+        {e.lines.map((l) => (
+          <li key={l.name} className="flex justify-between py-1.5 text-sm">
+            <span className="font-medium">{l.name}</span>
+            <span className={`font-bold ${l.delta > 0 ? "text-neon" : "text-red-400"}`}>
+              {l.delta > 0 ? "+" : ""}
+              <Money value={l.delta} />
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -158,35 +188,32 @@ export default function HistoryPage() {
           <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
             Lịch sử tất toán
           </h2>
-          {(showAll ? events : events.slice(0, HISTORY_SHOWN)).map((e, i) => (
-            <div key={i} className="card">
-              <p className="mb-2 text-xs text-white/40">⏱ {formatShort(e.time)}</p>
-              <ul className="divide-y divide-white/5">
-                {e.lines.map((l) => (
-                  <li key={l.name} className="flex justify-between py-1.5 text-sm">
-                    <span className="font-medium">{l.name}</span>
-                    <span
-                      className={`font-bold ${
-                        l.delta > 0 ? "text-neon" : "text-red-400"
-                      }`}
-                    >
-                      {l.delta > 0 ? "+" : ""}
-                      <Money value={l.delta} />
-                    </span>
-                  </li>
+          {/* Most recent settlement — always expanded */}
+          <EventCard e={events[0]} />
+
+          {/* Older settlements — grouped by day, collapsed */}
+          {older.length > 0 && (
+            <>
+              <button
+                onClick={() => setShowAll((v) => !v)}
+                className="btn-ghost w-full"
+              >
+                {showAll
+                  ? "Thu gọn"
+                  : `Xem thêm ${older.length} lần trước (${olderGroups.length} ngày) ▾`}
+              </button>
+              {showAll &&
+                olderGroups.map((g) => (
+                  <div key={g.day} className="space-y-2">
+                    <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                      Ngày {dayLabel(g.day)}
+                    </p>
+                    {g.items.map((e, i) => (
+                      <EventCard key={i} e={e} />
+                    ))}
+                  </div>
                 ))}
-              </ul>
-            </div>
-          ))}
-          {events.length > HISTORY_SHOWN && (
-            <button
-              onClick={() => setShowAll((v) => !v)}
-              className="btn-ghost w-full"
-            >
-              {showAll
-                ? "Thu gọn"
-                : `Xem thêm ${events.length - HISTORY_SHOWN} lần cũ hơn ▾`}
-            </button>
+            </>
           )}
         </div>
       ) : (

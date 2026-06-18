@@ -19,6 +19,7 @@ import LiveBar from "@/components/LiveBar";
 import { useRefresh } from "@/components/Refresh";
 import MatchInfoButton from "@/components/MatchInfoButton";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
+import JustWonBanner from "@/components/JustWonBanner";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 
 export default function HomePage() {
@@ -156,6 +157,7 @@ export default function HomePage() {
       </div>
 
       <PendingWinnersBanner />
+      <JustWonBanner />
 
       {/* Live matches — with each prediction's status vs the live score */}
       {live.length > 0 && (

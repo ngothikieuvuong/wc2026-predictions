@@ -6,6 +6,7 @@ import { getStats, getSettlements } from "@/lib/queries";
 import { Money } from "@/components/Money";
 import PlayerHistoryModal from "@/components/PlayerHistoryModal";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
+import JustWonBanner from "@/components/JustWonBanner";
 import ProfitChart from "@/components/ProfitChart";
 
 export default function StatsPage() {
@@ -51,6 +52,7 @@ export default function StatsPage() {
   return (
     <div className="space-y-6">
       <PendingWinnersBanner />
+      <JustWonBanner />
 
       <div>
         <h1 className="title-lux text-2xl">Tổng kết</h1>

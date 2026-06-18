@@ -19,6 +19,7 @@ import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 import { formatKickoff, formatShort, isClosed, matchSlug } from "@/lib/format";
 import MatchInfoButton from "@/components/MatchInfoButton";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
+import JustWonBanner from "@/components/JustWonBanner";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤡"];
 
@@ -542,6 +543,7 @@ export default function PredictionsPage() {
       </div>
 
       <PendingWinnersBanner />
+      <JustWonBanner />
 
       {loading ? (
         <p className="text-white/40">Đang tải…</p>
