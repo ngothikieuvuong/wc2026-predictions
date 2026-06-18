@@ -132,15 +132,17 @@ export async function getJustWon(): Promise<{
     };
   });
 
-  // Hide once the next match (kicking off after the chốt) begins.
-  const { data: nextM } = await supabase
+  // Hide once the next match OPEN FOR PREDICTION (is_open) kicks off — matches
+  // not opened for the group don't count as "trận tiếp theo".
+  const { data: nextOpen } = await supabase
     .from("matches")
     .select("kickoff_time")
+    .eq("is_open", true)
     .gt("kickoff_time", settledAt)
     .order("kickoff_time", { ascending: true })
     .limit(1)
     .maybeSingle();
-  const until = (nextM as { kickoff_time: string } | null)?.kickoff_time ?? null;
+  const until = (nextOpen as { kickoff_time: string } | null)?.kickoff_time ?? null;
 
   return { wins, until };
 }
