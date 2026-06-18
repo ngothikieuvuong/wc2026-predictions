@@ -99,6 +99,7 @@ export default function GiaiTabs({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [showAllResults, setShowAllResults] = useState(false);
   const RESULTS_SHOWN = 10;
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     getOpenMatches().then((ms) =>
@@ -141,9 +142,23 @@ export default function GiaiTabs({
     }
   }, [tab, results]);
 
-  // Group upcoming group-stage fixtures by day (already sorted by date).
+  // Team search (accent-insensitive).
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/đ/g, "d")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  const nq = norm(q);
+  const hit = (a: string, b: string) =>
+    !nq || norm(a).includes(nq) || norm(b).includes(nq);
+  const filteredResults = (results ?? []).filter((m) => hit(m.team1, m.team2));
+
+  // Group upcoming group-stage fixtures by day (already sorted), filtered.
   const fxGroups: { day: string; items: Fixture[] }[] = [];
   for (const f of groupFixtures) {
+    if (!hit(f.home, f.away)) continue;
     const day = viDay(f.date);
     const last = fxGroups[fxGroups.length - 1];
     if (!last || last.day !== day) fxGroups.push({ day, items: [f] });
@@ -200,6 +215,24 @@ export default function GiaiTabs({
             </button>
           ))}
         </div>
+
+        <div className="relative">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="🔎 Tìm theo đội…"
+            className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-1.5 text-sm text-white placeholder-white/40 outline-none focus:border-grass"
+          />
+          {q && (
+            <button
+              onClick={() => setQ("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+              aria-label="Xoá"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -210,7 +243,9 @@ export default function GiaiTabs({
       {tab === "bang" && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {groups.map((g) => (
+            {groups
+              .filter((g) => !nq || g.rows.some((r) => norm(r.name).includes(nq)))
+              .map((g) => (
               <div key={g.name} className="card p-0 overflow-hidden">
                 <div className="border-b border-white/10 px-4 py-2 text-sm font-bold">
                   Bảng {g.name.replace("Group ", "")}
@@ -256,7 +291,7 @@ export default function GiaiTabs({
           {fxGroups.length > 0 && (
             <RoundSection
               title="Vòng bảng"
-              count={groupFixtures.length}
+              count={fxGroups.reduce((s, g) => s + g.items.length, 0)}
               open={isOpen("Vòng bảng")}
               onToggle={() => toggle("Vòng bảng")}
             >
@@ -294,16 +329,19 @@ export default function GiaiTabs({
             </RoundSection>
           )}
 
-          {rounds.map((round) => (
+          {rounds.map((round) => {
+            const ms = round.matches.filter((m) => hit(m.home, m.away));
+            if (nq && ms.length === 0) return null;
+            return (
             <RoundSection
               key={round.name}
               title={round.name}
-              count={round.matches.length}
-              open={isOpen(round.name)}
+              count={ms.length}
+              open={nq ? true : isOpen(round.name)}
               onToggle={() => toggle(round.name)}
             >
               <ul className="space-y-1.5">
-                {round.matches.map((m, i) => {
+                {ms.map((m, i) => {
                   const open = m.teamsKnown && isMatchOpen(m.home, m.away);
                   const row = (
                     <div
@@ -337,7 +375,8 @@ export default function GiaiTabs({
                 })}
               </ul>
             </RoundSection>
-          ))}
+            );
+          })}
 
           {fxGroups.length === 0 && rounds.length === 0 && (
             <div className="card text-white/50">Chưa có lịch thi đấu.</div>
@@ -350,11 +389,16 @@ export default function GiaiTabs({
         <div className="card p-0 overflow-hidden">
           {results === null ? (
             <p className="p-4 text-white/40">Đang tải…</p>
-          ) : results.length === 0 ? (
-            <p className="p-4 text-white/50">Chưa có trận nào kết thúc.</p>
+          ) : filteredResults.length === 0 ? (
+            <p className="p-4 text-white/50">
+              {nq ? "Không tìm thấy trận của đội này." : "Chưa có trận nào kết thúc."}
+            </p>
           ) : (
             <ul className="divide-y divide-white/5">
-              {(showAllResults ? results : results.slice(0, RESULTS_SHOWN)).map((m) => (
+              {(showAllResults
+                ? filteredResults
+                : filteredResults.slice(0, RESULTS_SHOWN)
+              ).map((m) => (
                 <li key={m.id}>
                   <MatchInfoButton team1={m.team1} team2={m.team2} started>
                     <div className="px-4 py-3 transition hover:bg-white/5">
@@ -381,7 +425,7 @@ export default function GiaiTabs({
                   </MatchInfoButton>
                 </li>
               ))}
-              {results.length > RESULTS_SHOWN && (
+              {filteredResults.length > RESULTS_SHOWN && (
                 <li>
                   <button
                     onClick={() => setShowAllResults((v) => !v)}
@@ -389,7 +433,9 @@ export default function GiaiTabs({
                   >
                     {showAllResults
                       ? "Thu gọn"
-                      : `Xem thêm ${results.length - RESULTS_SHOWN} trận cũ hơn ▾`}
+                      : `Xem thêm ${
+                          filteredResults.length - RESULTS_SHOWN
+                        } trận cũ hơn ▾`}
                   </button>
                 </li>
               )}
