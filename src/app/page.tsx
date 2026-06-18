@@ -6,7 +6,7 @@ import {
   getJackpot,
   getUpcomingByDay,
   getLatestWinners,
-  getFundByDay,
+  getFundByMatch,
   getPredictionsByMatch,
   getStats,
 } from "@/lib/queries";
@@ -21,8 +21,8 @@ import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 
 export default function HomePage() {
   const [jackpot, setJackpot] = useState<number | null>(null);
-  const [fundByDay, setFundByDay] = useState<
-    Awaited<ReturnType<typeof getFundByDay>>
+  const [fundByMatch, setFundByMatch] = useState<
+    Awaited<ReturnType<typeof getFundByMatch>>
   >([]);
   const [soon, setSoon] = useState<
     Awaited<ReturnType<typeof getUpcomingByDay>>
@@ -54,7 +54,7 @@ export default function HomePage() {
   async function loadData() {
     const [j, f, s, w, lv, pr, st] = await Promise.all([
       getJackpot(),
-      getFundByDay(),
+      getFundByMatch(),
       getUpcomingByDay(),
       getLatestWinners(4),
       getLive(),
@@ -62,7 +62,7 @@ export default function HomePage() {
       getStats(),
     ]);
     setJackpot(j);
-    setFundByDay(f);
+    setFundByMatch(f);
     setSoon(s);
     setWinners(w);
     setLive(lv);
@@ -238,26 +238,54 @@ export default function HomePage() {
           {loading || jackpot === null ? "…" : <Money value={jackpot} />}
         </p>
 
-        {fundByDay.length > 0 && (
-          <div className="mt-4 space-y-1 border-t border-white/10 pt-3 text-left text-sm">
-            <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
-              Quỹ theo ngày
+        {fundByMatch.length > 0 && (
+          <div className="mt-4 space-y-3 border-t border-white/10 pt-3 text-left text-sm">
+            <p className="text-xs uppercase tracking-wider text-white/40">
+              Quỹ theo trận
             </p>
-            {fundByDay.map((d) => (
-              <div
-                key={d.date}
-                className={`flex items-baseline justify-between gap-2 ${
-                  d.counted ? "" : "opacity-40"
-                }`}
-              >
-                <span className="text-white/70">
-                  {dayLabel(d.date)}{" "}
-                  <span className="text-white/40">
-                    ({d.participants.join(", ")})
+            {fundByMatch.map((g) => (
+              <div key={g.date} className={g.counted ? "" : "opacity-40"}>
+                <div className="mb-1 flex items-baseline justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                    {g.treo !== null ? "🔁 Quỹ treo" : `Ngày ${dayLabel(g.date)}`}
+                    {!g.counted && (
+                      <span className="text-white/30"> · chưa tính</span>
+                    )}
                   </span>
-                  {!d.counted && <span className="text-white/30"> · chưa tính</span>}
-                </span>
-                <span className="shrink-0 font-semibold"><Money value={d.pot} /></span>
+                </div>
+
+                {g.treo !== null ? (
+                  <div className="flex items-baseline justify-between gap-2 rounded-lg bg-amber-400/5 px-2 py-1">
+                    <span className="min-w-0 text-white/50">
+                      ({g.treoNames.join(", ") || "—"})
+                    </span>
+                    <span className="shrink-0 font-semibold text-amber-300">
+                      <Money value={g.treo} />
+                    </span>
+                  </div>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {g.matches.map((m, i) => (
+                      <li
+                        key={i}
+                        className="flex items-baseline justify-between gap-2 border-b border-white/5 py-1 last:border-0"
+                      >
+                        <span className="min-w-0">
+                          <span className="text-white/80">
+                            {m.team1} <span className="text-white/30">–</span>{" "}
+                            {m.team2}
+                          </span>
+                          <span className="block text-[11px] text-white/40">
+                            {m.participants.join(", ")}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-semibold">
+                          <Money value={m.pot} />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>

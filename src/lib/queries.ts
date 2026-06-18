@@ -238,6 +238,86 @@ export async function getFundByDay(): Promise<
   return out.sort((x, y) => (x.date < y.date ? -1 : 1));
 }
 
+// Fund broken down by MATCH, grouped by day — so you can see who played which
+// match (and who didn't). Only days still in play (after the watermark). The
+// carried treo (if any) is appended as its own entry.
+export async function getFundByMatch(): Promise<
+  {
+    date: string;
+    counted: boolean;
+    treo: number | null;
+    treoNames: string[];
+    matches: { team1: string; team2: string; participants: string[]; pot: number }[];
+  }[]
+> {
+  const [{ data: matches }, { data: preds }] = await Promise.all([
+    supabase.from("matches").select("*"),
+    supabase.from("predictions").select("*"),
+  ]);
+  const M = (matches as Match[]) ?? [];
+  const P = (preds as Prediction[]) ?? [];
+  const active = activeDay(M, P);
+  const byId = new Map(M.map((m) => [m.id, m]));
+
+  const { settlementState } = await import("./admin");
+  const { watermark, carryAmount, carrySlots } = await settlementState(M, P);
+
+  // Aggregate predictions per match (only unsettled days).
+  const perMatch = new Map<
+    string,
+    { match: Match; names: Set<string>; slots: number }
+  >();
+  for (const p of P) {
+    const m = byId.get(p.match_id);
+    if (!m) continue;
+    const d = dayKey(m.kickoff_time);
+    if (watermark && d <= watermark) continue;
+    let e = perMatch.get(m.id);
+    if (!e) {
+      e = { match: m, names: new Set(), slots: 0 };
+      perMatch.set(m.id, e);
+    }
+    e.names.add(p.player_name);
+    e.slots++;
+  }
+
+  // Group matches by day (matches sorted by kickoff within the day).
+  const byDay = new Map<string, { match: Match; names: string[]; pot: number }[]>();
+  for (const e of perMatch.values()) {
+    const d = dayKey(e.match.kickoff_time);
+    const arr = byDay.get(d) ?? [];
+    arr.push({ match: e.match, names: [...e.names], pot: e.slots * STAKE_VND });
+    byDay.set(d, arr);
+  }
+
+  const out = [...byDay.entries()].map(([date, arr]) => ({
+    date,
+    counted: date <= active,
+    treo: null as number | null,
+    treoNames: [] as string[],
+    matches: arr
+      .sort((a, b) => (a.match.kickoff_time < b.match.kickoff_time ? -1 : 1))
+      .map((x) => ({
+        team1: x.match.team1,
+        team2: x.match.team2,
+        participants: x.names,
+        pot: x.pot,
+      })),
+  }));
+
+  if (carryAmount > 0) {
+    out.push({
+      date: watermark,
+      counted: true,
+      treo: carryAmount,
+      treoNames: [...carrySlots.keys()],
+      matches: [],
+    });
+  }
+
+  return out.sort((x, y) => (x.date < y.date ? -1 : 1));
+}
+
 // Quick info for two teams: FIFA rank + their results so far in the tournament.
 export async function getTeamInfo(
   teamA: string,
