@@ -39,6 +39,6 @@ export function HideMoneyProvider({ children }: { children: React.ReactNode }) {
 export function Money({ value }: { value: number }) {
   const { hidden } = useHideMoney();
   if (hidden)
-    return <span className="select-none tracking-wider">••••đ</span>;
+    return <span className="select-none tracking-wider">••••$</span>;
   return <>{formatVND(value)}</>;
 }
