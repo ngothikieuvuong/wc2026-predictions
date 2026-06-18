@@ -91,7 +91,7 @@ export default function NavBar() {
           <Link href="/" className="flex items-center gap-2.5">
             <span
               className="logo-float relative flex shrink-0 items-center justify-center"
-              style={{ perspective: "240px" }}
+              style={{ perspective: "150px" }}
             >
               <span className="logo-glow" aria-hidden />
               <Image
