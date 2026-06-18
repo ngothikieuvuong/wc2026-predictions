@@ -109,6 +109,13 @@ body {
 .logo-float {
   animation: logoFloat 3.2s ease-in-out infinite;
 }
+@keyframes logoSpin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+.logo-spin {
+  animation: logoSpin 4.5s linear infinite;
+}
 .logo-glow {
   position: absolute;
   inset: -8px;

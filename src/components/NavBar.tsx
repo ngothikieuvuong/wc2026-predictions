@@ -82,21 +82,24 @@ export default function NavBar() {
       className="sticky top-0 z-30 border-b border-white/10 bg-[#08160e]/80 shadow-lux backdrop-blur-xl"
     >
       <div className="mx-auto max-w-3xl px-4">
-        {/* Brand + menu */}
+        {/* Brand (centered) + menu */}
         <div
-          className={`flex items-center justify-between transition-all duration-200 ${
+          className={`relative flex items-center justify-center transition-all duration-200 ${
             scrolled ? "py-1.5" : "py-2.5"
           }`}
         >
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="relative flex shrink-0 items-center justify-center">
+            <span
+              className="logo-float relative flex shrink-0 items-center justify-center"
+              style={{ perspective: "240px" }}
+            >
               <span className="logo-glow" aria-hidden />
               <Image
                 src="/cupLogo.webp"
                 alt="World Cup 2026"
                 width={63}
                 height={141}
-                className={`logo-float relative w-auto object-contain drop-shadow-[0_2px_10px_rgba(233,201,124,0.55)] transition-all duration-200 ${
+                className={`logo-spin relative w-auto object-contain drop-shadow-[0_2px_10px_rgba(233,201,124,0.55)] transition-all duration-200 ${
                   scrolled ? "h-8" : "h-12"
                 }`}
                 priority
@@ -116,7 +119,7 @@ export default function NavBar() {
             )}
           </Link>
 
-          <div className="relative" ref={menuRef}>
+          <div className="absolute right-0" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className="shrink-0 rounded-lg px-2.5 py-1.5 text-xl text-white/70 transition hover:bg-white/10 hover:text-white"
