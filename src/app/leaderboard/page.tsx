@@ -8,6 +8,7 @@ import PlayerHistoryModal from "@/components/PlayerHistoryModal";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 import JustWonBanner from "@/components/JustWonBanner";
 import ProfitChart from "@/components/ProfitChart";
+import PageHeader from "@/components/PageHeader";
 
 export default function StatsPage() {
   const [rows, setRows] = useState<
@@ -54,9 +55,7 @@ export default function StatsPage() {
       <PendingWinnersBanner />
       <JustWonBanner />
 
-      <div>
-        <h1 className="title-lux text-2xl">Tổng kết</h1>
-      </div>
+      <PageHeader title="Tổng kết" subtitle="Ai đang lời, ai đang lỗ — và diễn biến qua từng lần chia quỹ." />
 
       <div className="card p-0 overflow-hidden">
         {loading ? (

@@ -27,6 +27,7 @@ import type { SettleResult } from "@/lib/admin";
 import { getJackpot, getFundByDay, getPlayers, addPlayer } from "@/lib/queries";
 import type { Match } from "@/lib/types";
 import { formatKickoff, formatShort, formatVND } from "@/lib/format";
+import PageHeader from "@/components/PageHeader";
 import { dayKey, dayLabel } from "@/lib/day";
 
 const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
@@ -218,7 +219,7 @@ function AdminPanel() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">⚙️ Quản trị</h1>
+      <PageHeader title="⚙️ Quản trị" subtitle="Chốt sổ, quản lý quỹ, người chơi và lượt đoán." />
 
       {banner && (
         <div className="card border-grass/40 text-sm text-grass">{banner}</div>

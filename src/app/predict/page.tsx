@@ -17,6 +17,7 @@ import { getOdds, findOdds } from "@/lib/oddsClient";
 import { predictMatch, type Prediction as ScorePrediction } from "@/lib/predict";
 import TeamInfoButton from "@/components/TeamInfoButton";
 import Modal from "@/components/Modal";
+import PageHeader from "@/components/PageHeader";
 
 const NEW_PLAYER = "__new__";
 const MAX_GOALS = 6; // 0–6 per side (e.g. 6–0 max, never 7–0)
@@ -508,12 +509,10 @@ export default function PredictPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="title-lux text-2xl">Đoán tỉ số</h1>
-        <p className="text-sm text-white/50">
-          Góp {formatVND(stake)} vào quỹ. Đoán trúng tỉ số nhận quỹ. Mỗi trận một lượt.
-        </p>
-      </div>
+      <PageHeader
+        title="Đoán tỉ số"
+        subtitle={`Góp ${formatVND(stake)} vào quỹ. Đoán trúng tỉ số nhận quỹ. Mỗi trận một lượt.`}
+      />
 
       <form onSubmit={handleSubmit} className="card space-y-4">
         <div>

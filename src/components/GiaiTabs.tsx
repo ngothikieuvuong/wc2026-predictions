@@ -8,6 +8,7 @@ import { autoSync } from "@/lib/syncClient";
 import { formatKickoff, matchSlug } from "@/lib/format";
 import { useRefresh } from "@/components/Refresh";
 import MatchInfoButton from "@/components/MatchInfoButton";
+import PageHeader from "@/components/PageHeader";
 
 // Small green badge marking a match that's open for prediction.
 function OpenBadge() {
@@ -167,12 +168,10 @@ export default function GiaiTabs({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="title-lux text-2xl">Lịch và kết quả</h1>
-        <p className="text-sm text-white/50">
-          Lịch thi đấu, kết quả các trận và bảng xếp hạng.
-        </p>
-      </div>
+      <PageHeader
+        title="Lịch và kết quả"
+        subtitle="Lịch thi đấu, kết quả các trận và bảng xếp hạng."
+      />
 
       {/* Sentinel: marks where the bar pins under the nav */}
       <div ref={sentinelRef} aria-hidden className="h-0" />

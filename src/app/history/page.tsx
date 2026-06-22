@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 import { getSettlements } from "@/lib/queries";
+import PageHeader from "@/components/PageHeader";
 import { getLastSettlementDetail, type SettleResult } from "@/lib/admin";
 import { formatShort } from "@/lib/format";
 import { Money } from "@/components/Money";
@@ -76,18 +76,11 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href="/leaderboard"
-          className="text-sm text-white/50 transition hover:text-white"
-        >
-          ← Về Tổng kết
-        </Link>
-        <h1 className="title-lux mt-1 text-2xl">Lịch sử chia quỹ</h1>
-        <p className="text-sm text-white/50">
-          Chi tiết lần chia gần nhất và toàn bộ các lần tất toán đã xác nhận.
-        </p>
-      </div>
+      <PageHeader
+        title="Lịch sử chia quỹ"
+        subtitle="Chi tiết lần chia gần nhất và toàn bộ các lần tất toán đã xác nhận."
+        back={{ href: "/leaderboard", label: "Về Tổng kết" }}
+      />
 
       {loading && <p className="text-white/40">Đang tải…</p>}
 

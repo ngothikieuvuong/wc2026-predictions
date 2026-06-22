@@ -20,6 +20,7 @@ import { formatKickoff, formatShort, isClosed, matchSlug } from "@/lib/format";
 import MatchInfoButton from "@/components/MatchInfoButton";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 import JustWonBanner from "@/components/JustWonBanner";
+import PageHeader from "@/components/PageHeader";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤡"];
 
@@ -524,6 +525,11 @@ export default function PredictionsPage() {
   return (
     <div className="space-y-6">
       <LiveBar live={liveScores} />
+
+      <PageHeader
+        title="Mọi người đoán"
+        subtitle="Tất cả lượt đoán theo từng trận — chạm giữ một lượt để thả cảm xúc."
+      />
 
       {/* Đoán Ngay — freezes under the nav (below the live bar) on scroll */}
       <div
