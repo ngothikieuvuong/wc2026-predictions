@@ -731,52 +731,37 @@ function NumStepper({
 
 function SettleSimulator() {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [scores, setScores] = useState<Record<string, { h: number; a: number }>>(
-    {}
-  );
+  const [players, setPlayers] = useState<string[]>([]);
+  const [matchId, setMatchId] = useState("");
+  const [h, setH] = useState(0);
+  const [a, setA] = useState(0);
+  // Hypothetical extra predictions ON the selected match.
+  const [extra, setExtra] = useState<{ player: string; h: number; a: number }[]>([]);
+  const [addPlayer, setAddPlayer] = useState("");
+  const [addH, setAddH] = useState(0);
+  const [addA, setAddA] = useState(0);
   const [result, setResult] = useState<SettleResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
-  // Hypothetical extra predictions.
-  const [players, setPlayers] = useState<string[]>([]);
-  const [extra, setExtra] = useState<
-    { player: string; matchId: string; h: number; a: number }[]
-  >([]);
-  const [addPlayer, setAddPlayer] = useState("");
-  const [addMatch, setAddMatch] = useState("");
-  const [addH, setAddH] = useState(0);
-  const [addA, setAddA] = useState(0);
 
   useEffect(() => {
     if (open && matches.length === 0) getPendingScoreMatches().then(setMatches);
     if (open && players.length === 0) getPlayers().then(setPlayers);
   }, [open, matches.length, players.length]);
 
-  // Any change to scores / extra preds invalidates the shown result.
+  // Any change invalidates the shown result.
   useEffect(() => {
     setResult(null);
-  }, [scores, extra]);
+  }, [matchId, h, a, extra]);
 
-  const setScore = (id: string, k: "h" | "a", v: number) =>
-    setScores((s) => ({
-      ...s,
-      [id]: { h: s[id]?.h ?? 0, a: s[id]?.a ?? 0, [k]: v },
-    }));
-
-  const matchName = (id: string) => {
-    const m = matches.find((x) => x.id === id);
-    return m ? `${m.team1}–${m.team2}` : "?";
-  };
+  const selected = matches.find((m) => m.id === matchId);
 
   async function run() {
-    const overrides = matches.map((m) => ({
-      match_id: m.id,
-      home: scores[m.id]?.h ?? 0,
-      away: scores[m.id]?.a ?? 0,
-    }));
+    if (!matchId) return;
+    const overrides = [{ match_id: matchId, home: h, away: a }];
     const extraPreds = extra.map((e) => ({
       player_name: e.player,
-      match_id: e.matchId,
+      match_id: matchId,
       predicted_home: e.h,
       predicted_away: e.a,
     }));
@@ -785,30 +770,21 @@ function SettleSimulator() {
     setBusy(false);
   }
 
-  // Group the pending matches by game-day.
-  const byDay: { day: string; items: Match[] }[] = [];
-  for (const m of matches) {
-    const d = dayKey(m.kickoff_time);
-    const last = byDay[byDay.length - 1];
-    if (!last || last.day !== d) byDay.push({ day: d, items: [m] });
-    else last.items.push(m);
-  }
-
   return (
     <section className="card space-y-3">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between text-left"
       >
-        <span className="font-bold">🧮 Thử chốt sổ (tỉ số giả định)</span>
+        <span className="font-bold">🧮 Thử chốt sổ (1 trận giả định)</span>
         <span className="text-white/40">{open ? "▾" : "▸"}</span>
       </button>
 
       {open && (
         <>
           <p className="text-xs text-white/50">
-            Chỉnh tỉ số giả định (bấm +/−) cho các trận chưa đá để xem nếu kết
-            quả như vậy thì chia tiền thế nào. Không lưu gì cả.
+            Chọn 1 trận chưa đá, đặt tỉ số giả định để xem ai trúng + chia quỹ
+            (gồm cả quỹ treo trận đó với được) thế nào. Không lưu gì cả.
           </p>
 
           {matches.length === 0 ? (
@@ -817,123 +793,117 @@ function SettleSimulator() {
             </p>
           ) : (
             <div className="space-y-3">
-              {byDay.map((g) => (
-                <div key={g.day} className="space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Ngày {dayLabel(g.day)}
-                  </p>
-                  {g.items.map((m) => (
-                    <div key={m.id} className="rounded-lg bg-black/20 p-2">
-                      <p className="mb-1.5 text-center text-sm font-medium">
-                        {m.team1} <span className="text-white/40">–</span>{" "}
-                        {m.team2}
-                      </p>
-                      <div className="flex items-center justify-center gap-3">
-                        <NumStepper
-                          value={scores[m.id]?.h ?? 0}
-                          onChange={(v) => setScore(m.id, "h", v)}
-                        />
-                        <span className="text-white/40">:</span>
-                        <NumStepper
-                          value={scores[m.id]?.a ?? 0}
-                          onChange={(v) => setScore(m.id, "a", v)}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-
-              {/* Hypothetical extra predictions */}
-              <div className="space-y-2 rounded-xl border border-white/10 p-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                  Giả định thêm lượt đoán
-                </p>
-                <p className="text-[11px] text-white/40">
-                  Lượt thêm chỉ trúng nếu tỉ số khớp <b>kết quả trận đặt ở trên</b>.
-                </p>
-                {extra.map((e, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-2 text-xs"
-                  >
-                    <span>
-                      <b>{e.player}</b> · {matchName(e.matchId)} ·{" "}
-                      <span className="font-mono">
-                        {e.h}–{e.a}
-                      </span>
-                    </span>
-                    <button
-                      onClick={() => setExtra((x) => x.filter((_, j) => j !== i))}
-                      className="text-white/40 hover:text-red-400"
-                    >
-                      ✕
-                    </button>
-                  </div>
+              {/* Pick one match */}
+              <select
+                value={matchId}
+                onChange={(e) => setMatchId(e.target.value)}
+                className="input"
+              >
+                <option value="">— Chọn trận —</option>
+                {matches.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {dayLabel(dayKey(m.kickoff_time))} · {m.team1} – {m.team2}
+                  </option>
                 ))}
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={addPlayer}
-                    onChange={(e) => setAddPlayer(e.target.value)}
-                    className="rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-xs"
-                  >
-                    <option value="">Ai?</option>
-                    {players.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={addMatch}
-                    onChange={(e) => setAddMatch(e.target.value)}
-                    className="max-w-[9rem] rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-xs"
-                  >
-                    <option value="">Trận?</option>
-                    {matches.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.team1}–{m.team2}
-                      </option>
-                    ))}
-                  </select>
-                  <NumStepper value={addH} onChange={setAddH} />
-                  <span className="text-white/40">:</span>
-                  <NumStepper value={addA} onChange={setAddA} />
-                  <button
-                    type="button"
-                    disabled={!addPlayer || !addMatch}
-                    onClick={() => {
-                      setExtra((x) => [
-                        ...x,
-                        { player: addPlayer, matchId: addMatch, h: addH, a: addA },
-                      ]);
-                      setAddH(0);
-                      setAddA(0);
-                    }}
-                    className="btn-ghost px-3 py-1 text-xs disabled:opacity-40"
-                  >
-                    + Thêm
-                  </button>
-                </div>
-              </div>
+              </select>
 
-              <div className="flex gap-2">
-                <button onClick={run} disabled={busy} className="btn flex-1">
-                  {busy ? "Đang tính…" : "Tính thử"}
-                </button>
-                {(result || extra.length > 0) && (
-                  <button
-                    onClick={() => {
-                      setResult(null);
-                      setScores({});
-                      setExtra([]);
-                    }}
-                    className="btn-ghost"
-                  >
-                    Xóa
-                  </button>
-                )}
-              </div>
+              {selected && (
+                <>
+                  {/* Hypothetical score */}
+                  <div className="rounded-lg bg-black/20 p-2">
+                    <p className="mb-1.5 text-center text-sm font-medium">
+                      {selected.team1} <span className="text-white/40">–</span>{" "}
+                      {selected.team2}
+                    </p>
+                    <div className="flex items-center justify-center gap-3">
+                      <NumStepper value={h} onChange={setH} />
+                      <span className="text-white/40">:</span>
+                      <NumStepper value={a} onChange={setA} />
+                    </div>
+                  </div>
+
+                  {/* Hypothetical extra predictions on this match */}
+                  <div className="space-y-2 rounded-xl border border-white/10 p-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                      Giả định thêm lượt đoán (trận này)
+                    </p>
+                    <p className="text-[11px] text-white/40">
+                      Lượt thêm chỉ trúng nếu tỉ số khớp <b>{h}–{a}</b> ở trên.
+                    </p>
+                    {extra.map((e, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between gap-2 text-xs"
+                      >
+                        <span>
+                          <b>{e.player}</b> ·{" "}
+                          <span className="font-mono">
+                            {e.h}–{e.a}
+                          </span>
+                        </span>
+                        <button
+                          onClick={() => setExtra((x) => x.filter((_, j) => j !== i))}
+                          className="text-white/40 hover:text-red-400"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={addPlayer}
+                        onChange={(e) => setAddPlayer(e.target.value)}
+                        className="rounded-lg border border-white/15 bg-black/30 px-2 py-1.5 text-sm"
+                      >
+                        <option value="">Ai?</option>
+                        {players.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                      <NumStepper value={addH} onChange={setAddH} />
+                      <span className="text-white/40">:</span>
+                      <NumStepper value={addA} onChange={setAddA} />
+                      <button
+                        type="button"
+                        disabled={!addPlayer}
+                        onClick={() => {
+                          setExtra((x) => [
+                            ...x,
+                            { player: addPlayer, h: addH, a: addA },
+                          ]);
+                          setAddPlayer("");
+                          setAddH(0);
+                          setAddA(0);
+                        }}
+                        className="btn-ghost px-3 py-1.5 text-xs disabled:opacity-40"
+                      >
+                        + Thêm
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button onClick={run} disabled={busy} className="btn flex-1">
+                      {busy ? "Đang tính…" : "Tính thử"}
+                    </button>
+                    {(result || extra.length > 0) && (
+                      <button
+                        onClick={() => {
+                          setResult(null);
+                          setH(0);
+                          setA(0);
+                          setExtra([]);
+                        }}
+                        className="btn-ghost"
+                      >
+                        Xóa
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 

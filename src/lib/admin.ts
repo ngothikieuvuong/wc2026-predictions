@@ -338,6 +338,10 @@ export async function computeSettlement(
   };
 
   const round1k = (n: number) => Math.round(n / 1000) * 1000;
+  // Simulator mode (the admin "thử chốt sổ" preview): hypothetical scores /
+  // predictions are passed in. Skip not-yet-played matches instead of stopping,
+  // so a single what-if match settles against the current treo.
+  const sim = !!(overrides && overrides.length) || !!(extraPreds && extraPreds.length);
   const newPayouts: {
     match_id: string;
     player_name: string;
@@ -348,8 +352,10 @@ export async function computeSettlement(
   const paidDateSet = new Set<string>();
 
   for (const m of future) {
-    if (!(m.status === "finished" && m.home_score != null && m.away_score != null))
-      break; // chronological — wait for this match before the later ones
+    if (!(m.status === "finished" && m.home_score != null && m.away_score != null)) {
+      if (sim) continue; // skip unplayed matches in a what-if
+      break; // real settle — chronological, wait for this match
+    }
     const ps = predsByMatch.get(m.id) ?? [];
     if (ps.length === 0) continue;
     const pot = ps.length * STAKE;
