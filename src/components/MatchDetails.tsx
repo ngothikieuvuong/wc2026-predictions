@@ -8,14 +8,76 @@ import { predictMatch, type Prediction } from "@/lib/predict";
 import { getGroups, groupStatus, type GroupAnalysis } from "@/lib/groups";
 import LineupView from "@/components/LineupView";
 
+type Info = Awaited<ReturnType<typeof getTeamInfo>>;
+
+// ── Tab 1: Phong độ — two teams compared side by side + group chances ──────────
+function FormCompare({ info }: { info: Info }) {
+  const [a, b] = info;
+  const Row = ({ label, av, bv }: { label: string; av: string; bv: string }) => (
+    <div className="grid grid-cols-3 items-center gap-2">
+      <span className="text-left text-sm font-semibold">{av}</span>
+      <span className="text-center text-[10px] uppercase tracking-wider text-white/40">
+        {label}
+      </span>
+      <span className="text-right text-sm font-semibold">{bv}</span>
+    </div>
+  );
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+      <div className="grid grid-cols-3 items-end gap-2 text-center">
+        <div>
+          <p className="font-bold leading-tight">{a.team}</p>
+          <p className="text-[11px] text-white/40">FIFA ~{a.rank ?? "?"}</p>
+        </div>
+        <span className="pb-1 text-xs text-white/30">vs</span>
+        <div>
+          <p className="font-bold leading-tight">{b.team}</p>
+          <p className="text-[11px] text-white/40">FIFA ~{b.rank ?? "?"}</p>
+        </div>
+      </div>
+      <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+        <Row label="đã đá" av={`${a.played}`} bv={`${b.played}`} />
+        <Row label="T-H-B" av={`${a.w}-${a.d}-${a.l}`} bv={`${b.w}-${b.d}-${b.l}`} />
+        <Row label="ghi / thủng" av={`${a.gf} / ${a.ga}`} bv={`${b.gf} / ${b.ga}`} />
+      </div>
+    </div>
+  );
+}
+
+function RecentForm({ info }: { info: Info }) {
+  return (
+    <div className="space-y-2">
+      {info.map((t) => (
+        <div key={t.team} className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <p className="mb-1.5 text-sm font-bold">{t.team}</p>
+          {t.played === 0 ? (
+            <p className="text-xs text-white/40">Chưa đá trận nào ở giải.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {t.results.map((r, i) => (
+                <span
+                  key={i}
+                  className={`rounded-md px-2 py-1 text-xs ${
+                    r.res === "T"
+                      ? "bg-grass/15 text-grass"
+                      : r.res === "H"
+                      ? "bg-amber-400/15 text-amber-300"
+                      : "bg-red-400/15 text-red-300"
+                  }`}
+                >
+                  <b>{r.res}</b> {r.opp} {r.gf}–{r.ga}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Group-stage qualification read for both teams (current points + chances).
-function GroupStatusSection({
-  team1,
-  team2,
-}: {
-  team1: string;
-  team2: string;
-}) {
+function GroupStatusSection({ team1, team2 }: { team1: string; team2: string }) {
   const [rows, setRows] = useState<(GroupAnalysis | null)[]>([null, null]);
 
   useEffect(() => {
@@ -41,7 +103,7 @@ function GroupStatusSection({
       : "text-amber-300";
 
   return (
-    <div className="space-y-2 border-t border-white/10 pt-3">
+    <div className="space-y-2">
       <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
         🧮 Cơ hội đi tiếp (vòng bảng)
       </p>
@@ -61,15 +123,13 @@ function GroupStatusSection({
         </div>
       ))}
       <p className="text-[11px] text-white/30">
-        Top 2 mỗi bảng đi tiếp (+ vài đội hạng 3 tốt nhất). Nhận định dựa trên
-        điểm — chỉ để tham khảo.
+        Top 2 mỗi bảng đi tiếp (+ vài đội hạng 3 tốt nhất). Chỉ để tham khảo.
       </p>
     </div>
   );
 }
 
-// On-demand statistical score hint (free, no external AI). Computes only when
-// the user taps the button. Framed clearly as a non-serious reference.
+// ── Tab 2 (pre-match): on-demand statistical score hint + reference odds ───────
 function PredictionSection({ team1, team2 }: { team1: string; team2: string }) {
   const [pred, setPred] = useState<Prediction | null>(null);
   const [loading, setLoading] = useState(false);
@@ -89,7 +149,7 @@ function PredictionSection({ team1, team2 }: { team1: string; team2: string }) {
 
   if (!pred) {
     return (
-      <div className="border-t border-white/10 pt-3">
+      <div>
         <button onClick={run} disabled={loading} className="btn-ghost w-full">
           {loading ? "Đang phân tích…" : "🤖 Gợi ý tỉ số (tham khảo)"}
         </button>
@@ -120,7 +180,6 @@ function PredictionSection({ team1, team2 }: { team1: string; team2: string }) {
         </p>
       </div>
 
-      {/* Win / draw / win split */}
       <div>
         <div className="mb-1 flex justify-between gap-2 text-[11px] text-white/60">
           <span className="truncate">{team1} {pct(pred.pA)}%</span>
@@ -134,7 +193,6 @@ function PredictionSection({ team1, team2 }: { team1: string; team2: string }) {
         </div>
       </div>
 
-      {/* A few likely scorelines */}
       <div>
         <p className="mb-1 text-[11px] text-white/50">Vài tỉ số khả dĩ:</p>
         <div className="flex flex-wrap gap-2">
@@ -143,26 +201,64 @@ function PredictionSection({ team1, team2 }: { team1: string; team2: string }) {
               key={i}
               className="rounded-lg bg-black/30 px-2.5 py-1 font-mono text-sm"
             >
-              {t.a}–{t.b}{" "}
-              <span className="text-xs text-white/40">{pct(t.p)}%</span>
+              {t.a}–{t.b} <span className="text-xs text-white/40">{pct(t.p)}%</span>
             </span>
           ))}
         </div>
       </div>
 
       <p className="text-[11px] leading-relaxed text-white/30">
-        Dựa trên {pred.basis}. Chỉ để tham khảo cho vui — đoán đúng y tỉ số rất
-        khó, % thấp là bình thường.
+        Dựa trên {pred.basis}. Chỉ để tham khảo cho vui — đoán đúng y tỉ số rất khó.
       </p>
     </div>
   );
 }
 
-type Info = Awaited<ReturnType<typeof getTeamInfo>>;
+function OddsSection({ team1, team2 }: { team1: string; team2: string }) {
+  const [odds, setOdds] = useState<OddsRow | null | undefined>(undefined);
 
-// Live match info (score, minute, goals, cards, possession) once a match starts.
+  useEffect(() => {
+    let alive = true;
+    getOdds().then((rows) => alive && setOdds(findOdds(rows, team1, team2)));
+    return () => {
+      alive = false;
+    };
+  }, [team1, team2]);
+
+  if (!odds) return null; // loading or not listed → hide
+
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+        Tỷ lệ kèo (tham khảo)
+      </p>
+      <div className="grid grid-cols-2 gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
+        <div>
+          <p className="text-xs text-white/50">Kèo chấp ({odds.hcLine || "–"})</p>
+          <p>
+            {odds.home}: <b>{odds.hcHome || "–"}</b>
+          </p>
+          <p>
+            {odds.away}: <b>{odds.hcAway || "–"}</b>
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-white/50">Tài xỉu ({odds.ouLine || "–"})</p>
+          <p>
+            Tài: <b>{odds.over || "–"}</b>
+          </p>
+          <p>
+            Xỉu: <b>{odds.under || "–"}</b>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Tab 2 (in-play): live score, goals, cards, possession ──────────────────────
 function LiveStatsSection({ team1, team2 }: { team1: string; team2: string }) {
-  const [data, setData] = useState<MatchLive | null>(null);
+  const [data, setData] = useState<MatchLive | null | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
@@ -172,14 +268,10 @@ function LiveStatsSection({ team1, team2 }: { team1: string; team2: string }) {
     };
   }, [team1, team2]);
 
-  if (!data) {
-    return (
-      <div className="border-t border-white/10 pt-3">
-        <p className="text-sm text-white/40">Đang tải số liệu trận…</p>
-      </div>
-    );
-  }
-  if (!data.found) return null;
+  if (data === undefined)
+    return <p className="text-sm text-white/40">Đang tải số liệu trận…</p>;
+  if (!data || !data.found)
+    return <p className="text-sm text-white/40">Chưa có số liệu trực tiếp.</p>;
 
   const { home, away, minute, status, possession } = data;
   const label =
@@ -190,12 +282,7 @@ function LiveStatsSection({ team1, team2 }: { team1: string; team2: string }) {
       : "Sắp diễn ra";
 
   return (
-    <div className="space-y-3 border-t border-white/10 pt-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-        Diễn biến trận đấu
-      </p>
-
-      {/* Score */}
+    <div className="space-y-3">
       <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-center">
         <p className="text-xs font-semibold text-red-300">{label}</p>
         <p className="mt-1 flex items-center justify-center gap-3 text-2xl font-extrabold">
@@ -207,7 +294,6 @@ function LiveStatsSection({ team1, team2 }: { team1: string; team2: string }) {
         </p>
       </div>
 
-      {/* Possession */}
       {possession && (
         <div>
           <div className="mb-1 flex justify-between text-xs text-white/60">
@@ -221,7 +307,6 @@ function LiveStatsSection({ team1, team2 }: { team1: string; team2: string }) {
         </div>
       )}
 
-      {/* Goals + cards per team */}
       <div className="grid grid-cols-2 gap-3 text-sm">
         {[home, away].map((t, i) => (
           <div key={i} className="rounded-xl border border-white/10 bg-black/20 p-3">
@@ -250,53 +335,8 @@ function LiveStatsSection({ team1, team2 }: { team1: string; team2: string }) {
   );
 }
 
-// Reference odds (kèo chấp / tài xỉu) from kqbd.mobi for this match, if listed.
-function OddsSection({ team1, team2 }: { team1: string; team2: string }) {
-  const [odds, setOdds] = useState<OddsRow | null | undefined>(undefined);
-
-  useEffect(() => {
-    let alive = true;
-    getOdds().then((rows) => alive && setOdds(findOdds(rows, team1, team2)));
-    return () => {
-      alive = false;
-    };
-  }, [team1, team2]);
-
-  if (!odds) return null; // loading or not listed → hide
-
-  return (
-    <div className="border-t border-white/10 pt-3">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
-        Tỷ lệ kèo (tham khảo)
-      </p>
-      <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-white/50">Kèo chấp ({odds.hcLine || "–"})</p>
-            <p>
-              {odds.home}: <b>{odds.hcHome || "–"}</b>
-            </p>
-            <p>
-              {odds.away}: <b>{odds.hcAway || "–"}</b>
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-white/50">Tài xỉu ({odds.ouLine || "–"})</p>
-            <p>
-              Tài: <b>{odds.over || "–"}</b>
-            </p>
-            <p>
-              Xỉu: <b>{odds.under || "–"}</b>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Shared popup body: FIFA rank + tournament form of both teams, then lineups +
-// card suspensions. Used by the home match popup and the predict "Thêm thông tin".
+// Shared popup body, organised into tabs so it reads cleanly instead of one
+// long cluttered scroll. Used by the home match popup and the predict page.
 export default function MatchDetails({
   team1,
   team2,
@@ -307,6 +347,9 @@ export default function MatchDetails({
   started?: boolean;
 }) {
   const [info, setInfo] = useState<Info | null>(null);
+  const [tab, setTab] = useState<"form" | "insight" | "lineup">(
+    started ? "insight" : "form"
+  );
 
   useEffect(() => {
     let alive = true;
@@ -316,78 +359,53 @@ export default function MatchDetails({
     };
   }, [team1, team2]);
 
+  const tabs = [
+    { id: "form" as const, label: "Phong độ" },
+    { id: "insight" as const, label: started ? "🔴 Trực tiếp" : "Nhận định" },
+    { id: "lineup" as const, label: "Đội hình" },
+  ];
+
   return (
     <div className="space-y-4">
-      {info === null ? (
-        <p className="text-sm text-white/40">Đang tải…</p>
-      ) : (
-        <div className="space-y-3">
-          {info.map((t) => (
-            <div
-              key={t.team}
-              className="rounded-xl border border-white/10 bg-black/20 p-3"
-            >
-              <p className="font-bold">
-                {t.team}{" "}
-                <span className="text-xs font-normal text-white/40">
-                  · Hạng FIFA ~{t.rank ?? "?"}
-                </span>
-              </p>
-              {t.played === 0 ? (
-                <p className="mt-1 text-sm text-white/50">Chưa đá trận nào ở giải.</p>
-              ) : (
-                <>
-                  <p className="mt-1 text-sm text-white/70">
-                    Đã đá {t.played} trận: {t.w} thắng, {t.d} hòa, {t.l} thua · ghi{" "}
-                    {t.gf}, thủng {t.ga}
-                  </p>
-                  <ul className="mt-1.5 space-y-1 text-sm">
-                    {t.results.map((r, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <span
-                          className={`w-12 shrink-0 font-semibold ${
-                            r.res === "T"
-                              ? "text-grass"
-                              : r.res === "H"
-                              ? "text-amber-300"
-                              : "text-red-400"
-                          }`}
-                        >
-                          {r.res === "T" ? "Thắng" : r.res === "H" ? "Hòa" : "Thua"}
-                        </span>
-                        <span className="text-white/70">
-                          {r.opp} {r.gf}–{r.ga}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Group-stage qualification analysis */}
-      <GroupStatusSection team1={team1} team2={team2} />
-
-      {/* On-demand statistical score hint */}
-      <PredictionSection team1={team1} team2={team2} />
-
-      {/* Live stats once the match starts; otherwise reference odds */}
-      {started ? (
-        <LiveStatsSection team1={team1} team2={team2} />
-      ) : (
-        <OddsSection team1={team1} team2={team2} />
-      )}
-
-      {/* Lineups + card suspensions */}
-      <div className="border-t border-white/10 pt-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
-          Đội hình
-        </p>
-        <LineupView team1={team1} team2={team2} />
+      {/* Segmented tabs */}
+      <div className="flex gap-1 rounded-xl bg-white/5 p-1">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
+              tab === t.id
+                ? "bg-gradient-to-b from-[#28d567] to-grass text-black shadow-glow"
+                : "text-white/60 hover:bg-white/10"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {tab === "form" &&
+        (info === null ? (
+          <p className="text-sm text-white/40">Đang tải…</p>
+        ) : (
+          <div className="space-y-3">
+            <FormCompare info={info} />
+            <RecentForm info={info} />
+            <GroupStatusSection team1={team1} team2={team2} />
+          </div>
+        ))}
+
+      {tab === "insight" &&
+        (started ? (
+          <LiveStatsSection team1={team1} team2={team2} />
+        ) : (
+          <div className="space-y-3">
+            <PredictionSection team1={team1} team2={team2} />
+            <OddsSection team1={team1} team2={team2} />
+          </div>
+        ))}
+
+      {tab === "lineup" && <LineupView team1={team1} team2={team2} />}
     </div>
   );
 }
