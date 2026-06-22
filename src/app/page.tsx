@@ -345,7 +345,13 @@ export default function HomePage() {
                 </p>
                 {g.matches.map((m) => (
                   <MatchInfoButton key={m.id} team1={m.team1} team2={m.team2}>
-                    <div className="relative flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3 transition hover:border-white/25">
+                    <div
+                      className={`relative flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition ${
+                        m.is_open
+                          ? "border-grass/30 bg-grass/[0.06] hover:border-grass/50"
+                          : "border-white/10 bg-black/20 hover:border-white/25"
+                      }`}
+                    >
                       {m.is_open && (
                         <span
                           title="Đang mở đoán"

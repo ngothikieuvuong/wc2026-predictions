@@ -50,6 +50,15 @@ export default function StatsPage() {
   const arrow = (key: typeof sortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
+  // Medals for the top earners (by lời/lỗ), independent of the current sort.
+  const ranked = [...rows].sort((a, b) => b.loiLo - a.loiLo);
+  const medalOf = (name: string) => {
+    const i = ranked.findIndex((x) => x.name === name);
+    const r = ranked[i];
+    if (!r || r.loiLo <= 0) return "";
+    return i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+  };
+
   return (
     <div className="space-y-6">
       <PendingWinnersBanner />
@@ -102,6 +111,9 @@ export default function StatsPage() {
                         onClick={() => setHistoryName(r.name)}
                         className="text-left underline decoration-white/20 underline-offset-2 hover:decoration-white"
                       >
+                        {medalOf(r.name) && (
+                          <span className="mr-1">{medalOf(r.name)}</span>
+                        )}
                         {r.name}
                       </button>
                     </td>
