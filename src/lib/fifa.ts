@@ -84,12 +84,15 @@ const FIFA_MATCHES_URL =
   `&idCompetition=${FIFA_COMPETITION}&idSeason=${FIFA_SEASON}` +
   `&from=2026-06-01T00:00:00Z&to=2026-07-31T00:00:00Z`;
 
+export type LiveGoalLite = { player: string; minute: string; note?: string };
 export type LiveScore = {
   home: string; // Vietnamese team name
   away: string;
   homeScore: number;
   awayScore: number;
   minute: string; // "67'" or ""
+  homeGoals?: LiveGoalLite[]; // scorers for the sticky live bar
+  awayGoals?: LiveGoalLite[];
 };
 
 // Currently in-play matches (MatchStatus 3) with their live score + minute.
@@ -109,9 +112,11 @@ export async function getLiveScores(): Promise<LiveScore[]> {
     const awayVI = CODE_TO_VI[fm.Away?.IdCountry ?? ""];
     if (!homeVI || !awayVI) continue;
 
-    // The calendar feed doesn't carry Period; the per-match live feed does.
+    // The calendar feed doesn't carry Period/goals; the per-match live feed does.
     // Period 4 = half-time → show "HT" instead of a minute.
     let minute = typeof fm.MatchTime === "string" ? fm.MatchTime : "";
+    let homeGoals: LiveGoalLite[] = [];
+    let awayGoals: LiveGoalLite[] = [];
     if (fm.IdStage && fm.IdMatch) {
       try {
         const d = await (
@@ -122,6 +127,25 @@ export async function getLiveScores(): Promise<LiveScore[]> {
         ).json();
         if (d?.Period === 4) minute = "HT";
         else if (typeof d?.MatchTime === "string" && d.MatchTime) minute = d.MatchTime;
+
+        // Scorers (for the sticky live bar). FIFA goal Type: 1 pen, 3 own goal.
+        const desc = (a: { Description?: string }[] | undefined) =>
+          a?.[0]?.Description ?? "";
+        const goalsOf = (side: any): LiveGoalLite[] => {
+          const byId = new Map<string, string>(
+            (side?.Players ?? []).map((p: any) => [
+              p.IdPlayer,
+              desc(p.PlayerName) || desc(p.ShortName) || "?",
+            ])
+          );
+          return (side?.Goals ?? []).map((g: any) => ({
+            player: byId.get(g.IdPlayer) ?? "?",
+            minute: g.Minute ?? "",
+            note: g.Type === 1 ? "pen" : g.Type === 3 ? "phản lưới" : undefined,
+          }));
+        };
+        homeGoals = goalsOf(d?.HomeTeam);
+        awayGoals = goalsOf(d?.AwayTeam);
       } catch {
         /* keep calendar minute */
       }
@@ -133,6 +157,8 @@ export async function getLiveScores(): Promise<LiveScore[]> {
       homeScore: Number(fm.Home?.Score ?? 0),
       awayScore: Number(fm.Away?.Score ?? 0),
       minute,
+      homeGoals,
+      awayGoals,
     });
   }
   return out;

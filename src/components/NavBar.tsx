@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { DEMO } from "@/lib/supabase";
 import RulesButton from "@/components/RulesButton";
-import Modal from "@/components/Modal";
 import { useHideMoney } from "@/components/Money";
 
 const SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
@@ -78,6 +77,9 @@ export default function NavBar() {
     setPin("");
     setPinErr(false);
     setPinOpen(true);
+    // Focus SYNCHRONOUSLY inside the tap — the only way mobile pops the keyboard.
+    // The input is always mounted (below), so the ref is ready right now.
+    pinRef.current?.focus();
   }
 
   function submitPin() {
@@ -90,11 +92,6 @@ export default function NavBar() {
       pinRef.current?.focus();
     }
   }
-
-  // Auto-focus the PIN box (opens the numeric keyboard) when the modal shows.
-  useEffect(() => {
-    if (pinOpen) setTimeout(() => pinRef.current?.focus(), 50);
-  }, [pinOpen]);
 
   return (
     <header
@@ -231,33 +228,43 @@ export default function NavBar() {
         </nav>
       </div>
 
-      {pinOpen && (
-        <Modal title="🔒 Mật khẩu quản trị" onClose={() => setPinOpen(false)}>
-          <div className="space-y-3">
-            <input
-              ref={pinRef}
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete="off"
-              value={pin}
-              onChange={(e) => {
-                setPin(e.target.value.replace(/\D/g, ""));
-                setPinErr(false);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && submitPin()}
-              placeholder="••••"
-              className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-center text-2xl font-bold tracking-[0.4em] text-white outline-none focus:border-grass"
-            />
-            {pinErr && (
-              <p className="text-center text-sm text-red-400">Sai mật khẩu</p>
-            )}
-            <button className="btn w-full" onClick={submitPin}>
-              Vào quản trị
-            </button>
-          </div>
-        </Modal>
-      )}
+      {/* PIN overlay — ALWAYS mounted (only toggled by opacity) so goAdmin can
+          focus the input within the tap gesture and pop the numeric keyboard. */}
+      <div
+        className={`fixed inset-0 z-[60] flex items-start justify-center bg-black/70 p-4 pt-[18vh] backdrop-blur-sm transition-opacity duration-150 ${
+          pinOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setPinOpen(false)}
+        aria-hidden={!pinOpen}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-xs rounded-2xl border border-white/10 bg-neutral-900/95 p-4 shadow-2xl"
+        >
+          <p className="mb-2 text-center font-bold">🔒 Mật khẩu quản trị</p>
+          <input
+            ref={pinRef}
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
+            value={pin}
+            onChange={(e) => {
+              setPin(e.target.value.replace(/\D/g, ""));
+              setPinErr(false);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && submitPin()}
+            placeholder="••••"
+            className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-center text-2xl font-bold tracking-[0.4em] text-white outline-none focus:border-grass"
+          />
+          {pinErr && (
+            <p className="mt-2 text-center text-sm text-red-400">Sai mật khẩu</p>
+          )}
+          <button className="btn mt-3 w-full" onClick={submitPin}>
+            Vào quản trị
+          </button>
+        </div>
+      </div>
     </header>
   );
 }

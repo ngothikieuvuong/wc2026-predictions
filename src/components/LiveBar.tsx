@@ -37,24 +37,38 @@ export default function LiveBar({ live }: { live: LiveScore[] }) {
     >
       <div className="mx-auto max-w-3xl px-4">
         <div className="space-y-0.5 rounded-b-xl border border-t-0 border-red-500/30 bg-[#1a0d0d]/90 px-4 py-1.5 shadow-lux backdrop-blur-xl">
-          {live.slice(0, 3).map((m, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-center gap-2 text-xs"
-            >
-              <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-red-400" />
-              <span className="truncate font-medium text-white/80">{m.home}</span>
-              <span className="shrink-0 font-mono font-extrabold text-red-300">
-                {m.homeScore}–{m.awayScore}
-              </span>
-              <span className="truncate font-medium text-white/80">{m.away}</span>
-              {m.minute && (
-                <span className="shrink-0 font-semibold text-red-300">
-                  {m.minute}
-                </span>
-              )}
-            </div>
-          ))}
+          {live.slice(0, 3).map((m, i) => {
+            const fmt = (g: { player: string; minute: string; note?: string }) =>
+              `${g.player} ${g.minute}${g.note ? ` (${g.note})` : ""}`.trim();
+            const hg = m.homeGoals ?? [];
+            const ag = m.awayGoals ?? [];
+            return (
+              <div key={i} className="space-y-0.5">
+                <div className="flex items-center justify-center gap-2 text-xs">
+                  <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-red-400" />
+                  <span className="truncate font-medium text-white/80">{m.home}</span>
+                  <span className="shrink-0 font-mono font-extrabold text-red-300">
+                    {m.homeScore}–{m.awayScore}
+                  </span>
+                  <span className="truncate font-medium text-white/80">{m.away}</span>
+                  {m.minute && (
+                    <span className="shrink-0 font-semibold text-red-300">
+                      {m.minute}
+                    </span>
+                  )}
+                </div>
+                {hg.length + ag.length > 0 && (
+                  <div className="flex items-start justify-center gap-2 text-[10px] leading-tight text-white/45">
+                    <span className="flex-1 truncate text-right">
+                      {hg.map(fmt).join(", ")}
+                    </span>
+                    <span className="shrink-0 text-white/25">⚽</span>
+                    <span className="flex-1 truncate">{ag.map(fmt).join(", ")}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
