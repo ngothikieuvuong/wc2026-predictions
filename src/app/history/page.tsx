@@ -137,15 +137,10 @@ export default function HistoryPage() {
                         {w.days.map((d, i) => (
                           <li key={i} className="flex justify-between gap-2">
                             <span>
-                              {d.kind === "win" ? (
-                                <>Ngày {dayLabel(d.date)} (trúng {d.correct} tỉ số)</>
-                              ) : d.kind === "treo" ? (
-                                <>🔁 Từ quỹ treo: {d.slots} slot</>
+                              {d.kind === "treo" ? (
+                                <>🔁 Treo {d.label} ({dayLabel(d.date)})</>
                               ) : (
-                                <>
-                                  Ngày treo {dayLabel(d.date)}: {d.slots} slot ×{" "}
-                                  {d.players} người
-                                </>
+                                <>🎯 {d.label ?? "Trúng tỉ số"}</>
                               )}
                             </span>
                             <span className="shrink-0 text-white/70">
@@ -159,15 +154,9 @@ export default function HistoryPage() {
                 })}
               </ul>
               <p className="text-[11px] leading-relaxed text-white/40">
-                Mỗi <b>trận trúng</b>: quỹ trận đó chia đều cho người trúng trận đó.
-                <b> Quỹ treo / ngày treo</b>: chia theo <b>slot</b>
-                {breakdown.scaled && (
-                  <>
-                    {" "}
-                    (<b>giảm đều</b> khi vượt quỹ)
-                  </>
-                )}
-                .
+                Mỗi <b>trận trúng</b>: quỹ trận đó chia đều cho người trúng trận đó.{" "}
+                <b>Quỹ treo</b>: mỗi trận không ai trúng giữ riêng, sau này chia cho
+                người trúng <b>có chơi</b> trận treo đó.
               </p>
             </div>
 

@@ -265,45 +265,48 @@ export default function HomePage() {
               >
                 <div className="mb-1.5 flex items-baseline justify-between gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
-                    {g.treo !== null ? "🔁 Quỹ treo" : `Ngày ${dayLabel(g.date)}`}
+                    Ngày {dayLabel(g.date)}
                     {!g.counted && (
                       <span className="text-white/30"> · chưa tính</span>
                     )}
                   </span>
                 </div>
 
-                {g.treo !== null ? (
-                  <div className="flex items-baseline justify-between gap-2 rounded-lg bg-amber-400/5 px-2 py-1">
-                    <span className="min-w-0 text-white/50">
-                      ({g.treoNames.join(", ") || "—"})
-                    </span>
-                    <span className="shrink-0 font-semibold text-amber-300">
-                      <Money value={g.treo} />
-                    </span>
-                  </div>
-                ) : (
-                  <ul className="space-y-0.5">
-                    {g.matches.map((m, i) => (
-                      <li
-                        key={i}
-                        className="flex items-baseline justify-between gap-2 border-b border-white/5 py-1 last:border-0"
+                <ul className="space-y-0.5">
+                  {g.matches.map((m, i) => (
+                    <li
+                      key={i}
+                      className={`flex items-baseline justify-between gap-2 border-b border-white/5 py-1 last:border-0 ${
+                        m.treo ? "rounded-lg bg-amber-400/5 px-1.5" : ""
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className={m.treo ? "text-amber-300/90" : "text-white/80"}>
+                          {m.treo && "🔁 "}
+                          {m.team1 ? (
+                            <>
+                              {m.team1} <span className="text-white/30">–</span>{" "}
+                              {m.team2}
+                            </>
+                          ) : (
+                            "Quỹ treo trước"
+                          )}
+                        </span>
+                        <span className="block text-[11px] text-white/40">
+                          {m.participants.join(", ") || "—"}
+                          {m.treo && " · treo"}
+                        </span>
+                      </span>
+                      <span
+                        className={`shrink-0 font-semibold ${
+                          m.treo ? "text-amber-300" : ""
+                        }`}
                       >
-                        <span className="min-w-0">
-                          <span className="text-white/80">
-                            {m.team1} <span className="text-white/30">–</span>{" "}
-                            {m.team2}
-                          </span>
-                          <span className="block text-[11px] text-white/40">
-                            {m.participants.join(", ")}
-                          </span>
-                        </span>
-                        <span className="shrink-0 font-semibold">
-                          <Money value={m.pot} />
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                        <Money value={m.pot} />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>

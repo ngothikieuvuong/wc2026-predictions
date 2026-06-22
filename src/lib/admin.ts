@@ -70,11 +70,20 @@ export type SettleResult = {
         correct: number;
         totalWin: number;
         amount: number;
+        label?: string; // matchup, e.g. "Brazil–Haiti" (for win / treo lines)
       }[];
     }[];
   };
   // The carried treo as a fund-by-day entry (date + amount + participants).
   carriedTreo: { date: string; amount: number; participants: string[] } | null;
+  // Each no-winner match still in treo (listed individually, newest day last).
+  treoMatches?: {
+    date: string;
+    team1: string | null;
+    team2: string | null;
+    pot: number;
+    participants: string[];
+  }[];
   // Matches whose money has left the in-play pool (won+paid, or no-winner ones
   // already absorbed by a settled win) — displays hide these.
   hiddenMatchIds?: string[];
@@ -192,8 +201,11 @@ export async function deleteAdjustment(id: string): Promise<void> {
 // Current carried treo amount (after all finished matches, net of manual
 // adjustments) — the full treo still in play, used by the adjustment UI.
 export async function getCarry(): Promise<number> {
-  const { breakdown } = await computeSettlement();
-  return breakdown.carried;
+  const [{ breakdown }, adjust] = await Promise.all([
+    computeSettlement(),
+    getAdjustTotal(),
+  ]);
+  return Math.max(0, breakdown.carried - adjust);
 }
 
 // Set the treo total to a specific value (records a general correction).
@@ -210,17 +222,13 @@ export async function setTreoTotal(newTotal: number): Promise<void> {
 }
 
 // INCREMENTAL per-MATCH settlement (no DB writes — applySettlement persists).
-//  - Each prediction = 1 slot. A match's pot = its slots × stake.
-//  - Matches settle ONE AT A TIME in kickoff order, as soon as a match finishes
-//    with a winner — no waiting for the rest of the day to play out.
-//  - A WON match: its own pot splits equally among the people who nailed it,
-//    PLUS those winners claim the carried treo by slots (max-claim, scaled) —
-//    same treo rule as before, only the treo claimable is from EARLIER
-//    no-winner matches (it never reaches back from a later match).
-//  - A NO-WINNER match: its pot + slots roll forward as treo to the next match.
-//  - LEGACY day-based settlements (rewards.match_id = null) are frozen: they
-//    seed the starting treo via settlementState; only matches AFTER that
-//    boundary settle per-match (each won match's rewards carry its match_id).
+//  - A match settles as soon as it finishes with a winner (no waiting for the
+//    rest of the day). Its pot splits equally among those who nailed it.
+//  - Treo is kept PER no-winner MATCH (its pot + who played it). When a later
+//    match is won, each winner ALSO claims — from every treo match THEY played
+//    — that match's pot (split among the winners who played it). No slots.
+//  - LEGACY day-based settlements (rewards.match_id = null) stay frozen and seed
+//    one legacy treo lump, claimed by winners who were in it.
 // `overrides` / `extraPreds` are the admin "thử chốt sổ" simulator hooks.
 export async function computeSettlement(
   overrides?: { match_id: string; home: number; away: number }[],
@@ -241,7 +249,6 @@ export async function computeSettlement(
   let matches = (matchesData as Match[]) ?? [];
   const preds = (predsData as Prediction[]) ?? [];
 
-  // Hypothetical extra predictions (simulator only) — appended in-memory.
   if (extraPreds && extraPreds.length) {
     extraPreds.forEach((e, i) =>
       preds.push({
@@ -268,15 +275,13 @@ export async function computeSettlement(
     );
   }
 
-  // Won matches already settled (they carry a match_id in the rewards table).
   const settledMatchIds = new Set(
     ((rewardsData as { match_id: string | null }[]) ?? [])
       .map((r) => r.match_id)
       .filter((x): x is string => !!x)
   );
 
-  // Legacy boundary (watermark = last old day-based settlement) + its carried
-  // treo, which seeds the per-match pool.
+  // Legacy boundary + its carried lump (old day-based settlements, frozen).
   const { watermark, carryAmount, carrySlots } = await settlementState(matches, preds);
 
   const predsByMatch = new Map<string, Prediction[]>();
@@ -286,7 +291,6 @@ export async function computeSettlement(
     predsByMatch.set(p.match_id, a);
   }
 
-  // Predicted matches after the legacy boundary, in chronological (kickoff) order.
   const future = matches
     .filter(
       (m) =>
@@ -302,21 +306,32 @@ export async function computeSettlement(
         : 1
     );
 
-  // Treo pool = list of units {fund, slots, matchId?}. Seeded by the legacy
-  // carry. A no-winner match pushes a unit; a won match drains it by max-claim.
-  type Unit = { fund: number; slots: Map<string, number>; matchId?: string };
-  let pool: Unit[] = [];
-  if (carryAmount > 0) pool.push({ fund: carryAmount, slots: new Map(carrySlots) });
+  // Treo kept per no-winner match: its pot + who played it.
+  type Treo = {
+    matchId: string;
+    date: string;
+    team1: string | null;
+    team2: string | null;
+    pot: number;
+    players: Set<string>;
+  };
+  let treo: Treo[] = [];
+  if (carryAmount > 0)
+    treo.push({
+      matchId: "__legacy__",
+      date: watermark || "",
+      team1: null,
+      team2: null,
+      pot: carryAmount,
+      players: new Set(carrySlots.keys()),
+    });
 
   type Line = SettleResult["breakdown"]["winners"][number]["days"][number];
-  const winnerInfo = new Map<
-    string,
-    { amount: number; correct: number; maxClaim: number; lines: Line[] }
-  >();
+  const winnerInfo = new Map<string, { amount: number; correct: number; lines: Line[] }>();
   const ensure = (name: string) => {
     let w = winnerInfo.get(name);
     if (!w) {
-      w = { amount: 0, correct: 0, maxClaim: 0, lines: [] };
+      w = { amount: 0, correct: 0, lines: [] };
       winnerInfo.set(name, w);
     }
     return w;
@@ -329,13 +344,12 @@ export async function computeSettlement(
     pay_date: string;
     amount: number;
   }[] = [];
-  const absorbedMatchIds = new Set<string>();
+  const consumedMatchIds = new Set<string>(); // treo/won matches consumed by ALREADY-settled wins
   const paidDateSet = new Set<string>();
-  let scaledFlag = false;
 
   for (const m of future) {
     if (!(m.status === "finished" && m.home_score != null && m.away_score != null))
-      break; // chronological — a match settles only after the previous one finished
+      break; // chronological — wait for this match before the later ones
     const ps = predsByMatch.get(m.id) ?? [];
     if (ps.length === 0) continue;
     const pot = ps.length * STAKE;
@@ -347,40 +361,61 @@ export async function computeSettlement(
       .map((p) => p.player_name);
 
     if (winners.length === 0) {
-      // No winner → pot + slots roll forward as treo.
-      const slots = new Map<string, number>();
-      for (const p of ps) slots.set(p.player_name, (slots.get(p.player_name) ?? 0) + 1);
-      pool.push({ fund: pot, slots, matchId: m.id });
+      // No winner → this match's pot rolls forward as its own treo entry.
+      treo.push({
+        matchId: m.id,
+        date: d,
+        team1: m.team1,
+        team2: m.team2,
+        pot,
+        players: new Set(ps.map((p) => p.player_name)),
+      });
       continue;
     }
 
-    // Won match: own pot split equally among winners + treo claim (max-claim).
     const isSettled = settledMatchIds.has(m.id);
     const winShare = pot / winners.length;
-    const treoFund = pool.reduce((s, u) => s + u.fund, 0);
-    const treoMax = new Map<string, number>();
-    for (const u of pool) {
-      const np = u.slots.size;
-      for (const [name, sl] of u.slots)
-        treoMax.set(name, (treoMax.get(name) ?? 0) + sl * np * STAKE);
-    }
-    let sumMax = 0;
-    for (const w of winners) sumMax += treoMax.get(w) ?? 0;
-    const scale = sumMax > treoFund && sumMax > 0 ? treoFund / sumMax : 1;
-    if (scale < 1) scaledFlag = true;
 
-    let paidTreo = 0;
-    for (const w of winners) {
-      const treoPay = (treoMax.get(w) ?? 0) * scale;
-      paidTreo += treoPay;
-      if (!isSettled) {
-        const total = round1k(winShare + treoPay);
+    // Each winner claims, from every treo match they played, that match's pot
+    // (split among the winners of THIS match who also played that treo match).
+    const treoPay = new Map<string, { amount: number; lines: Line[] }>();
+    const remaining: Treo[] = [];
+    for (const T of treo) {
+      const claimants = winners.filter((w) => T.players.has(w));
+      if (claimants.length === 0) {
+        remaining.push(T);
+        continue;
+      }
+      if (isSettled) consumedMatchIds.add(T.matchId);
+      const share = T.pot / claimants.length;
+      for (const w of claimants) {
+        const e = treoPay.get(w) ?? { amount: 0, lines: [] };
+        e.amount += share;
+        e.lines.push({
+          kind: "treo",
+          date: T.date,
+          slots: 0,
+          players: 0,
+          correct: 0,
+          totalWin: 0,
+          amount: round1k(share),
+          label: T.team1 && T.team2 ? `${T.team1}–${T.team2}` : "quỹ treo trước",
+        });
+        treoPay.set(w, e);
+      }
+    }
+    treo = remaining;
+    if (isSettled) consumedMatchIds.add(m.id);
+
+    if (!isSettled) {
+      for (const w of winners) {
+        const tp = treoPay.get(w);
         const winLine = round1k(winShare);
-        const treoSlots = pool.reduce((s, u) => s + (u.slots.get(w) ?? 0), 0);
+        const treoAmt = tp ? round1k(tp.amount) : 0;
+        const total = winLine + treoAmt;
         const info = ensure(w);
         info.amount += total;
         info.correct += 1;
-        info.maxClaim += treoMax.get(w) ?? 0;
         info.lines.push({
           kind: "win",
           date: d,
@@ -389,41 +424,25 @@ export async function computeSettlement(
           correct: 1,
           totalWin: winners.length,
           amount: winLine,
+          label: `${m.team1}–${m.team2}`,
         });
-        if (total - winLine !== 0)
-          info.lines.push({
-            kind: "treo",
-            date: d,
-            slots: treoSlots,
-            players: 0,
-            correct: 0,
-            totalWin: 0,
-            amount: total - winLine,
-          });
+        if (tp) for (const l of tp.lines) info.lines.push(l);
         newPayouts.push({ match_id: m.id, player_name: w, pay_date: d, amount: total });
         paidDateSet.add(d);
       }
     }
-    // Already-paid won matches still evolve the treo (and "consume" the
-    // no-winner matches they absorbed, so the displays can hide them).
-    if (isSettled) for (const u of pool) if (u.matchId) absorbedMatchIds.add(u.matchId);
-
-    // Leftover treo carries forward; the just-paid winners drop their slots.
-    const leftover = Math.max(0, treoFund - paidTreo);
-    const remSlots = new Map<string, number>();
-    for (const u of pool)
-      for (const [name, sl] of u.slots) {
-        if (winners.includes(name)) continue;
-        remSlots.set(name, (remSlots.get(name) ?? 0) + sl);
-      }
-    pool = leftover > 0 ? [{ fund: leftover, slots: remSlots }] : [];
   }
 
-  const carriedTreoAmount = round1k(pool.reduce((s, u) => s + u.fund, 0));
-  const carriedTreoSlots = new Map<string, number>();
-  for (const u of pool)
-    for (const [name, sl] of u.slots)
-      carriedTreoSlots.set(name, (carriedTreoSlots.get(name) ?? 0) + sl);
+  // Remaining treo, listed per match (legacy lump first if any).
+  const treoMatches = treo.map((T) => ({
+    date: T.date,
+    team1: T.team1,
+    team2: T.team2,
+    pot: T.pot,
+    participants: [...T.players],
+  }));
+  const carriedTreoAmount = treo.reduce((s, T) => s + T.pot, 0);
+  const treoParticipants = [...new Set(treo.flatMap((T) => [...T.players]))];
 
   const names = [...winnerInfo.keys()];
   const winTotal = names.reduce((s, n) => s + winnerInfo.get(n)!.amount, 0);
@@ -435,28 +454,18 @@ export async function computeSettlement(
     winTotal,
     carried: carriedTreoAmount,
     totalCorrect,
-    scaled: scaledFlag,
+    scaled: false,
     winners: names
       .map((name) => {
         const w = winnerInfo.get(name)!;
-        return {
-          name,
-          correct: w.correct,
-          maxClaim: round1k(w.maxClaim),
-          amount: w.amount,
-          days: w.lines,
-        };
+        return { name, correct: w.correct, maxClaim: 0, amount: w.amount, days: w.lines };
       })
       .sort((a, b) => b.amount - a.amount),
   };
 
   const carriedTreo =
     carriedTreoAmount > 0
-      ? {
-          date: watermark || "",
-          amount: carriedTreoAmount,
-          participants: [...carriedTreoSlots.keys()],
-        }
+      ? { date: watermark || "", amount: carriedTreoAmount, participants: treoParticipants }
       : null;
 
   return {
@@ -467,7 +476,8 @@ export async function computeSettlement(
     paidDates: [...paidDateSet],
     breakdown,
     carriedTreo,
-    hiddenMatchIds: [...settledMatchIds, ...absorbedMatchIds],
+    treoMatches,
+    hiddenMatchIds: [...settledMatchIds, ...consumedMatchIds],
   };
 }
 

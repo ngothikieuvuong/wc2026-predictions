@@ -265,59 +265,56 @@ export async function getFundByDay(): Promise<
   const active = activeDay(M, P);
   const byId = new Map(M.map((m) => [m.id, m]));
 
-  // Per-match settlement: matches resolve one at a time, so the "in-play" pots
-  // are the NOT-yet-played matches; resolved money is either paid out or sits in
-  // the single carried treo (computed by the engine).
+  // Per-day fund: not-yet-played matches' pots + any treo carried on that day.
   const { getStake, computeSettlement } = await import("./admin");
   const STAKE = await getStake();
-  const { carriedTreo } = await computeSettlement();
+  const { treoMatches } = await computeSettlement();
 
-  type Agg = { slots: number; names: Set<string> };
+  type Agg = { pot: number; names: Set<string> };
   const agg = new Map<string, Agg>();
+  const bump = (date: string, pot: number, names: string[]) => {
+    let a = agg.get(date);
+    if (!a) {
+      a = { pot: 0, names: new Set() };
+      agg.set(date, a);
+    }
+    a.pot += pot;
+    names.forEach((n) => a!.names.add(n));
+  };
+
   for (const p of P) {
     const m = byId.get(p.match_id);
     if (!m) continue;
-    if (m.home_score != null && m.away_score != null) continue; // already resolved
-    const d = dayKey(m.kickoff_time);
-    let a = agg.get(d);
-    if (!a) {
-      a = { slots: 0, names: new Set() };
-      agg.set(d, a);
-    }
-    a.slots++;
-    a.names.add(p.player_name);
+    if (m.home_score != null && m.away_score != null) continue; // resolved → out
+    bump(dayKey(m.kickoff_time), STAKE, [p.player_name]);
   }
+  for (const t of treoMatches ?? []) bump(t.date, t.pot, t.participants);
 
-  const out = [...agg.entries()].map(([date, a]) => ({
-    date,
-    participants: [...a.names],
-    pot: a.slots * STAKE,
-    counted: date <= active,
-  }));
-
-  // The carried treo (leftover from no-winner matches) as its own entry.
-  if (carriedTreo && carriedTreo.amount > 0) {
-    out.push({
-      date: carriedTreo.date || "",
-      participants: carriedTreo.participants,
-      pot: carriedTreo.amount,
-      counted: true,
-    });
-  }
-
-  return out.sort((x, y) => (x.date < y.date ? -1 : 1));
+  return [...agg.entries()]
+    .map(([date, a]) => ({
+      date,
+      participants: [...a.names],
+      pot: a.pot,
+      counted: date <= active,
+    }))
+    .sort((x, y) => (x.date < y.date ? -1 : 1));
 }
 
-// Fund broken down by MATCH, grouped by day — so you can see who played which
-// match (and who didn't). Only days still in play (after the watermark). The
-// carried treo (if any) is appended as its own entry.
+// Fund broken down by MATCH, grouped by day. Each day box lists its matches:
+//  - matches NOT yet played (money still coming in), and
+//  - no-winner matches still in treo (marked treo: true) — listed individually,
+//    not lumped, so you can see exactly which matches are carried.
 export async function getFundByMatch(): Promise<
   {
     date: string;
     counted: boolean;
-    treo: number | null;
-    treoNames: string[];
-    matches: { team1: string; team2: string; participants: string[]; pot: number }[];
+    matches: {
+      team1: string | null;
+      team2: string | null;
+      participants: string[];
+      pot: number;
+      treo: boolean;
+    }[];
   }[]
 > {
   const [{ data: matches }, { data: preds }] = await Promise.all([
@@ -331,18 +328,29 @@ export async function getFundByMatch(): Promise<
 
   const { getStake, computeSettlement } = await import("./admin");
   const STAKE = await getStake();
-  const { carriedTreo } = await computeSettlement();
+  const { treoMatches } = await computeSettlement();
 
-  // Aggregate predictions per NOT-yet-played match (resolved money is paid out
-  // or sits in the carried treo, shown once below).
-  const perMatch = new Map<
-    string,
-    { match: Match; names: Set<string>; slots: number }
-  >();
+  type Entry = {
+    team1: string | null;
+    team2: string | null;
+    participants: string[];
+    pot: number;
+    treo: boolean;
+    sort: string;
+  };
+  const byDay = new Map<string, Entry[]>();
+  const push = (date: string, e: Entry) => {
+    const arr = byDay.get(date) ?? [];
+    arr.push(e);
+    byDay.set(date, arr);
+  };
+
+  // Not-yet-played predicted matches (money still in play).
+  const perMatch = new Map<string, { match: Match; names: Set<string>; slots: number }>();
   for (const p of P) {
     const m = byId.get(p.match_id);
     if (!m) continue;
-    if (m.home_score != null && m.away_score != null) continue; // already resolved
+    if (m.home_score != null && m.away_score != null) continue; // resolved → out
     let e = perMatch.get(m.id);
     if (!e) {
       e = { match: m, names: new Set(), slots: 0 };
@@ -351,40 +359,36 @@ export async function getFundByMatch(): Promise<
     e.names.add(p.player_name);
     e.slots++;
   }
-
-  // Group matches by day (matches sorted by kickoff within the day).
-  const byDay = new Map<string, { match: Match; names: string[]; pot: number }[]>();
   for (const e of perMatch.values()) {
-    const d = dayKey(e.match.kickoff_time);
-    const arr = byDay.get(d) ?? [];
-    arr.push({ match: e.match, names: [...e.names], pot: e.slots * STAKE });
-    byDay.set(d, arr);
+    push(dayKey(e.match.kickoff_time), {
+      team1: e.match.team1,
+      team2: e.match.team2,
+      participants: [...e.names].sort((a, b) => a.localeCompare(b, "vi")),
+      pot: e.slots * STAKE,
+      treo: false,
+      sort: e.match.kickoff_time,
+    });
+  }
+
+  // No-winner matches still in treo — each listed under its day.
+  for (const t of treoMatches ?? []) {
+    push(t.date, {
+      team1: t.team1,
+      team2: t.team2,
+      participants: [...t.participants].sort((a, b) => a.localeCompare(b, "vi")),
+      pot: t.pot,
+      treo: true,
+      sort: "~" + t.date, // treo (finished) sorts after upcoming within a day
+    });
   }
 
   const out = [...byDay.entries()].map(([date, arr]) => ({
     date,
     counted: date <= active,
-    treo: null as number | null,
-    treoNames: [] as string[],
     matches: arr
-      .sort((a, b) => (a.match.kickoff_time < b.match.kickoff_time ? -1 : 1))
-      .map((x) => ({
-        team1: x.match.team1,
-        team2: x.match.team2,
-        participants: [...x.names].sort((a, b) => a.localeCompare(b, "vi")),
-        pot: x.pot,
-      })),
+      .sort((a, b) => (a.sort < b.sort ? -1 : 1))
+      .map(({ sort, ...m }) => m),
   }));
-
-  if (carriedTreo && carriedTreo.amount > 0) {
-    out.push({
-      date: carriedTreo.date || "",
-      counted: true,
-      treo: carriedTreo.amount,
-      treoNames: [...carriedTreo.participants].sort((a, b) => a.localeCompare(b, "vi")),
-      matches: [],
-    });
-  }
 
   return out.sort((x, y) => (x.date < y.date ? -1 : 1));
 }
