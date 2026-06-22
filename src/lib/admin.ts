@@ -247,9 +247,17 @@ export async function computeSettlement(
       supabase.from("rewards").select("match_id"),
     ]);
   let matches = (matchesData as Match[]) ?? [];
-  const preds = (predsData as Prediction[]) ?? [];
+  let preds = (predsData as Prediction[]) ?? [];
 
   if (extraPreds && extraPreds.length) {
+    // One score per person per match: a hypothetical prediction REPLACES that
+    // person's existing prediction on the same match.
+    const replace = new Set(
+      extraPreds.map((e) => e.match_id + "|" + e.player_name.toLowerCase())
+    );
+    preds = preds.filter(
+      (p) => !replace.has(p.match_id + "|" + p.player_name.toLowerCase())
+    );
     extraPreds.forEach((e, i) =>
       preds.push({
         id: `sim-${i}`,
@@ -342,6 +350,12 @@ export async function computeSettlement(
   // predictions are passed in. Skip not-yet-played matches instead of stopping,
   // so a single what-if match settles against the current treo.
   const sim = !!(overrides && overrides.length) || !!(extraPreds && extraPreds.length);
+  // The match(es) being simulated — always emit their (hypothetical) result in a
+  // what-if, even if that match was already settled for real.
+  const simTargets = new Set<string>([
+    ...(overrides ?? []).map((o) => o.match_id),
+    ...(extraPreds ?? []).map((e) => e.match_id),
+  ]);
   const newPayouts: {
     match_id: string;
     player_name: string;
@@ -379,7 +393,7 @@ export async function computeSettlement(
       continue;
     }
 
-    const isSettled = settledMatchIds.has(m.id);
+    const isSettled = settledMatchIds.has(m.id) && !(sim && simTargets.has(m.id));
     const winShare = pot / winners.length;
 
     // Each winner claims, from every treo match they played, that match's pot
@@ -666,6 +680,22 @@ export async function getPendingScoreMatches(): Promise<Match[]> {
     ((p as { match_id: string }[]) ?? []).map((x) => x.match_id)
   );
   return ((m as Match[]) ?? []).filter((x) => predicted.has(x.id));
+}
+
+// Candidates for the "thử chốt sổ" simulator: every upcoming match (so you can
+// what-if any future result) PLUS any match that already has predictions
+// (incl. finished ones, to test adding a hypothetical predictor). Soonest first.
+export async function getSimMatches(): Promise<Match[]> {
+  const [{ data: m }, { data: p }] = await Promise.all([
+    supabase.from("matches").select("*").order("kickoff_time", { ascending: true }),
+    supabase.from("predictions").select("match_id"),
+  ]);
+  const predicted = new Set(
+    ((p as { match_id: string }[]) ?? []).map((x) => x.match_id)
+  );
+  return ((m as Match[]) ?? []).filter(
+    (x) => x.status !== "finished" || predicted.has(x.id)
+  );
 }
 
 // Remove a name from the roster (predictions already made keep their name).
