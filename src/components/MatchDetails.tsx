@@ -132,35 +132,27 @@ function GroupStatusSection({ team1, team2 }: { team1: string; team2: string }) 
 // ── Tab 2 (pre-match): on-demand statistical score hint + reference odds ───────
 function PredictionSection({ team1, team2 }: { team1: string; team2: string }) {
   const [pred, setPred] = useState<Prediction | null>(null);
-  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(false);
   const pct = (x: number) => Math.round(x * 100);
 
-  const run = async () => {
-    setLoading(true);
+  // Auto-load the score hint as soon as the tab opens (no button).
+  useEffect(() => {
+    let alive = true;
     setErr(false);
-    try {
-      setPred(await predictMatch(team1, team2));
-    } catch {
-      setErr(true);
-    }
-    setLoading(false);
-  };
+    predictMatch(team1, team2)
+      .then((p) => alive && setPred(p))
+      .catch(() => alive && setErr(true));
+    return () => {
+      alive = false;
+    };
+  }, [team1, team2]);
 
-  if (!pred) {
+  if (!pred)
     return (
-      <div>
-        <button onClick={run} disabled={loading} className="btn-ghost w-full">
-          {loading ? "Đang phân tích…" : "🤖 Gợi ý tỉ số (tham khảo)"}
-        </button>
-        {err && (
-          <p className="mt-2 text-center text-xs text-red-300">
-            Chưa phân tích được, thử lại sau.
-          </p>
-        )}
-      </div>
+      <p className="text-sm text-white/40">
+        {err ? "Chưa gợi ý được tỉ số, thử lại sau." : "🤖 Đang phân tích tỉ số…"}
+      </p>
     );
-  }
 
   return (
     <div className="space-y-3 rounded-xl border border-grass/30 bg-grass/5 p-3">
