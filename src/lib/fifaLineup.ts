@@ -117,7 +117,8 @@ export async function getMatchLive(
     const goals: LiveGoal[] = (side?.Goals ?? []).map((g: any) => ({
       player: nm2(g.IdPlayer),
       minute: g.Minute ?? "",
-      note: g.Type === 2 ? "pen" : g.Type === 3 ? "phản lưới" : undefined,
+      // FIFA goal Type: 1 = penalty, 2 = normal goal, 3 = own goal.
+      note: g.Type === 1 ? "pen" : g.Type === 3 ? "phản lưới" : undefined,
     }));
     const cards: LiveCard[] = (side?.Bookings ?? []).map((b: any) => ({
       player: nm2(b.IdPlayer),
