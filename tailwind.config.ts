@@ -19,11 +19,12 @@ const config: Config = {
         goldsoft: "#f3e2b8",
       },
       fontFamily: {
-        sans: ["system-ui", "Segoe UI", "Roboto", "sans-serif"],
+        sans: ["var(--font-sans)", "system-ui", "Segoe UI", "Roboto", "sans-serif"],
       },
       boxShadow: {
         glow: "0 8px 30px -8px rgba(29,185,84,0.45)",
-        lux: "0 10px 40px -12px rgba(0,0,0,0.55)",
+        lux: "0 14px 44px -14px rgba(0,0,0,0.6)",
+        gold: "0 10px 36px -10px rgba(233,201,124,0.35)",
       },
     },
   },

@@ -131,7 +131,7 @@ export default function StatsPage() {
       {/* Profit/loss trajectory chart */}
       {!loading && settlements.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
+          <h2 className="section-title">
             Diễn biến lời/lỗ
           </h2>
           <div className="card">

@@ -94,7 +94,7 @@ export default function HistoryPage() {
       {/* How the latest settled fund was divided */}
       {breakdown && breakdown.winners.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
+          <h2 className="section-title">
             Quỹ đã chia
           </h2>
           <div className="card space-y-3">
@@ -174,7 +174,7 @@ export default function HistoryPage() {
       {/* Settlement history */}
       {events.length > 0 ? (
         <div id="lich-su-tat-toan" className="scroll-mt-24 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
+          <h2 className="section-title">
             Lịch sử tất toán
           </h2>
           {/* Most recent settlement — always expanded */}

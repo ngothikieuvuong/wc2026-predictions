@@ -242,20 +242,27 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Jackpot */}
-      <section ref={jackpotRef} className="card text-center">
-        <p className="text-sm uppercase tracking-widest text-white/50">
-          Quỹ hiện tại
+      {/* Jackpot — the centerpiece */}
+      <section
+        ref={jackpotRef}
+        className="card relative overflow-hidden text-center shadow-gold ring-1 ring-gold/20"
+      >
+        {/* soft golden spotlight behind the number */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-10 h-40 bg-[radial-gradient(closest-side,rgba(233,201,124,0.18),transparent)]"
+        />
+        <p className="relative text-[11px] font-semibold uppercase tracking-[0.22em] text-gold/80">
+          🏆 Tổng quỹ hiện tại
         </p>
-        <p className="mt-2 bg-gradient-to-b from-neon to-grass bg-clip-text text-4xl font-extrabold text-transparent drop-shadow sm:text-5xl">
+        <p className="relative mt-2 bg-gradient-to-b from-white via-neon to-grass bg-clip-text text-5xl font-extrabold tracking-tight text-transparent drop-shadow-[0_2px_16px_rgba(57,255,20,0.25)] sm:text-6xl">
           {loading || jackpot === null ? "…" : <Money value={jackpot} />}
         </p>
 
         {fundByMatch.length > 0 && (
-          <div className="mt-4 space-y-3 border-t border-white/10 pt-3 text-left text-sm">
-            <p className="text-xs uppercase tracking-wider text-white/40">
-              Quỹ theo trận
-            </p>
+          <div className="relative mt-5 space-y-3 text-left text-sm">
+            <hr className="divider-lux" />
+            <p className="section-title pt-1">Quỹ theo trận</p>
             {fundByMatch.map((g) => (
               <div
                 key={g.date}
@@ -322,7 +329,7 @@ export default function HomePage() {
 
       {/* Upcoming matches, grouped by game-day */}
       <section className="card">
-        <h2 className="mb-3 text-sm uppercase tracking-widest text-white/50">
+        <h2 className="mb-3 section-title">
           Trận sắp tới
         </h2>
         {loading ? (
@@ -368,7 +375,7 @@ export default function HomePage() {
 
       {/* Recent winners */}
       <section className="card">
-        <h2 className="mb-3 text-sm uppercase tracking-widest text-white/50">
+        <h2 className="mb-3 section-title">
           Danh sách đã trúng thưởng
         </h2>
         {loading ? (
@@ -407,7 +414,7 @@ export default function HomePage() {
 
       {/* Profit/loss summary */}
       <section className="card">
-        <h2 className="mb-3 text-sm uppercase tracking-widest text-white/50">
+        <h2 className="mb-3 section-title">
           Ai đang ăn / thua
         </h2>
         {loading ? (

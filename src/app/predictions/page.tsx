@@ -563,7 +563,7 @@ export default function PredictionsPage() {
                   key={s.key}
                   className={`space-y-3 ${s.dim ? "opacity-70" : ""}`}
                 >
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-white/50">
+                  <h2 className="section-title">
                     {s.title}
                   </h2>
                   {s.items.map((r) => (

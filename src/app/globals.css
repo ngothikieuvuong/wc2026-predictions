@@ -18,11 +18,13 @@ input[type="number"] {
 
 body {
   background:
-    radial-gradient(900px 420px at 50% -8%, rgba(233, 201, 124, 0.1), transparent),
-    radial-gradient(1100px 560px at 50% 0%, rgba(29, 185, 84, 0.14), transparent),
-    linear-gradient(180deg, #08160e 0%, #061009 100%);
+    radial-gradient(820px 380px at 50% -10%, rgba(233, 201, 124, 0.12), transparent),
+    radial-gradient(1100px 560px at 50% 0%, rgba(29, 185, 84, 0.15), transparent),
+    radial-gradient(720px 720px at 100% 102%, rgba(29, 185, 84, 0.06), transparent),
+    linear-gradient(180deg, #08160e 0%, #061009 55%, #050d08 100%);
   background-attachment: fixed;
   min-height: 100vh;
+  letter-spacing: -0.01em;
 }
 
 ::selection {
@@ -58,14 +60,26 @@ body {
 }
 
 .card {
-  @apply rounded-2xl border border-white/10 p-5 shadow-lux backdrop-blur;
+  @apply rounded-2xl border border-white/[0.08] p-5 backdrop-blur-xl;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  /* soft drop + a hairline top highlight = subtle glass depth */
+  box-shadow: 0 14px 44px -14px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .btn {
-  @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 font-semibold text-black shadow-glow transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
-  background: linear-gradient(180deg, #28d567 0%, #1db954 60%, #15a049 100%);
+  @apply relative inline-flex items-center justify-center overflow-hidden rounded-xl px-4 py-2.5 font-semibold text-black shadow-glow transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  background: linear-gradient(180deg, #2ee06f 0%, #1db954 58%, #14924a 100%);
+}
+/* faint top sheen for a polished, glossy button */
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent);
+  pointer-events: none;
 }
 
 .btn-ghost {
@@ -79,6 +93,32 @@ body {
 /* Gradient title accent */
 .title-lux {
   @apply bg-gradient-to-r from-white via-goldsoft to-gold bg-clip-text font-extrabold tracking-tight text-transparent;
+  filter: drop-shadow(0 1px 8px rgba(233, 201, 124, 0.25));
+}
+
+/* Section heading with a small gold→green accent bar — consistent everywhere. */
+.section-title {
+  @apply flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.16em] text-white/55;
+}
+.section-title::before {
+  content: "";
+  width: 4px;
+  height: 14px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #e9c97c, #1db954);
+  flex: none;
+}
+
+/* Hairline divider with a faint gold center — for elegant separations. */
+.divider-lux {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(233, 201, 124, 0.25),
+    transparent
+  );
 }
 
 .label {
