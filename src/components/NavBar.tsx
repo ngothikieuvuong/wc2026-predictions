@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { DEMO } from "@/lib/supabase";
 import RulesButton from "@/components/RulesButton";
+import Modal from "@/components/Modal";
 import { useHideMoney } from "@/components/Money";
 
 const SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
@@ -30,8 +31,12 @@ export default function NavBar() {
   const { hidden: moneyHidden, toggle: toggleMoney } = useHideMoney();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinErr, setPinErr] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const pinRef = useRef<HTMLInputElement>(null);
 
   // Condense the header once the page scrolls.
   useEffect(() => {
@@ -70,11 +75,26 @@ export default function NavBar() {
 
   function goAdmin() {
     setMenuOpen(false);
-    const p = window.prompt("Nhập mật khẩu:");
-    if (p === null) return;
-    if (p === "123") router.push(`/admin/${SECRET}`);
-    else alert("Sai mật khẩu");
+    setPin("");
+    setPinErr(false);
+    setPinOpen(true);
   }
+
+  function submitPin() {
+    if (pin === "123") {
+      setPinOpen(false);
+      router.push(`/admin/${SECRET}`);
+    } else {
+      setPinErr(true);
+      setPin("");
+      pinRef.current?.focus();
+    }
+  }
+
+  // Auto-focus the PIN box (opens the numeric keyboard) when the modal shows.
+  useEffect(() => {
+    if (pinOpen) setTimeout(() => pinRef.current?.focus(), 50);
+  }, [pinOpen]);
 
   return (
     <header
@@ -210,6 +230,34 @@ export default function NavBar() {
           })}
         </nav>
       </div>
+
+      {pinOpen && (
+        <Modal title="🔒 Mật khẩu quản trị" onClose={() => setPinOpen(false)}>
+          <div className="space-y-3">
+            <input
+              ref={pinRef}
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
+              value={pin}
+              onChange={(e) => {
+                setPin(e.target.value.replace(/\D/g, ""));
+                setPinErr(false);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && submitPin()}
+              placeholder="••••"
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-center text-2xl font-bold tracking-[0.4em] text-white outline-none focus:border-grass"
+            />
+            {pinErr && (
+              <p className="text-center text-sm text-red-400">Sai mật khẩu</p>
+            )}
+            <button className="btn w-full" onClick={submitPin}>
+              Vào quản trị
+            </button>
+          </div>
+        </Modal>
+      )}
     </header>
   );
 }
