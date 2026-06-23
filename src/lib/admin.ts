@@ -682,20 +682,15 @@ export async function getPendingScoreMatches(): Promise<Match[]> {
   return ((m as Match[]) ?? []).filter((x) => predicted.has(x.id));
 }
 
-// Candidates for the "thử chốt sổ" simulator: every upcoming match (so you can
-// what-if any future result) PLUS any match that already has predictions
-// (incl. finished ones, to test adding a hypothetical predictor). Soonest first.
+// Candidates for the "thử chốt sổ" simulator: matches NOT yet finished
+// (upcoming + in-play). Finished matches need no what-if. Soonest first.
 export async function getSimMatches(): Promise<Match[]> {
-  const [{ data: m }, { data: p }] = await Promise.all([
-    supabase.from("matches").select("*").order("kickoff_time", { ascending: true }),
-    supabase.from("predictions").select("match_id"),
-  ]);
-  const predicted = new Set(
-    ((p as { match_id: string }[]) ?? []).map((x) => x.match_id)
-  );
-  return ((m as Match[]) ?? []).filter(
-    (x) => x.status !== "finished" || predicted.has(x.id)
-  );
+  const { data } = await supabase
+    .from("matches")
+    .select("*")
+    .neq("status", "finished")
+    .order("kickoff_time", { ascending: true });
+  return (data as Match[]) ?? [];
 }
 
 // Remove a name from the roster (predictions already made keep their name).

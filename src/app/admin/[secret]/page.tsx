@@ -756,6 +756,13 @@ function SettleSimulator() {
     setResult(null);
   }, [matchId, useScore, h, a, useExtra, extra]);
 
+  // Default a newly-added prediction to the assumed final score, so the person
+  // wins by default (the common what-if) — admin can still tweak it.
+  useEffect(() => {
+    setAddH(h);
+    setAddA(a);
+  }, [h, a, useExtra]);
+
   const selected = matches.find((m) => m.id === matchId);
   const finished = selected?.status === "finished";
   // Need a final score: for an unplayed match you must supply one (useScore).
@@ -766,9 +773,14 @@ function SettleSimulator() {
   async function run() {
     if (!matchId || !canRun) return;
     const overrides = useScore ? [{ match_id: matchId, home: h, away: a }] : [];
+    // Include any person still selected in the add row but not yet "+ Thêm"'d.
+    const list =
+      useExtra && addPlayer && !extra.some((e) => e.player === addPlayer)
+        ? [...extra, { player: addPlayer, h: addH, a: addA }]
+        : extra;
     const extraPreds =
-      useExtra && extra.length
-        ? extra.map((e) => ({
+      useExtra && list.length
+        ? list.map((e) => ({
             player_name: e.player,
             match_id: matchId,
             predicted_home: e.h,
@@ -779,26 +791,6 @@ function SettleSimulator() {
     setResult(await computeSettlement(overrides, extraPreds));
     setBusy(false);
   }
-
-  const Check = ({
-    checked,
-    onChange,
-    children,
-  }: {
-    checked: boolean;
-    onChange: (v: boolean) => void;
-    children: React.ReactNode;
-  }) => (
-    <label className="flex items-center gap-2 text-sm font-medium">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-grass"
-      />
-      {children}
-    </label>
-  );
 
   return (
     <section className="card space-y-3">
@@ -841,16 +833,15 @@ function SettleSimulator() {
                 <>
                   {/* Option 1: hypothetical final score */}
                   <div className="space-y-2 rounded-xl border border-white/10 p-3">
-                    <Check checked={useScore} onChange={setUseScore}>
-                      Giả định tỉ số cuối
-                      {finished && (
-                        <span className="text-[11px] font-normal text-white/40">
-                          {" "}
-                          (bỏ chọn = dùng KQ thật {selected.home_score}–
-                          {selected.away_score})
-                        </span>
-                      )}
-                    </Check>
+                    <label className="flex items-center gap-2 text-sm font-medium">
+                      <input
+                        type="checkbox"
+                        checked={useScore}
+                        onChange={(e) => setUseScore(e.target.checked)}
+                        className="h-4 w-4 accent-grass"
+                      />
+                      Giả định tỉ số cuối trận
+                    </label>
                     {useScore && (
                       <div className="flex items-center justify-center gap-3">
                         <NumStepper value={h} onChange={setH} />
@@ -867,9 +858,15 @@ function SettleSimulator() {
 
                   {/* Option 2: hypothetical extra predictions */}
                   <div className="space-y-2 rounded-xl border border-white/10 p-3">
-                    <Check checked={useExtra} onChange={setUseExtra}>
+                    <label className="flex items-center gap-2 text-sm font-medium">
+                      <input
+                        type="checkbox"
+                        checked={useExtra}
+                        onChange={(e) => setUseExtra(e.target.checked)}
+                        className="h-4 w-4 accent-grass"
+                      />
                       Giả định thêm lượt đoán cho người
-                    </Check>
+                    </label>
                     {useExtra && (
                       <>
                         <p className="text-[11px] text-white/40">
