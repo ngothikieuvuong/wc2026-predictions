@@ -25,6 +25,8 @@ export type BracketMatch = {
   date: string;
   home: string;
   away: string;
+  homeSlot: string; // group-slot note, e.g. "Nhất bảng C" (kept even after fill)
+  awaySlot: string;
   hs: number | null;
   as: number | null;
   played: boolean;
@@ -172,6 +174,8 @@ export async function getTournament(): Promise<Tournament> {
         date: m.Date ?? "",
         home: label(m.Home, m.PlaceHolderA),
         away: label(m.Away, m.PlaceHolderB),
+        homeSlot: placeholderVi(m.PlaceHolderA),
+        awaySlot: placeholderVi(m.PlaceHolderB),
         hs: m.Home?.Score ?? null,
         as: m.Away?.Score ?? null,
         played: m.MatchStatus === 0,

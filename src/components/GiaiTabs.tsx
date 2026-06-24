@@ -350,11 +350,25 @@ export default function GiaiTabs({
                         </p>
                       )}
                       <div className="flex items-center justify-between gap-2 text-sm">
-                        <span className="flex-1 text-right font-medium">{m.home}</span>
+                        <div className="flex-1 text-right">
+                          <span className="font-medium">{m.home}</span>
+                          {m.home !== m.homeSlot && (
+                            <span className="block text-[10px] text-white/40">
+                              {m.homeSlot}
+                            </span>
+                          )}
+                        </div>
                         <span className="min-w-14 text-center font-bold text-white/80">
                           {m.played ? `${m.hs}–${m.as}` : "vs"}
                         </span>
-                        <span className="flex-1 font-medium">{m.away}</span>
+                        <div className="flex-1">
+                          <span className="font-medium">{m.away}</span>
+                          {m.away !== m.awaySlot && (
+                            <span className="block text-[10px] text-white/40">
+                              {m.awaySlot}
+                            </span>
+                          )}
+                        </div>
                         {open && <OpenBadge />}
                       </div>
                     </div>
