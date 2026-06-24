@@ -442,16 +442,20 @@ export default function PredictionsPage() {
   } | null>(null);
   const [showOld, setShowOld] = useState(false); // older finished matches
 
+  const loadSeq = useRef(0); // ignore stale loads that resolve out of order
+
   const loadReactions = async () =>
     setReactionsByPred(await getReactionsByPrediction());
 
   const loadAll = async () => {
+    const seq = ++loadSeq.current;
     const [r, rx, pl, lv] = await Promise.all([
       getPredictionsByMatch(),
       getReactionsByPrediction(),
       getPlayers(),
       getLive(),
     ]);
+    if (seq !== loadSeq.current) return; // a newer refresh superseded this one
     setRows(r);
     setReactionsByPred(rx);
     setPlayers(pl);

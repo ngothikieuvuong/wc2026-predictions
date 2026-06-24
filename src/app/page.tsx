@@ -41,6 +41,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   // Pin a compact "Quỹ hiện tại" bar under the tabs once the big one scrolls off.
   const jackpotRef = useRef<HTMLElement>(null);
+  const loadSeq = useRef(0); // ignore stale loads that resolve out of order
   const [showFundBar, setShowFundBar] = useState(false);
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function HomePage() {
   }, [loading]);
 
   async function loadData() {
+    const seq = ++loadSeq.current;
     const [j, f, s, w, lv, pr, st] = await Promise.all([
       getJackpot(),
       getFundByMatch(),
@@ -64,6 +66,7 @@ export default function HomePage() {
       getPredictionsByMatch(),
       getStats(),
     ]);
+    if (seq !== loadSeq.current) return; // a newer refresh superseded this one
     setJackpot(j);
     setFundByMatch(f);
     setSoon(s);
