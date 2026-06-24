@@ -240,7 +240,6 @@ export default function NavBar() {
           >
             {profile ? (
               <>
-                <span className="text-white/45">🙋 Hồ sơ:</span>
                 <span className="max-w-[40%] truncate font-semibold text-white/85">
                   {profile}
                 </span>
@@ -250,13 +249,13 @@ export default function NavBar() {
                       net > 0 ? "text-neon" : net < 0 ? "text-red-400" : "text-white/50"
                     }`}
                   >
-                    · {net > 0 ? "+" : ""}
+                    {net > 0 ? "+" : ""}
                     <Money value={net} />
                   </span>
                 )}
               </>
             ) : (
-              <span className="text-white/40">🙋 Chạm để chọn hồ sơ của bạn</span>
+              <span className="text-white/40">Chạm để chọn hồ sơ</span>
             )}
           </button>
         )}
