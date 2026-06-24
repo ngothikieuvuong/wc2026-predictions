@@ -340,16 +340,23 @@ export default function GiaiTabs({
                   const open = m.teamsKnown && isMatchOpen(m.home, m.away);
                   const row = (
                     <div
-                      className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-white/10 ${
+                      className={`rounded-lg px-3 py-2 transition hover:bg-white/10 ${
                         open ? "bg-grass/10 ring-1 ring-grass/40" : "bg-black/20"
                       }`}
                     >
-                      <span className="flex-1 text-right font-medium">{m.home}</span>
-                      <span className="min-w-14 text-center font-bold text-white/80">
-                        {m.played ? `${m.hs}–${m.as}` : "vs"}
-                      </span>
-                      <span className="flex-1 font-medium">{m.away}</span>
-                      {open && <OpenBadge />}
+                      {m.date && (
+                        <p className="mb-1 text-center text-[11px] text-white/40">
+                          {viDay(m.date)} · {viTime(m.date)}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="flex-1 text-right font-medium">{m.home}</span>
+                        <span className="min-w-14 text-center font-bold text-white/80">
+                          {m.played ? `${m.hs}–${m.as}` : "vs"}
+                        </span>
+                        <span className="flex-1 font-medium">{m.away}</span>
+                        {open && <OpenBadge />}
+                      </div>
                     </div>
                   );
                   return (

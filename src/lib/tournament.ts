@@ -148,8 +148,20 @@ export async function getTournament(): Promise<Tournament> {
     }));
 
   // --- Knockout bracket ---
+  // Friendly Vietnamese for FIFA slot placeholders ("1C" → Nhất bảng C, etc.).
+  const placeholderVi = (s?: string): string => {
+    if (!s) return "?";
+    let m;
+    if ((m = /^([12])([A-L])$/.exec(s)))
+      return `${m[1] === "1" ? "Nhất" : "Nhì"} bảng ${m[2]}`;
+    if ((m = /^3([A-L]+)$/.exec(s)))
+      return `Hạng 3 (${m[1].split("").join("/")})`;
+    if ((m = /^W(\d+)$/.exec(s))) return `Thắng trận ${m[1]}`;
+    if ((m = /^(?:RU|L|LS)(\d+)$/.exec(s))) return `Thua trận ${m[1]}`;
+    return s;
+  };
   const label = (side: any, placeholder: string | undefined) =>
-    side?.IdCountry ? viTeam(side.IdCountry) : placeholder || "?";
+    side?.IdCountry ? viTeam(side.IdCountry) : placeholderVi(placeholder);
 
   const rounds: BracketRound[] = KO_ROUNDS.map((r) => ({
     name: KO_VI[r] ?? r,
