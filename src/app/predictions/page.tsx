@@ -21,6 +21,7 @@ import MatchInfoButton from "@/components/MatchInfoButton";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 import JustWonBanner from "@/components/JustWonBanner";
 import PageHeader from "@/components/PageHeader";
+import { useProfile } from "@/components/Profile";
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏", "🙏", "🤡"];
 
@@ -296,7 +297,11 @@ function ReactionSheet({
   onChanged: () => void | Promise<void>;
 }) {
   const { pred, matchLabel } = target;
-  const [name, setName] = useState("");
+  const { profile } = useProfile();
+  // Default the reactor to this device's profile (if it's in the roster).
+  const [name, setName] = useState(
+    profile && players.includes(profile) ? profile : ""
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
