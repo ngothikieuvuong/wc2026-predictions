@@ -7,6 +7,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { DEMO } from "@/lib/supabase";
 import RulesButton from "@/components/RulesButton";
 import { useHideMoney } from "@/components/Money";
+import { useProfile } from "@/components/Profile";
+import { getPlayers } from "@/lib/queries";
 
 const SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
 
@@ -28,6 +30,8 @@ export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { hidden: moneyHidden, toggle: toggleMoney } = useHideMoney();
+  const { profile, setProfile } = useProfile();
+  const [players, setPlayers] = useState<string[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
@@ -44,6 +48,11 @@ export default function NavBar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Load the roster for the profile picker when the menu opens.
+  useEffect(() => {
+    if (menuOpen && players.length === 0) getPlayers().then(setPlayers);
+  }, [menuOpen, players.length]);
 
   // Close the menu on outside click / route change.
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -178,6 +187,28 @@ export default function NavBar() {
                     {l.label}
                   </Link>
                 ))}
+                {/* Profile: who's using this device (default name + auto theme) */}
+                <div className="border-t border-white/10 px-4 py-3">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                    🙋 Hồ sơ của bạn
+                  </p>
+                  <select
+                    value={profile ?? ""}
+                    onChange={(e) => setProfile(e.target.value || null)}
+                    className="w-full rounded-lg border border-white/15 bg-black/30 px-2 py-2 text-sm text-white outline-none focus:border-grass"
+                  >
+                    <option value="">— Chưa chọn —</option>
+                    {players.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-white/35">
+                    Tự điền tên khi đoán & đổi màu theo bạn đang lời (xanh) / lỗ (đỏ).
+                  </p>
+                </div>
+
                 <RulesButton className="block w-full px-4 py-3 text-left text-sm font-medium text-white/80 transition hover:bg-white/10">
                   📖 Luật chơi
                 </RulesButton>

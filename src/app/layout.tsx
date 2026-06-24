@@ -3,7 +3,7 @@ import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import PageTransition from "@/components/PageTransition";
-import ThemeApplier from "@/components/ThemeApplier";
+import { ProfileProvider } from "@/components/Profile";
 import { HideMoneyProvider } from "@/components/Money";
 import { RefreshProvider } from "@/components/Refresh";
 
@@ -30,13 +30,14 @@ export default function RootLayout({
       <body className="text-white antialiased">
         <HideMoneyProvider>
           <RefreshProvider>
-            <ThemeApplier />
-            <div className="pitch-stripes min-h-screen">
-              <NavBar />
-              <main className="mx-auto max-w-3xl px-4 py-6">
-                <PageTransition>{children}</PageTransition>
-              </main>
-            </div>
+            <ProfileProvider>
+              <div className="pitch-stripes min-h-screen">
+                <NavBar />
+                <main className="mx-auto max-w-3xl px-4 py-6">
+                  <PageTransition>{children}</PageTransition>
+                </main>
+              </div>
+            </ProfileProvider>
           </RefreshProvider>
         </HideMoneyProvider>
       </body>

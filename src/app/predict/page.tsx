@@ -18,6 +18,7 @@ import { predictMatch, type Prediction as ScorePrediction } from "@/lib/predict"
 import TeamInfoButton from "@/components/TeamInfoButton";
 import Modal from "@/components/Modal";
 import PageHeader from "@/components/PageHeader";
+import { useProfile } from "@/components/Profile";
 
 const NEW_PLAYER = "__new__";
 const MAX_GOALS = 6; // 0–6 per side (e.g. 6–0 max, never 7–0)
@@ -412,6 +413,7 @@ function ScoreHint({ team1, team2 }: { team1: string; team2: string }) {
 }
 
 export default function PredictPage() {
+  const { profile, setProfile } = useProfile();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<string[]>([]);
   const [picked, setPicked] = useState(""); // dropdown value (a name, or NEW_PLAYER)
@@ -428,6 +430,11 @@ export default function PredictPage() {
 
   // Effective player name: typed (new) or picked from the roster.
   const name = picked === NEW_PLAYER ? newName : picked;
+
+  // Default the name to this device's saved profile (once the roster loads).
+  useEffect(() => {
+    if (profile && !picked && players.includes(profile)) setPicked(profile);
+  }, [profile, players, picked]);
 
   useEffect(() => {
     (async () => {
@@ -500,6 +507,7 @@ export default function PredictPage() {
     }
     setPicked(finalName);
     setNewName("");
+    setProfile(finalName); // remember this device's player for next time
 
     setMsg({ type: "ok", text: "✅ Đã lưu. Chúc may mắn!" });
     setHome("");
