@@ -297,7 +297,7 @@ function ReactionSheet({
   onChanged: () => void | Promise<void>;
 }) {
   const { pred, matchLabel } = target;
-  const { profile } = useProfile();
+  const { profile, setProfile } = useProfile();
   // Default the reactor to this device's profile (if it's in the roster).
   const [name, setName] = useState(
     profile && players.includes(profile) ? profile : ""
@@ -317,7 +317,10 @@ function ReactionSheet({
     setErr(null);
     try {
       if (mine.has(emoji)) await removeReaction(pred.id, name, emoji);
-      else await addReaction(pred.id, name, emoji);
+      else {
+        await addReaction(pred.id, name, emoji);
+        setProfile(name); // remember this device's player for next time
+      }
       await onChanged();
     } catch (e) {
       setErr((e as Error).message);
