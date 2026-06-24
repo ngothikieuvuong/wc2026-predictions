@@ -329,9 +329,15 @@ export default function HomePage() {
 
       {/* Upcoming matches, grouped by game-day */}
       <section className="card">
-        <h2 className="mb-3 section-title">
-          Trận sắp tới
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="section-title">Trận sắp tới</h2>
+          <Link
+            href="/giai"
+            className="shrink-0 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-white/70 transition hover:border-white/25 hover:bg-white/10 hover:text-white"
+          >
+            Xem lịch đầy đủ
+          </Link>
+        </div>
         {loading ? (
           <p className="text-white/40">Đang tải…</p>
         ) : soon.length === 0 ? (
@@ -372,9 +378,6 @@ export default function HomePage() {
                 ))}
               </div>
             ))}
-            <Link href="/giai" className="btn-ghost mt-2 w-full">
-              📅 Xem lịch đầy đủ
-            </Link>
           </div>
         )}
       </section>
