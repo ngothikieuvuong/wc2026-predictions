@@ -48,7 +48,7 @@ function RefreshFab() {
       onClick={refresh}
       disabled={busy}
       aria-label="Cập nhật tỉ số"
-      className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-grass px-4 py-3 font-bold text-black shadow-glow transition hover:brightness-110 active:scale-95 disabled:opacity-70"
+      className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full accent-grad px-4 py-3 font-bold shadow-glow transition hover:brightness-110 active:scale-95 disabled:opacity-70"
     >
       <span className={busy ? "inline-block animate-spin" : ""}>🔄</span>
       <span className="text-sm">{busy ? "Đang cập nhật…" : "Cập nhật tỉ số"}</span>

@@ -179,20 +179,16 @@ export default function GiaiTabs({
       {/* Predict button + tabs freeze under the nav while scrolling — and
           shrink once frozen. */}
       <div
-        className={`sticky z-20 -mx-4 border-b border-white/10 bg-[#08160e]/80 px-4 backdrop-blur-xl transition-all duration-200 ${
+        className={`bar-bg sticky z-20 -mx-4 border-b border-white/10 px-4 backdrop-blur-xl transition-all duration-200 ${
           stuck ? "space-y-2 py-2" : "space-y-3 py-3"
         }`}
         style={{ top: "var(--nav-h)" }}
       >
         <Link
           href="/predict"
-          className={`flex w-full items-center justify-center gap-2 rounded-2xl font-extrabold text-black shadow-glow transition-all duration-200 hover:brightness-110 active:scale-[0.98] ${
+          className={`accent-grad flex w-full items-center justify-center gap-2 rounded-2xl font-extrabold shadow-glow transition-all duration-200 hover:brightness-110 active:scale-[0.98] ${
             stuck ? "px-6 py-2 text-sm" : "px-6 py-3.5 text-lg"
           }`}
-          style={{
-            background:
-              "linear-gradient(180deg,#28d567 0%,#1db954 60%,#15a049 100%)",
-          }}
         >
           ⚽ Dự Đoán Ngay
         </Link>
@@ -206,7 +202,7 @@ export default function GiaiTabs({
                 stuck ? "py-1 text-xs" : "py-2 text-sm"
               } ${
                 tab === t.key
-                  ? "bg-gradient-to-b from-[#28d567] to-grass text-black shadow-glow"
+                  ? "accent-grad shadow-glow"
                   : "text-white/60 hover:bg-white/10"
               }`}
             >

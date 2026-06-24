@@ -367,7 +367,7 @@ export default function MatchDetails({
             onClick={() => setTab(t.id)}
             className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
               tab === t.id
-                ? "bg-gradient-to-b from-[#28d567] to-grass text-black shadow-glow"
+                ? "accent-grad shadow-glow"
                 : "text-white/60 hover:bg-white/10"
             }`}
           >

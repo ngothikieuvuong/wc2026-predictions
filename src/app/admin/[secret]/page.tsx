@@ -17,6 +17,9 @@ import {
   deletePlayer,
   getStake,
   setStake,
+  getTheme,
+  setTheme,
+  type Theme,
   getCarry,
   addPayout,
   setTreoTotal,
@@ -337,6 +340,9 @@ function AdminPanel() {
         )}
       </section>
 
+      {/* Site theme / skin */}
+      <ManageTheme onChanged={(text) => setBanner(text)} />
+
       {/* Price per prediction */}
       <ManageStake onChanged={(text) => setBanner(text)} />
 
@@ -367,6 +373,66 @@ function AdminPanel() {
         }}
       />
     </div>
+  );
+}
+
+// Pick the site theme/skin (applies for everyone; previews instantly for admin).
+function ManageTheme({ onChanged }: { onChanged: (t: string) => void }) {
+  const [theme, setThemeState] = useState<Theme>("green");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getTheme().then(setThemeState);
+  }, []);
+
+  async function apply(t: Theme) {
+    setBusy(true);
+    try {
+      await setTheme(t);
+      setThemeState(t);
+      const el = document.documentElement; // preview right away
+      if (t === "red") el.setAttribute("data-theme", "red");
+      else el.removeAttribute("data-theme");
+      onChanged(`✅ Đã đổi giao diện sang ${t === "red" ? "Đỏ" : "Xanh lá"}.`);
+    } catch (e) {
+      onChanged((e as Error).message);
+    }
+    setBusy(false);
+  }
+
+  const swatch = (t: Theme, label: string, grad: string) => (
+    <button
+      onClick={() => apply(t)}
+      disabled={busy}
+      className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition active:scale-[0.98] ${
+        theme === t ? "ring-2 ring-white" : "opacity-80 hover:opacity-100"
+      }`}
+      style={{ background: grad }}
+    >
+      {label} {theme === t && "✓"}
+    </button>
+  );
+
+  return (
+    <section className="card space-y-3">
+      <p className="font-bold">🎨 Giao diện (skin)</p>
+      <p className="text-xs text-white/50">
+        Đổi màu chủ đạo toàn site cho mọi người. Hiện tại:{" "}
+        <b className="text-white/80">{theme === "red" ? "Đỏ" : "Xanh lá"}</b>.
+      </p>
+      <div className="flex gap-2">
+        {swatch(
+          "green",
+          "🟢 Xanh lá",
+          "linear-gradient(180deg,#2ee06f 0%,#1db954 60%,#14924a 100%)"
+        )}
+        {swatch(
+          "red",
+          "🔴 Đỏ",
+          "linear-gradient(180deg,#f25555 0%,#dc2626 60%,#a51d1d 100%)"
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -1035,7 +1101,7 @@ function OpenMatchesPicker({ onChanged }: { onChanged: (text: string) => void })
         disabled={busyId === m.id}
         className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
           m.is_open
-            ? "bg-grass text-black"
+            ? "accent-grad"
             : "border border-white/15 text-white/60 hover:bg-white/10"
         }`}
       >

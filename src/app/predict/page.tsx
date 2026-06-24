@@ -201,7 +201,7 @@ function RandomScoreModal({
                   onClick={() => setWinner(k)}
                   className={`flex-1 truncate rounded-lg px-2 py-2 text-sm font-medium transition ${
                     winner === k
-                      ? "bg-grass text-black"
+                      ? "accent-grad"
                       : "text-white/60 hover:bg-white/10"
                   }`}
                 >
@@ -227,7 +227,7 @@ function RandomScoreModal({
                   onClick={() => setOu(k)}
                   className={`flex-1 rounded-lg px-2 py-2 text-sm font-medium transition ${
                     ou === k
-                      ? "bg-grass text-black"
+                      ? "accent-grad"
                       : "text-white/60 hover:bg-white/10"
                   }`}
                 >

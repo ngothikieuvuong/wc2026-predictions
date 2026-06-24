@@ -4,6 +4,28 @@
 
 :root {
   color-scheme: dark;
+  /* Theme accent (default = green). One switch (data-theme) re-skins the app. */
+  --grass: 29 185 84;
+  --neon: 57 255 20;
+  --btn-grad: linear-gradient(180deg, #2ee06f 0%, #1db954 58%, #14924a 100%);
+  --btn-fg: #06130b; /* button text — dark on bright green */
+  --bg1: #08160e;
+  --bg2: #061009;
+  --bg3: #050d08;
+  --bar: 8 22 14; /* nav / sticky bar base (channels for alpha) */
+}
+
+[data-theme="red"] {
+  --grass: 220 38 38; /* #dc2626 — red accent (buttons, brand, win highlights) */
+  /* "neon" = positive/money accent → GOLD in the red skin, so lời (gold) stays
+     clearly distinct from lỗ (red), and it reads luxe. */
+  --neon: 255 201 76; /* #ffc94c */
+  --btn-grad: linear-gradient(180deg, #f25555 0%, #dc2626 58%, #a51d1d 100%);
+  --btn-fg: #ffffff; /* white reads better on red */
+  --bg1: #1a0a0a;
+  --bg2: #140707;
+  --bg3: #0d0404;
+  --bar: 26 10 10;
 }
 
 /* Hide number-input spinners so narrow score boxes show their value. */
@@ -19,16 +41,21 @@ input[type="number"] {
 body {
   background:
     radial-gradient(820px 380px at 50% -10%, rgba(233, 201, 124, 0.12), transparent),
-    radial-gradient(1100px 560px at 50% 0%, rgba(29, 185, 84, 0.15), transparent),
-    radial-gradient(720px 720px at 100% 102%, rgba(29, 185, 84, 0.06), transparent),
-    linear-gradient(180deg, #08160e 0%, #061009 55%, #050d08 100%);
+    radial-gradient(1100px 560px at 50% 0%, rgb(var(--grass) / 0.15), transparent),
+    radial-gradient(720px 720px at 100% 102%, rgb(var(--grass) / 0.06), transparent),
+    linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
   background-attachment: fixed;
   min-height: 100vh;
   letter-spacing: -0.01em;
 }
 
 ::selection {
-  background: rgba(29, 185, 84, 0.35);
+  background: rgb(var(--grass) / 0.35);
+}
+
+/* Themed nav / sticky-bar surface (translucent, picks up the theme base). */
+.bar-bg {
+  background: rgb(var(--bar) / 0.82);
 }
 
 /* Slim, premium scrollbar */
@@ -69,8 +96,15 @@ body {
 }
 
 .btn {
-  @apply relative inline-flex items-center justify-center overflow-hidden rounded-xl px-4 py-2.5 font-semibold text-black shadow-glow transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
-  background: linear-gradient(180deg, #2ee06f 0%, #1db954 58%, #14924a 100%);
+  @apply relative inline-flex items-center justify-center overflow-hidden rounded-xl px-4 py-2.5 font-semibold shadow-glow transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  background: var(--btn-grad);
+  color: var(--btn-fg);
+}
+
+/* Shared accent gradient for big CTAs + active segmented tabs (themeable). */
+.accent-grad {
+  background: var(--btn-grad);
+  color: var(--btn-fg);
 }
 /* faint top sheen for a polished, glossy button */
 .btn::before {
@@ -105,7 +139,7 @@ body {
   width: 4px;
   height: 14px;
   border-radius: 9999px;
-  background: linear-gradient(180deg, #e9c97c, #1db954);
+  background: linear-gradient(180deg, #e9c97c, rgb(var(--grass)));
   flex: none;
 }
 

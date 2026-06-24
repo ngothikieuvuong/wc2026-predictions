@@ -96,7 +96,7 @@ export default function NavBar() {
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-30 border-b border-white/10 bg-[#08160e]/80 shadow-lux backdrop-blur-xl"
+      className="bar-bg sticky top-0 z-30 border-b border-white/10 shadow-lux backdrop-blur-xl"
     >
       <div className="mx-auto max-w-3xl px-4">
         {/* Brand (centered) + menu */}
@@ -217,7 +217,7 @@ export default function NavBar() {
                   scrolled ? "py-1 text-xs" : "py-2 text-sm"
                 } ${
                   active
-                    ? "bg-gradient-to-b from-[#28d567] to-grass text-black shadow-glow"
+                    ? "accent-grad shadow-glow"
                     : "border border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/10"
                 }`}
               >

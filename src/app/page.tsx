@@ -145,7 +145,7 @@ export default function HomePage() {
         style={{ top: "calc(var(--nav-h) + var(--live-h, 0px))" }}
       >
         <div className="mx-auto max-w-3xl px-4">
-          <div className="flex items-center justify-between rounded-b-xl border border-t-0 border-white/10 bg-[#0b1d12]/90 px-4 py-1.5 shadow-lux backdrop-blur-xl">
+          <div className="bar-bg flex items-center justify-between rounded-b-xl border border-t-0 border-white/10 px-4 py-1.5 shadow-lux backdrop-blur-xl">
             <span className="text-[11px] uppercase tracking-wider text-white/50">
               Quỹ hiện tại
             </span>
@@ -255,7 +255,7 @@ export default function HomePage() {
         <p className="relative text-[11px] font-semibold uppercase tracking-[0.22em] text-gold/80">
           🏆 Tổng quỹ hiện tại
         </p>
-        <p className="relative mt-2 bg-gradient-to-b from-white via-neon to-grass bg-clip-text text-5xl font-extrabold tracking-tight text-transparent drop-shadow-[0_2px_16px_rgba(57,255,20,0.25)] sm:text-6xl">
+        <p className="relative mt-2 bg-gradient-to-b from-white via-neon to-grass bg-clip-text text-5xl font-extrabold tracking-tight text-transparent drop-shadow-[0_2px_16px_rgba(255,255,255,0.18)] sm:text-6xl">
           {loading || jackpot === null ? "…" : <Money value={jackpot} />}
         </p>
 
@@ -321,7 +321,7 @@ export default function HomePage() {
 
         <Link
           href="/predict"
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-grass px-6 py-4 text-xl font-extrabold text-black shadow-lg shadow-grass/30 transition hover:brightness-110 active:scale-[0.98]"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl accent-grad px-6 py-4 text-xl font-extrabold shadow-glow transition hover:brightness-110 active:scale-[0.98]"
         >
           ⚽ Đoán Ngay
         </Link>

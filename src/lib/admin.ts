@@ -23,6 +23,23 @@ export async function setStake(value: number): Promise<void> {
   if (error) throw error;
 }
 
+// Site theme/skin (admin-controlled). "green" (default) | "red".
+export type Theme = "green" | "red";
+export async function getTheme(): Promise<Theme> {
+  const { data } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "theme")
+    .maybeSingle();
+  return (data as { value: string } | null)?.value === "red" ? "red" : "green";
+}
+export async function setTheme(t: Theme): Promise<void> {
+  const { error } = await supabase
+    .from("settings")
+    .upsert({ key: "theme", value: t });
+  if (error) throw error;
+}
+
 // Save a match's final score (marks it finished). No payout here — settlement
 // is day-based via settleAll().
 export async function saveScore(
