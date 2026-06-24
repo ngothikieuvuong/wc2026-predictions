@@ -4,8 +4,16 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { getStats } from "@/lib/queries";
 import { getTheme } from "@/lib/admin";
 
-type Ctx = { profile: string | null; setProfile: (n: string | null) => void };
-const ProfileCtx = createContext<Ctx>({ profile: null, setProfile: () => {} });
+type Ctx = {
+  profile: string | null;
+  setProfile: (n: string | null) => void;
+  net: number | null; // current profile's lời/lỗ (null until known / no profile)
+};
+const ProfileCtx = createContext<Ctx>({
+  profile: null,
+  setProfile: () => {},
+  net: null,
+});
 export const useProfile = () => useContext(ProfileCtx);
 
 const KEY = "wc-profile";
@@ -21,6 +29,7 @@ function applyTheme(t: "green" | "red") {
 // winning/even profile → green. With no profile, falls back to the admin theme.
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setP] = useState<string | null>(null);
+  const [net, setNet] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -45,12 +54,16 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           const me = stats.find(
             (s) => s.name.toLowerCase() === profile.toLowerCase()
           );
-          if (alive) applyTheme(me && me.loiLo < 0 ? "red" : "green");
+          if (alive) {
+            setNet(me ? me.loiLo : 0);
+            applyTheme(me && me.loiLo < 0 ? "red" : "green");
+          }
           return;
         } catch {
           /* fall through to admin theme */
         }
       }
+      if (alive) setNet(null);
       const t = await getTheme();
       if (alive) applyTheme(t);
     })();
@@ -60,7 +73,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, [profile, ready]);
 
   return (
-    <ProfileCtx.Provider value={{ profile, setProfile }}>
+    <ProfileCtx.Provider value={{ profile, setProfile, net }}>
       {children}
     </ProfileCtx.Provider>
   );

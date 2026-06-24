@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { DEMO } from "@/lib/supabase";
 import RulesButton from "@/components/RulesButton";
-import { useHideMoney } from "@/components/Money";
+import { useHideMoney, Money } from "@/components/Money";
 import { useProfile } from "@/components/Profile";
 import { getPlayers } from "@/lib/queries";
 
@@ -30,7 +30,7 @@ export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { hidden: moneyHidden, toggle: toggleMoney } = useHideMoney();
-  const { profile, setProfile } = useProfile();
+  const { profile, setProfile, net } = useProfile();
   const [players, setPlayers] = useState<string[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -231,6 +231,35 @@ export default function NavBar() {
             )}
           </div>
         </div>
+
+        {/* Profile chip — who's on this device + their lời/lỗ. Tap to change. */}
+        {!scrolled && (
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="mb-1.5 flex w-full items-center justify-center gap-1.5 text-[11px]"
+          >
+            {profile ? (
+              <>
+                <span className="text-white/45">🙋 Hồ sơ:</span>
+                <span className="max-w-[40%] truncate font-semibold text-white/85">
+                  {profile}
+                </span>
+                {net !== null && (
+                  <span
+                    className={`font-bold ${
+                      net > 0 ? "text-neon" : net < 0 ? "text-red-400" : "text-white/50"
+                    }`}
+                  >
+                    · {net > 0 ? "+" : ""}
+                    <Money value={net} />
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-white/40">🙋 Chạm để chọn hồ sơ của bạn</span>
+            )}
+          </button>
+        )}
 
         {/* Two main tabs — on every page */}
         <nav
