@@ -37,10 +37,14 @@ function viTime(iso: string): string {
 }
 
 const TABS = [
-  { key: "nhanh", label: "Lịch thi đấu" },
+  { key: "nhanh", label: "Lịch" },
   { key: "ketqua", label: "Kết quả" },
-  { key: "bang", label: "Bảng xếp hạng" },
+  { key: "bang", label: "BXH" },
+  { key: "hang3", label: "Hạng 3" },
 ] as const;
+
+// WC2026: the 8 best third-placed teams (of 12 groups) advance to the Round of 32.
+const BEST_THIRDS = 8;
 
 // One collapsible round section (Vòng bảng, Vòng 1/16, …).
 function RoundSection({
@@ -166,6 +170,17 @@ export default function GiaiTabs({
     else last.items.push(f);
   }
 
+  // Third-placed team of each group, ranked (best thirds advance). FIFA order:
+  // points → goal difference → goals for → (then fairer tiebreaks) — approximated.
+  const thirds = groups
+    .map((g) => ({ group: g.name.replace("Group ", ""), row: g.rows[2] }))
+    .filter((x) => !!x.row)
+    .map((x) => ({ group: x.group, ...x.row! }))
+    .sort(
+      (a, b) =>
+        b.Pts - a.Pts || b.GD - a.GD || b.GF - a.GF || a.name.localeCompare(b.name)
+    );
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -277,6 +292,72 @@ export default function GiaiTabs({
             ))}
           </div>
           <p className="text-xs text-white/30">2 đội đầu mỗi bảng (xanh) đi tiếp.</p>
+        </div>
+      )}
+
+      {/* Best third-placed teams */}
+      {tab === "hang3" && (
+        <div className="space-y-3">
+          {thirds.length === 0 ? (
+            <div className="card text-white/50">Chưa có dữ liệu xếp hạng.</div>
+          ) : (
+            <>
+              <div className="card p-0 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="text-[11px] uppercase tracking-wider text-white/40">
+                    <tr>
+                      <th className="px-2 py-2 text-left font-medium">#</th>
+                      <th className="px-2 py-2 text-left font-medium">Đội</th>
+                      <th className="px-1 py-2 text-center font-medium">Tr</th>
+                      <th className="px-1 py-2 text-center font-medium">T-H-B</th>
+                      <th className="px-1 py-2 text-center font-medium">BT</th>
+                      <th className="px-1 py-2 text-center font-medium">Hiệu</th>
+                      <th className="px-2 py-2 text-center font-medium">Đ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {thirds.map((r, i) => {
+                      const qual = i < BEST_THIRDS;
+                      return (
+                        <tr
+                          key={r.name}
+                          className={`border-t border-white/5 ${
+                            qual ? "bg-grass/10" : "opacity-70"
+                          }`}
+                        >
+                          <td className="px-2 py-2 whitespace-nowrap text-white/40">
+                            {i + 1}
+                            {qual && <span className="text-grass"> ✓</span>}
+                          </td>
+                          <td className="px-2 py-2">
+                            <span className="font-medium">{r.name}</span>
+                            <span className="block text-[10px] text-white/40">
+                              Bảng {r.group}
+                            </span>
+                          </td>
+                          <td className="px-1 py-2 text-center text-white/60">{r.P}</td>
+                          <td className="px-1 py-2 text-center text-white/60">
+                            {r.W}-{r.D}-{r.L}
+                          </td>
+                          <td className="px-1 py-2 text-center text-white/60">
+                            {r.GF}-{r.GA}
+                          </td>
+                          <td className="px-1 py-2 text-center text-white/60">
+                            {r.GD > 0 ? `+${r.GD}` : r.GD}
+                          </td>
+                          <td className="px-2 py-2 text-center font-bold">{r.Pts}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-white/30">
+                8 đội hạng 3 tốt nhất (xanh ✓) vào vòng 1/16. Xếp theo điểm → hiệu số
+                → bàn thắng.
+              </p>
+            </>
+          )}
         </div>
       )}
 
