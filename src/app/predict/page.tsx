@@ -24,35 +24,58 @@ const NEW_PLAYER = "__new__";
 const MAX_GOALS = 6; // 0–6 per side (e.g. 6–0 max, never 7–0)
 const DEFAULT_OU_LINE = 3; // Tài = tổng > 3 bàn, Xỉu = tổng < 3 (khi không có kèo)
 
-// Random scores are EQUALLY likely except a few "không tưởng" cases are rarer:
-//  - the stronger team scoring ≥5  (~1%),
-//  - the weaker team scoring ≥4    (~1%, less likely than the favourite),
-//  - the whole match totalling >7  (~0.2%),
-//  - both teams ≥4                 (~0.02%).
-//  strongerIsHome: true/false by rank, or undefined when teams are even (then
-//  the higher-scoring side is treated as "stronger").
-function scoreWeight(h: number, a: number, strongerIsHome?: boolean): number {
-  const sg =
-    strongerIsHome === true ? h : strongerIsHome === false ? a : Math.max(h, a);
-  const wg =
-    strongerIsHome === true ? a : strongerIsHome === false ? h : Math.min(h, a);
-  let w = 1;
-  if (h >= 4 && a >= 4) w *= 0.2; // both teams ≥4
-  if (sg >= 5) w *= 0.03; // stronger team ≥5
-  if (wg >= 4) w *= 0.02; // weaker team ≥4
-  if (h + a >= 8) w *= 0.3; // total > 7
-  return w;
+// Realistic scores via a Poisson model: each side's expected goals (xG) is the
+// 2.6-goal match baseline split by relative strength, then goals are sampled
+// from Poisson(xG). Common low scores (1-0, 1-1, 2-1…) dominate; wild scores
+// (5-5, 6-4…) are rare and rerolled.
+const AVG_TOTAL_GOALS = 2.6; // baseline expected goals for a match
+const MAX_RETRY = 20; // Poisson resamples before falling back to the pool
+
+// Sample from a Poisson distribution — Knuth's algorithm.
+function poisson(lambda: number): number {
+  const L = Math.exp(-lambda);
+  let k = 0;
+  let p = 1;
+  do {
+    k++;
+    p *= Math.random();
+  } while (p > L);
+  return k - 1;
 }
 
-// Weighted random pick from candidate [home, away] scores.
+// Poisson PMF P(X = k) — weights the (rare) fallback pool realistically.
+function poissonPmf(k: number, lambda: number): number {
+  let p = Math.exp(-lambda);
+  for (let i = 1; i <= k; i++) p *= lambda / i;
+  return p;
+}
+
+// Relative attacking strength from FIFA rank (lower rank = stronger); unknown
+// teams get a mid-table strength.
+function teamStrength(name: string): number {
+  const rank = teamRank(name) ?? 50;
+  return Math.max(15, 110 - rank); // keep underdogs non-trivial
+}
+
+// Split the average total goals into each side's expected goals by strength.
+function expectedGoals(home: string, away: string): [number, number] {
+  const sh = teamStrength(home);
+  const sa = teamStrength(away);
+  const total = sh + sa;
+  return [AVG_TOTAL_GOALS * (sh / total), AVG_TOTAL_GOALS * (sa / total)];
+}
+
+// Weighted random pick from candidate [home, away] scores (weightFn → relative
+// likelihood). Falls back to a uniform pick if every weight is zero.
 function pickWeighted(
   cands: [number, number][],
-  strongerIsHome?: boolean
+  weightFn: (h: number, a: number) => number
 ): [number, number] {
-  const total = cands.reduce((s, [h, a]) => s + scoreWeight(h, a, strongerIsHome), 0);
+  const total = cands.reduce((s, [h, a]) => s + weightFn(h, a), 0);
+  if (total <= 0) return cands[Math.floor(Math.random() * cands.length)];
   let r = Math.random() * total;
   for (const c of cands) {
-    r -= scoreWeight(c[0], c[1], strongerIsHome);
+    r -= weightFn(c[0], c[1]);
     if (r <= 0) return c;
   }
   return cands[cands.length - 1];
@@ -112,12 +135,6 @@ function RandomScoreModal({
 
   const takenSet = new Set(taken.map(([h, a]) => `${h}-${a}`));
 
-  // Which side is the favourite (lower FIFA rank); undefined when even/unknown.
-  const r1 = teamRank(team1);
-  const r2 = teamRank(team2);
-  const strongerIsHome =
-    r1 != null && r2 != null && r1 !== r2 ? r1 < r2 : undefined;
-
   const pool = (useNoDup: boolean, useOu: boolean): [number, number][] => {
     const out: [number, number][] = [];
     for (let h = 0; h <= MAX_GOALS; h++)
@@ -134,12 +151,41 @@ function RandomScoreModal({
   };
 
   const spin = () => {
-    // Relax constraints in order if the combination leaves nothing: drop
-    // no-dup first, then tài/xỉu.
-    let p = pool(noDup, true);
-    if (p.length === 0) p = pool(false, true);
-    if (p.length === 0) p = pool(false, false);
-    const final = pickWeighted(p, strongerIsHome); // unrealistic scores rarer
+    const [homeXG, awayXG] = expectedGoals(team1, team2);
+
+    // Whether a score satisfies the current winner / tài-xỉu / no-dup settings.
+    const valid = (h: number, a: number, useNoDup: boolean, useOu: boolean) => {
+      if (winner === "home" && !(h > a)) return false;
+      if (winner === "away" && !(a > h)) return false;
+      if (useOu && ou === "over" && !(h + a > line)) return false;
+      if (useOu && ou === "under" && !(h + a <= line)) return false;
+      if (useNoDup && takenSet.has(`${h}-${a}`)) return false;
+      return true;
+    };
+
+    // Poisson-sample a realistic score, rerolling unrealistic ones (total > 7 or
+    // a team > 6) and any that break the constraints. If the constraints are too
+    // tight to hit by sampling, relax no-dup first, then tài/xỉu.
+    const draw = (useNoDup: boolean, useOu: boolean): [number, number] | null => {
+      for (let i = 0; i < MAX_RETRY; i++) {
+        const h = poisson(homeXG);
+        const a = poisson(awayXG);
+        if (h + a > 7 || h > MAX_GOALS || a > MAX_GOALS) continue;
+        if (valid(h, a, useNoDup, useOu)) return [h, a];
+      }
+      return null;
+    };
+
+    let final = draw(noDup, true) ?? draw(false, true) ?? draw(false, false);
+    if (!final) {
+      // Sampling couldn't satisfy the constraints — pick from the guaranteed
+      // pool, weighted by Poisson probability so it's still realistic.
+      let p = pool(noDup, true);
+      if (p.length === 0) p = pool(false, true);
+      if (p.length === 0) p = pool(false, false);
+      final = pickWeighted(p, (h, a) => poissonPmf(h, homeXG) * poissonPmf(a, awayXG));
+    }
+
     setResult(final);
     setPhase("spin");
     const start = performance.now();
@@ -147,13 +193,15 @@ function RandomScoreModal({
     const loop = () => {
       const elapsed = performance.now() - start;
       if (elapsed >= DURATION) {
-        setDisplay(final);
+        setDisplay(final!);
         setPhase("done");
         return;
       }
-      // Flicker through valid candidates, weighted like the result (so wild
-      // scores rarely flash either).
-      setDisplay(pickWeighted(p, strongerIsHome));
+      // Flicker realistic Poisson samples (capped) so wild scores rarely flash.
+      setDisplay([
+        Math.min(poisson(homeXG), MAX_GOALS),
+        Math.min(poisson(awayXG), MAX_GOALS),
+      ]);
       const prog = elapsed / DURATION;
       timer.current = setTimeout(loop, 55 + prog * prog * 420); // ease-out
     };
