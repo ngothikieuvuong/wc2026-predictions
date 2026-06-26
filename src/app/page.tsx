@@ -181,43 +181,45 @@ export default function HomePage() {
               return (
                 <div key={i} className="space-y-1.5">
                   <MatchInfoButton team1={m.home} team2={m.away} started>
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 transition hover:border-red-500/50">
-                      <div className="font-bold">
-                        {m.home} <span className="text-white/40">gặp</span> {m.away}
-                      </div>
-                      <div className="flex items-center gap-2 whitespace-nowrap">
-                        <span className="font-mono text-lg font-extrabold">
-                          {m.homeScore}–{m.awayScore}
-                        </span>
-                        {m.minute && (
-                          <span className="text-xs font-semibold text-red-300">
-                            {m.minute}
+                    <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 transition hover:border-red-500/50">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-bold">
+                          {m.home} <span className="text-white/40">gặp</span> {m.away}
+                        </div>
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                          <span className="font-mono text-lg font-extrabold">
+                            {m.homeScore}–{m.awayScore}
                           </span>
-                        )}
+                          {m.minute && (
+                            <span className="text-xs font-semibold text-red-300">
+                              {m.minute}
+                            </span>
+                          )}
+                        </div>
                       </div>
+
+                      {((m.homeGoals?.length ?? 0) + (m.awayGoals?.length ?? 0)) > 0 && (
+                        <div className="mt-2 grid grid-cols-2 gap-3 border-t border-white/10 pt-2 text-[11px] leading-tight text-white/55">
+                          <div className="space-y-0.5">
+                            {(m.homeGoals ?? []).map((g, k) => (
+                              <p key={k} className="truncate">
+                                ⚽ {g.player} {g.minute}
+                                {g.note ? ` (${g.note})` : ""}
+                              </p>
+                            ))}
+                          </div>
+                          <div className="space-y-0.5 text-right">
+                            {(m.awayGoals ?? []).map((g, k) => (
+                              <p key={k} className="truncate">
+                                {g.player} {g.minute}
+                                {g.note ? ` (${g.note})` : ""} ⚽
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </MatchInfoButton>
-
-                  {((m.homeGoals?.length ?? 0) + (m.awayGoals?.length ?? 0)) > 0 && (
-                    <div className="grid grid-cols-2 gap-3 px-1 text-[11px] leading-tight text-white/55">
-                      <div className="space-y-0.5">
-                        {(m.homeGoals ?? []).map((g, k) => (
-                          <p key={k} className="truncate">
-                            ⚽ {g.player} {g.minute}
-                            {g.note ? ` (${g.note})` : ""}
-                          </p>
-                        ))}
-                      </div>
-                      <div className="space-y-0.5 text-right">
-                        {(m.awayGoals ?? []).map((g, k) => (
-                          <p key={k} className="truncate">
-                            {g.player} {g.minute}
-                            {g.note ? ` (${g.note})` : ""} ⚽
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {winners.length > 0 && (
                     <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
