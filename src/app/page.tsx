@@ -280,11 +280,6 @@ export default function HomePage() {
                       <span className="text-white/30"> · chưa tính</span>
                     )}
                   </span>
-                  {g.matches.some((m) => m.treo) && (
-                    <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
-                      🔁 treo
-                    </span>
-                  )}
                 </div>
 
                 <ul className="space-y-0.5">
@@ -297,7 +292,6 @@ export default function HomePage() {
                     >
                       <span className="min-w-0">
                         <span className={m.treo ? "text-amber-300/90" : "text-white/80"}>
-                          {m.treo && "🔁 "}
                           {m.team1 ? (
                             <>
                               {m.team1} <span className="text-white/30">–</span>{" "}
@@ -311,12 +305,17 @@ export default function HomePage() {
                           {m.participants.join(", ") || "—"}
                         </span>
                       </span>
-                      <span
-                        className={`shrink-0 font-semibold ${
-                          m.treo ? "text-amber-300" : ""
-                        }`}
-                      >
-                        <Money value={m.pot} />
+                      <span className="flex shrink-0 items-baseline gap-1.5">
+                        {m.treo && (
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-amber-300/80">
+                            treo
+                          </span>
+                        )}
+                        <span
+                          className={`font-semibold ${m.treo ? "text-amber-300" : ""}`}
+                        >
+                          <Money value={m.pot} />
+                        </span>
                       </span>
                     </li>
                   ))}
