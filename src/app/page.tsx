@@ -198,6 +198,27 @@ export default function HomePage() {
                     </div>
                   </MatchInfoButton>
 
+                  {((m.homeGoals?.length ?? 0) + (m.awayGoals?.length ?? 0)) > 0 && (
+                    <div className="grid grid-cols-2 gap-3 px-1 text-[11px] leading-tight text-white/55">
+                      <div className="space-y-0.5">
+                        {(m.homeGoals ?? []).map((g, k) => (
+                          <p key={k} className="truncate">
+                            ⚽ {g.player} {g.minute}
+                            {g.note ? ` (${g.note})` : ""}
+                          </p>
+                        ))}
+                      </div>
+                      <div className="space-y-0.5 text-right">
+                        {(m.awayGoals ?? []).map((g, k) => (
+                          <p key={k} className="truncate">
+                            {g.player} {g.minute}
+                            {g.note ? ` (${g.note})` : ""} ⚽
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {winners.length > 0 && (
                     <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
                       {winMessage(m.home + m.away, winners.map((w) => w.name))}

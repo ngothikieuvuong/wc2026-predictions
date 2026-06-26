@@ -76,54 +76,88 @@ function RecentForm({ info }: { info: Info }) {
   );
 }
 
-// Group-stage qualification read for both teams (current points + chances).
-function GroupStatusSection({ team1, team2 }: { team1: string; team2: string }) {
-  const [rows, setRows] = useState<(GroupAnalysis | null)[]>([null, null]);
+type Group = Awaited<ReturnType<typeof getGroups>>[number];
+const gnorm = (s: string) =>
+  s.toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[̀-ͯ]/g, "");
+const inMatch = (name: string, t1: string, t2: string) =>
+  gnorm(name) === gnorm(t1) || gnorm(name) === gnorm(t2);
 
-  useEffect(() => {
-    let alive = true;
-    getGroups().then((g) => {
-      if (alive) setRows([groupStatus(g, team1), groupStatus(g, team2)]);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [team1, team2]);
+const verdictTone = (v: GroupAnalysis["verdict"]) =>
+  v === "done-top2" || v === "secured"
+    ? "text-grass"
+    : v === "out"
+    ? "text-red-400"
+    : "text-amber-300";
 
-  const items: { team: string; a: GroupAnalysis }[] = [];
-  if (rows[0]) items.push({ team: team1, a: rows[0] });
-  if (rows[1]) items.push({ team: team2, a: rows[1] });
-  if (items.length === 0) return null; // knockout / no group data
-
-  const tone = (v: GroupAnalysis["verdict"]) =>
-    v === "done-top2" || v === "secured"
-      ? "text-grass"
-      : v === "out"
-      ? "text-red-400"
-      : "text-amber-300";
+// Tab: the standings of this match's group + a SHORT qualification read for the
+// two teams. Group-stage matches only (the tab isn't shown for knockout).
+function GroupBoard({
+  team1,
+  team2,
+  group,
+  groups,
+}: {
+  team1: string;
+  team2: string;
+  group: Group;
+  groups: Group[];
+}) {
+  const a1 = groupStatus(groups, team1, team2);
+  const a2 = groupStatus(groups, team2, team1);
+  const reads = [
+    { team: team1, a: a1 },
+    { team: team2, a: a2 },
+  ].filter((x) => x.a) as { team: string; a: GroupAnalysis }[];
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-        🧮 Cơ hội đi tiếp (vòng bảng)
-      </p>
-      {items.map(({ team, a }) => (
-        <div
-          key={team}
-          className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-bold">{team}</span>
-            <span className="text-[11px] text-white/50">
-              Bảng {a.group} · hạng {a.pos} · <b className="text-white/80">{a.pts}đ</b>{" "}
-              (đã đá {a.played}/3)
-            </span>
-          </div>
-          <p className={`mt-1 font-semibold ${tone(a.verdict)}`}>{a.label}</p>
+    <div className="space-y-3">
+      <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
+        <div className="border-b border-white/10 px-3 py-2 text-xs font-bold">
+          Bảng {group.name}
+        </div>
+        <table className="w-full text-sm">
+          <thead className="text-[11px] uppercase tracking-wider text-white/40">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">Đội</th>
+              <th className="px-2 py-2 text-center font-medium">Tr</th>
+              <th className="px-2 py-2 text-center font-medium">Hiệu</th>
+              <th className="px-3 py-2 text-center font-medium">Đ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {group.rows.map((r, i) => {
+              const here = inMatch(r.name, team1, team2);
+              return (
+                <tr
+                  key={r.name}
+                  className={`border-t border-white/5 ${
+                    here ? "bg-grass/15" : i < 2 ? "bg-grass/5" : ""
+                  }`}
+                >
+                  <td className="px-3 py-2">
+                    <span className="mr-2 text-white/40">{i + 1}</span>
+                    <span className={here ? "font-semibold" : ""}>{r.name}</span>
+                  </td>
+                  <td className="px-2 py-2 text-center text-white/60">{r.P}</td>
+                  <td className="px-2 py-2 text-center text-white/60">
+                    {r.GD > 0 ? `+${r.GD}` : r.GD}
+                  </td>
+                  <td className="px-3 py-2 text-center font-bold">{r.Pts}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {reads.map(({ team, a }) => (
+        <div key={team} className="rounded-lg bg-black/20 px-3 py-2 text-sm">
+          <b>{team}</b>{" "}
+          <span className={`font-semibold ${verdictTone(a.verdict)}`}>· {a.label}</span>
         </div>
       ))}
       <p className="text-[11px] text-white/30">
-        Top 2 mỗi bảng đi tiếp (+ vài đội hạng 3 tốt nhất). Chỉ để tham khảo.
+        Top 2 mỗi bảng + 8 đội hạng 3 tốt nhất đi tiếp. Chỉ để tham khảo.
       </p>
     </div>
   );
@@ -339,21 +373,28 @@ export default function MatchDetails({
   started?: boolean;
 }) {
   const [info, setInfo] = useState<Info | null>(null);
-  const [tab, setTab] = useState<"form" | "insight" | "lineup">(
+  const [groups, setGroups] = useState<Group[] | null>(null);
+  const [tab, setTab] = useState<"form" | "insight" | "bxh" | "lineup">(
     started ? "insight" : "form"
   );
 
   useEffect(() => {
     let alive = true;
     getTeamInfo(team1, team2).then((d) => alive && setInfo(d));
+    getGroups().then((g) => alive && setGroups(g));
     return () => {
       alive = false;
     };
   }, [team1, team2]);
 
+  // This match's group (group-stage only — knockout matches have none).
+  const myGroup =
+    groups?.find((g) => g.rows.some((r) => inMatch(r.name, team1, team2))) ?? null;
+
   const tabs = [
     { id: "form" as const, label: "Phong độ" },
     { id: "insight" as const, label: started ? "🔴 Trực tiếp" : "Nhận định" },
+    ...(myGroup ? [{ id: "bxh" as const, label: "BXH" }] : []),
     { id: "lineup" as const, label: "Đội hình" },
   ];
 
@@ -383,9 +424,12 @@ export default function MatchDetails({
           <div className="space-y-3">
             <FormCompare info={info} />
             <RecentForm info={info} />
-            <GroupStatusSection team1={team1} team2={team2} />
           </div>
         ))}
+
+      {tab === "bxh" && myGroup && groups && (
+        <GroupBoard team1={team1} team2={team2} group={myGroup} groups={groups} />
+      )}
 
       {tab === "insight" &&
         (started ? (
