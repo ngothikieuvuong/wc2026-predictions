@@ -160,6 +160,11 @@ export default function GiaiTabs({
     !nq || norm(a).includes(nq) || norm(b).includes(nq);
   const filteredResults = (results ?? []).filter((m) => hit(m.team1, m.team2));
 
+  // Matches still to be played = upcoming group fixtures + not-yet-played KO ties.
+  const remaining =
+    groupFixtures.length +
+    rounds.reduce((s, r) => s + r.matches.filter((m) => !m.played).length, 0);
+
   // Group upcoming group-stage fixtures by day (already sorted), filtered.
   const fxGroups: { day: string; items: Fixture[] }[] = [];
   for (const f of groupFixtures) {
@@ -187,6 +192,14 @@ export default function GiaiTabs({
         title="Lịch và kết quả"
         subtitle="Lịch thi đấu, kết quả các trận và bảng xếp hạng."
       />
+
+      {remaining > 0 && (
+        <div className="-mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs">
+          <span className="text-white/55">Còn lại</span>
+          <b className="text-grass">{remaining}</b>
+          <span className="text-white/55">trận chưa đá</span>
+        </div>
+      )}
 
       {/* Sentinel: marks where the bar pins under the nav */}
       <div ref={sentinelRef} aria-hidden className="h-0" />
