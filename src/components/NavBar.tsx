@@ -12,10 +12,11 @@ import { getPlayers } from "@/lib/queries";
 
 const SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET;
 
-// The two tabs shown on every page.
+// The tabs shown on every page.
 const mainTabs = [
   { href: "/", label: "🏠 Trang chủ" },
-  { href: "/predictions", label: "👥 Mọi người đoán" },
+  { href: "/predictions", label: "👥 Mọi người" },
+  { href: "/sodo", label: "🏆 Sơ đồ" },
 ];
 
 // Everything else lives in the menu.

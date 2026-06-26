@@ -9,7 +9,6 @@ import { formatKickoff, matchSlug } from "@/lib/format";
 import { useRefresh } from "@/components/Refresh";
 import MatchInfoButton from "@/components/MatchInfoButton";
 import PageHeader from "@/components/PageHeader";
-import Bracket from "@/components/Bracket";
 
 // Small green badge marking a match that's open for prediction.
 function OpenBadge() {
@@ -42,7 +41,6 @@ const TABS = [
   { key: "ketqua", label: "KQ" },
   { key: "bang", label: "BXH" },
   { key: "hang3", label: "Hạng 3" },
-  { key: "sodo", label: "Sơ đồ" },
 ] as const;
 
 // WC2026: the 8 best third-placed teams (of 12 groups) advance to the Round of 32.
@@ -357,22 +355,6 @@ export default function GiaiTabs({
               <p className="text-xs text-white/30">
                 8 đội hạng 3 tốt nhất (xanh ✓) vào vòng 1/16. Xếp theo điểm → hiệu số
                 → bàn thắng.
-              </p>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Knockout bracket diagram */}
-      {tab === "sodo" && (
-        <div className="card overflow-hidden">
-          {rounds.length === 0 ? (
-            <p className="text-white/50">Chưa có sơ đồ vòng loại.</p>
-          ) : (
-            <>
-              <Bracket rounds={rounds} />
-              <p className="mt-2 text-center text-[11px] text-white/30">
-                Kéo ngang để xem hết · tên đội tự điền sau khi xong vòng bảng.
               </p>
             </>
           )}
