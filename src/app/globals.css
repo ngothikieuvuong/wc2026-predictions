@@ -58,6 +58,105 @@ body {
   background: rgb(var(--bar) / 0.82);
 }
 
+/* ── Knockout bracket ─────────────────────────────────────────────────────── */
+.bracket-wrap {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+.bracket {
+  display: flex;
+  align-items: stretch;
+  min-width: max-content;
+  --bl: rgba(233, 201, 124, 0.4); /* gold connector */
+}
+.b-side {
+  display: flex;
+}
+.b-col {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  min-width: 8.5rem;
+}
+.b-cell {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  padding: 0.3rem 0;
+}
+.b-box {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.6rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.6);
+}
+.b-team {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.1;
+}
+.b-team + .b-team {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.b-center {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 1rem;
+}
+
+/* Connectors — left side reaches right toward the centre; right side mirrors. */
+.b-side-l .b-col:not(:last-child) {
+  padding-right: 1.5rem;
+}
+.b-side-l .b-col:not(:last-child) .b-cell::before {
+  content: "";
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  width: 1.5rem;
+  height: 2px;
+  background: var(--bl);
+}
+.b-side-l .b-col:not(:last-child) .b-cell:nth-child(odd)::after {
+  content: "";
+  position: absolute;
+  left: calc(100% + 1.5rem - 1px);
+  top: 50%;
+  height: 100%;
+  width: 2px;
+  background: var(--bl);
+}
+.b-side-r .b-col:not(:first-child) {
+  padding-left: 1.5rem;
+}
+.b-side-r .b-col:not(:first-child) .b-cell::before {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  width: 1.5rem;
+  height: 2px;
+  background: var(--bl);
+}
+.b-side-r .b-col:not(:first-child) .b-cell:nth-child(odd)::after {
+  content: "";
+  position: absolute;
+  right: calc(100% + 1.5rem - 1px);
+  top: 50%;
+  height: 100%;
+  width: 2px;
+  background: var(--bl);
+}
+
 /* Slim, premium scrollbar */
 * {
   scrollbar-width: thin;
