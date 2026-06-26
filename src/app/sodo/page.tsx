@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTournament } from "@/lib/tournament";
 import Bracket from "@/components/Bracket";
 import PageHeader from "@/components/PageHeader";
@@ -8,10 +9,18 @@ export default async function SoDoPage() {
   const { rounds, error } = await getTournament();
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Sơ đồ"
-        subtitle="Vòng loại trực tiếp — Round of 32 đến Chung kết."
-      />
+      <div className="flex items-start justify-between gap-3">
+        <PageHeader
+          title="Sơ đồ"
+          subtitle="Vòng loại trực tiếp — Round of 32 đến Chung kết."
+        />
+        <Link
+          href="/giai"
+          className="mt-1 shrink-0 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-white/25 hover:bg-white/10 hover:text-white"
+        >
+          📅 Xem lịch
+        </Link>
+      </div>
       {error || rounds.length === 0 ? (
         <div className="card text-white/50">Chưa có sơ đồ vòng loại.</div>
       ) : (

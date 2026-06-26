@@ -1,6 +1,17 @@
 import Image from "next/image";
 import type { BracketRound, BracketMatch } from "@/lib/tournament";
 
+// Seeded (top) teams — highlighted in the bracket.
+const SEEDS = new Set([
+  "Brazil",
+  "Pháp",
+  "Hà Lan",
+  "Anh",
+  "Đức",
+  "Argentina",
+  "Tây Ban Nha",
+]);
+
 // A two-sided knockout bracket (Round of 32 → Final), converging on the trophy
 // in the centre — styled in the app's dark/gold luxe look. Scrolls horizontally.
 export default function Bracket({ rounds }: { rounds: BracketRound[] }) {
@@ -78,12 +89,22 @@ function Box({ m }: { m: BracketMatch }) {
     name: string;
     score: number | null;
     win: boolean;
-  }) => (
-    <div className={`b-team ${win ? "font-bold text-grass" : ""}`}>
-      <span className="truncate">{name}</span>
-      {score != null && <span className="font-mono text-white/70">{score}</span>}
-    </div>
-  );
+  }) => {
+    const seed = SEEDS.has(name);
+    return (
+      <div
+        className={`b-team ${
+          win ? "font-bold text-grass" : seed ? "font-semibold text-gold" : ""
+        }`}
+      >
+        <span className="truncate">
+          {seed && "⭐ "}
+          {name}
+        </span>
+        {score != null && <span className="font-mono text-white/70">{score}</span>}
+      </div>
+    );
+  };
   return (
     <div className="b-box">
       <Row name={m.home} score={m.played ? m.hs : null} win={winH} />
