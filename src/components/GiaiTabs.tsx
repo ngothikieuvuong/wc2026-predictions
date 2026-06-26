@@ -160,10 +160,18 @@ export default function GiaiTabs({
     !nq || norm(a).includes(nq) || norm(b).includes(nq);
   const filteredResults = (results ?? []).filter((m) => hit(m.team1, m.team2));
 
-  // Matches still to be played = upcoming group fixtures + not-yet-played KO ties.
+  // Matches still to be played vs the whole tournament.
   const remaining =
     groupFixtures.length +
     rounds.reduce((s, r) => s + r.matches.filter((m) => !m.played).length, 0);
+  const groupPlayed = groups.reduce(
+    (s, g) => s + g.rows.reduce((a, r) => a + r.P, 0) / 2,
+    0
+  );
+  const totalMatches =
+    Math.round(groupPlayed) +
+    groupFixtures.length +
+    rounds.reduce((s, r) => s + r.matches.length, 0);
 
   // Group upcoming group-stage fixtures by day (already sorted), filtered.
   const fxGroups: { day: string; items: Fixture[] }[] = [];
@@ -188,15 +196,14 @@ export default function GiaiTabs({
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Lịch và kết quả"
-        subtitle="Lịch thi đấu, kết quả các trận và bảng xếp hạng."
-      />
+      <PageHeader title="Lịch và kết quả" />
 
-      {remaining > 0 && (
+      {totalMatches > 0 && (
         <div className="-mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs">
           <span className="text-white/55">Còn lại</span>
-          <b className="text-grass">{remaining}</b>
+          <b className="text-grass">
+            {remaining}/{totalMatches}
+          </b>
           <span className="text-white/55">trận chưa đá</span>
         </div>
       )}
