@@ -13,7 +13,9 @@ export async function getJackpot(): Promise<number> {
       supabase.from("predictions").select("match_id"),
       supabase.from("matches").select("id, kickoff_time, home_score, away_score"),
       supabase.from("rewards").select("amount"),
-      supabase.from("adjustments").select("amount"),
+      // Only pool corrections (player_name null) move the jackpot; per-person
+      // cộng/trừ don't.
+      supabase.from("adjustments").select("amount").is("player_name", null),
     ]);
   const P = (preds as { match_id: string }[]) ?? [];
   const M = (matches as Match[]) ?? [];
@@ -783,8 +785,8 @@ export async function getPlayerLedger(name: string): Promise<{
     []) {
     items.push({
       kind: "win",
-      label: a.note || "Trích quỹ",
-      sub: "admin chuyển từ quỹ",
+      label: a.note || "Điều chỉnh",
+      sub: "admin điều chỉnh",
       amount: Number(a.amount),
       time: a.created_at,
     });

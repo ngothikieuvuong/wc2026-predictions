@@ -178,8 +178,13 @@ export async function settlementState(
 // amount taken OUT of the pool — given to a player (player_name set) or a
 // general correction (player_name null). Kept separate from settlement rewards
 // so it never affects the watermark / treo-capacity logic.
+// Only POOL adjustments (player_name null = "sửa quỹ treo") move the fund.
+// Per-person cộng/trừ (player_name set) only change that person's balance.
 export async function getAdjustTotal(): Promise<number> {
-  const { data } = await supabase.from("adjustments").select("amount");
+  const { data } = await supabase
+    .from("adjustments")
+    .select("amount")
+    .is("player_name", null);
   return ((data as { amount: number }[]) ?? []).reduce(
     (s, a) => s + Number(a.amount),
     0

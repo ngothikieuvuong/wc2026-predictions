@@ -504,7 +504,7 @@ function ManageFund({ onChanged }: { onChanged: (t: string) => void }) {
   >([]);
   const [busy, setBusy] = useState(false);
 
-  // Give-to-person form.
+  // Add/subtract-money-for-a-person form.
   const [who, setWho] = useState("");
   const [giveAmt, setGiveAmt] = useState("");
 
@@ -526,15 +526,17 @@ function ManageFund({ onChanged }: { onChanged: (t: string) => void }) {
     load();
   }, []);
 
-  async function give() {
-    const amt = Math.round(Number(giveAmt));
-    if (!who) return onChanged("Chọn người nhận đã.");
-    if (!Number.isFinite(amt) || amt === 0) return onChanged("Số tiền không hợp lệ.");
-    if (!window.confirm(`Trích ${formatVND(amt)} từ quỹ gửi cho ${who}?`)) return;
+  async function adjust(sign: 1 | -1) {
+    const base = Math.round(Number(giveAmt));
+    if (!who) return onChanged("Chọn người đã.");
+    if (!Number.isFinite(base) || base <= 0) return onChanged("Số tiền không hợp lệ.");
+    const verb = sign > 0 ? "Cộng" : "Trừ";
+    const prep = sign > 0 ? "cho" : "của";
+    if (!window.confirm(`${verb} ${formatVND(base)} ${prep} ${who}?`)) return;
     setBusy(true);
     try {
-      await addPayout(who, amt);
-      onChanged(`✅ Đã trích ${formatVND(amt)} cho ${who}.`);
+      await addPayout(who, sign * base, `${verb} tiền`);
+      onChanged(`✅ Đã ${verb.toLowerCase()} ${formatVND(base)} ${prep} ${who}.`);
       setGiveAmt("");
       setWho("");
       await load();
@@ -566,7 +568,7 @@ function ManageFund({ onChanged }: { onChanged: (t: string) => void }) {
   }
 
   async function undo(id: string) {
-    if (!window.confirm("Hoàn tác điều chỉnh này? Tiền quay lại quỹ.")) return;
+    if (!window.confirm("Hoàn tác điều chỉnh này?")) return;
     setBusy(true);
     try {
       await deleteAdjustment(id);
@@ -581,17 +583,17 @@ function ManageFund({ onChanged }: { onChanged: (t: string) => void }) {
   return (
     <section className="card space-y-4">
       <div>
-        <p className="font-bold">💸 Trích quỹ / sửa quỹ treo</p>
+        <p className="font-bold">💸 Cộng/trừ tiền · quỹ treo</p>
         <p className="text-xs text-white/50">
           Quỹ treo hiện tại:{" "}
           <b className="text-white/80">{treo === null ? "…" : formatVND(treo)}</b>
         </p>
       </div>
 
-      {/* Give money from the fund to a person */}
+      {/* Add / subtract money for a person (does NOT touch the fund) */}
       <div className="space-y-2 rounded-xl border border-white/10 p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-          Trích quỹ gửi cho 1 người
+          Cộng / Trừ tiền cho 1 người
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <select
@@ -615,12 +617,26 @@ function ManageFund({ onChanged }: { onChanged: (t: string) => void }) {
             className="input flex-1"
             placeholder="Số tiền (vd 50000)"
           />
-          <button onClick={give} disabled={busy} className="btn">
-            Gửi
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => adjust(1)}
+            disabled={busy}
+            className="btn flex-1"
+          >
+            ➕ Cộng
+          </button>
+          <button
+            onClick={() => adjust(-1)}
+            disabled={busy}
+            className="btn-ghost flex-1 border-red-400/40 text-red-300"
+          >
+            ➖ Trừ
           </button>
         </div>
         <p className="text-[11px] text-white/40">
-          Trừ vào quỹ và cộng cho người đó (hiện ở Tổng kết &amp; lịch sử của họ).
+          Chỉ thay đổi số dư người đó (hiện ở Tổng kết &amp; lịch sử của họ).{" "}
+          <b>Không</b> đụng tới quỹ / quỹ treo.
         </p>
       </div>
 
@@ -657,11 +673,14 @@ function ManageFund({ onChanged }: { onChanged: (t: string) => void }) {
           {adjustments.map((a) => (
             <div key={a.id} className="flex items-center justify-between gap-2 text-sm">
               <span className="min-w-0 truncate text-white/70">
-                {a.player_name ? `→ ${a.player_name}` : a.note || "Điều chỉnh"}{" "}
+                {a.player_name
+                  ? `${Number(a.amount) >= 0 ? "Cộng" : "Trừ"} · ${a.player_name}`
+                  : a.note || "Điều chỉnh"}{" "}
                 <span className="text-white/40">{formatShort(a.created_at)}</span>
               </span>
               <span className="flex shrink-0 items-center gap-2">
-                <b className={Number(a.amount) >= 0 ? "text-amber-300" : "text-neon"}>
+                <b className={Number(a.amount) >= 0 ? "text-neon" : "text-red-400"}>
+                  {Number(a.amount) > 0 ? "+" : ""}
                   {formatVND(Number(a.amount))}
                 </b>
                 <button
