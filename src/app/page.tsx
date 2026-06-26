@@ -280,6 +280,11 @@ export default function HomePage() {
                       <span className="text-white/30"> · chưa tính</span>
                     )}
                   </span>
+                  {g.matches.some((m) => m.treo) && (
+                    <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                      🔁 treo
+                    </span>
+                  )}
                 </div>
 
                 <ul className="space-y-0.5">
@@ -304,7 +309,6 @@ export default function HomePage() {
                         </span>
                         <span className="block text-[11px] text-white/40">
                           {m.participants.join(", ") || "—"}
-                          {m.treo && " · treo"}
                         </span>
                       </span>
                       <span
