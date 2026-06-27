@@ -127,12 +127,13 @@ export default function Bracket({
               : undefined
           }
         />
-        {(m.date || country) && (
-          <div className="b-meta">
-            {vnDate(m.date)} {vnTime(m.date)}
-            {country ? ` · ${country}` : ""}
-          </div>
-        )}
+        <div className="b-meta">
+          {m.matchNumber > 0 && (
+            <b className="text-gold/70">Trận {m.matchNumber}</b>
+          )}
+          {m.date ? ` · ${vnDate(m.date)} ${vnTime(m.date)}` : ""}
+          {country ? ` · ${country}` : ""}
+        </div>
       </div>
     );
   };
