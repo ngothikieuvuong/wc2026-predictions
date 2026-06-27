@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 export const revalidate = 300; // refresh bracket every 5 minutes
 
 export default async function SoDoPage() {
-  const { rounds, error } = await getTournament();
+  const { rounds, groups, error } = await getTournament();
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
@@ -25,7 +25,7 @@ export default async function SoDoPage() {
         <div className="card text-white/50">Chưa có sơ đồ vòng loại.</div>
       ) : (
         <div className="card overflow-hidden">
-          <Bracket rounds={rounds} />
+          <Bracket rounds={rounds} groups={groups} />
           <p className="mt-2 text-center text-[11px] text-white/30">
             Kéo ngang để xem hết · tên đội tự điền sau khi xong vòng bảng.
           </p>

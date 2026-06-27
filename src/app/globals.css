@@ -105,6 +105,14 @@ body {
 .b-team + .b-team {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
+.b-meta {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.2rem 0.5rem;
+  font-size: 0.6rem;
+  line-height: 1.2;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+}
 .b-center {
   display: flex;
   flex: 0 0 auto;

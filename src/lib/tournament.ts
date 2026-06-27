@@ -21,12 +21,25 @@ export type StandingRow = {
 };
 
 export type GroupTable = { name: string; rows: StandingRow[] };
+
+// What a not-yet-decided bracket slot points to (for the click-to-explore UI).
+export type SlotRef =
+  | { kind: "group"; group: string; rank: 1 | 2 } // "Nhất/Nhì bảng X"
+  | { kind: "group3"; groups: string[] } // a best-third slot
+  | { kind: "match"; num: number }; // "Thắng trận N"
+
 export type BracketMatch = {
+  matchNumber: number;
   date: string;
+  venue: string; // "Los Angeles, Mỹ" (city + host country) — "" if unknown
   home: string;
   away: string;
   homeSlot: string; // group-slot note, e.g. "Nhất bảng C" (kept even after fill)
   awaySlot: string;
+  homeKnown: boolean; // home is a real team (not a placeholder)
+  awayKnown: boolean;
+  homeRef: SlotRef | null; // where an undecided home slot points (null if known/none)
+  awayRef: SlotRef | null;
   hs: number | null;
   as: number | null;
   played: boolean;
@@ -165,17 +178,43 @@ export async function getTournament(): Promise<Tournament> {
   const label = (side: any, placeholder: string | undefined) =>
     side?.IdCountry ? viTeam(side.IdCountry) : placeholderVi(placeholder);
 
+  // What a placeholder code points to (for click-to-explore).
+  const slotRef = (s?: string): SlotRef | null => {
+    if (!s) return null;
+    let m;
+    if ((m = /^([12])([A-L])$/.exec(s)))
+      return { kind: "group", group: m[2], rank: Number(m[1]) as 1 | 2 };
+    if ((m = /^3([A-L]+)$/.exec(s))) return { kind: "group3", groups: m[1].split("") };
+    if ((m = /^W(\d+)$/.exec(s))) return { kind: "match", num: Number(m[1]) };
+    return null; // losers (L/RU) etc. — nothing to explore
+  };
+
+  // Venue = "City, Host country" in Vietnamese.
+  const venueOf = (m: any): string => {
+    const st = m.Stadium;
+    if (!st) return "";
+    const city = st.CityName?.[0]?.Description ?? "";
+    const country = st.IdCountry ? viTeam(st.IdCountry) : "";
+    return [city, country].filter(Boolean).join(", ");
+  };
+
   const rounds: BracketRound[] = KO_ROUNDS.map((r) => ({
     name: KO_VI[r] ?? r,
     matches: matches
       .filter((m) => stageOf(m) === r)
       .sort((a, b) => (a.Date < b.Date ? -1 : a.Date > b.Date ? 1 : 0))
       .map((m) => ({
+        matchNumber: m.MatchNumber ?? 0,
         date: m.Date ?? "",
+        venue: venueOf(m),
         home: label(m.Home, m.PlaceHolderA),
         away: label(m.Away, m.PlaceHolderB),
         homeSlot: placeholderVi(m.PlaceHolderA),
         awaySlot: placeholderVi(m.PlaceHolderB),
+        homeKnown: !!m.Home?.IdCountry,
+        awayKnown: !!m.Away?.IdCountry,
+        homeRef: m.Home?.IdCountry ? null : slotRef(m.PlaceHolderA),
+        awayRef: m.Away?.IdCountry ? null : slotRef(m.PlaceHolderB),
         hs: m.Home?.Score ?? null,
         as: m.Away?.Score ?? null,
         played: m.MatchStatus === 0,
