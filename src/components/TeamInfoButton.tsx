@@ -16,6 +16,7 @@ export default function TeamInfoButton({
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen(true)}
         className="text-xs font-semibold text-grass underline"
       >
@@ -38,6 +39,7 @@ export default function TeamInfoButton({
                   {team1} <span className="text-white/40">vs</span> {team2}
                 </h2>
                 <button
+                  type="button"
                   className="text-2xl leading-none text-white/50 hover:text-white"
                   onClick={() => setOpen(false)}
                   aria-label="Đóng"
@@ -48,7 +50,11 @@ export default function TeamInfoButton({
 
               <MatchDetails team1={team1} team2={team2} />
 
-              <button className="btn mt-4 w-full" onClick={() => setOpen(false)}>
+              <button
+                type="button"
+                className="btn mt-4 w-full"
+                onClick={() => setOpen(false)}
+              >
                 Đóng
               </button>
             </div>
