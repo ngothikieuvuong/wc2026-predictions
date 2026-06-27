@@ -198,11 +198,42 @@ export async function getTournament(): Promise<Tournament> {
     return [city, country].filter(Boolean).join(", ");
   };
 
+  // Bracket TREE order (not date): each match feeds its parent via "W{n}"
+  // placeholders, so we walk Final → … → R32 to order matches so adjacent pairs
+  // feed the same parent. Falls back to date order if the tree can't be built.
+  const byNum = new Map<number, any>();
+  for (const m of matches) if (m.MatchNumber != null) byNum.set(m.MatchNumber, m);
+  const feeders = (m: any): [number, number] | null => {
+    const a = /^W(\d+)$/.exec(m?.PlaceHolderA ?? "");
+    const b = /^W(\d+)$/.exec(m?.PlaceHolderB ?? "");
+    return a && b ? [Number(a[1]), Number(b[1])] : null;
+  };
+  const treeOrder = new Map<number, number>(); // matchNumber → position in its round
+  const finalMatch = matches.find((m) => stageOf(m) === "Final");
+  if (finalMatch?.MatchNumber != null) {
+    let level: number[] = [finalMatch.MatchNumber];
+    while (level.length) {
+      level.forEach((num, i) => treeOrder.set(num, i));
+      const next: number[] = [];
+      for (const num of level) {
+        const f = feeders(byNum.get(num));
+        if (f) next.push(f[0], f[1]);
+      }
+      level = next;
+    }
+  }
+  const orderKey = (m: any) =>
+    treeOrder.has(m.MatchNumber) ? treeOrder.get(m.MatchNumber)! : m.Date;
+
   const rounds: BracketRound[] = KO_ROUNDS.map((r) => ({
     name: KO_VI[r] ?? r,
     matches: matches
       .filter((m) => stageOf(m) === r)
-      .sort((a, b) => (a.Date < b.Date ? -1 : a.Date > b.Date ? 1 : 0))
+      .sort((a, b) => {
+        const ka = orderKey(a);
+        const kb = orderKey(b);
+        return ka < kb ? -1 : ka > kb ? 1 : 0;
+      })
       .map((m) => ({
         matchNumber: m.MatchNumber ?? 0,
         date: m.Date ?? "",
