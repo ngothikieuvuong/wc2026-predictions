@@ -400,6 +400,9 @@ export default function HomePage() {
                         {m.team2}
                       </div>
                       <div className="whitespace-nowrap text-sm text-white/60">
+                        {m.match_no ? (
+                          <span className="text-gold/70">Trận {m.match_no} · </span>
+                        ) : null}
                         ⏱ {formatKickoff(m.kickoff_time)}
                       </div>
                     </div>

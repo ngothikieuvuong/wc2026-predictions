@@ -445,11 +445,12 @@ export default function GiaiTabs({
                         open ? "bg-grass/10 ring-1 ring-grass/40" : "bg-black/20"
                       }`}
                     >
-                      {m.date && (
-                        <p className="mb-1 text-center text-[11px] text-white/40">
-                          {viDay(m.date)} · {viTime(m.date)}
-                        </p>
-                      )}
+                      <p className="mb-1 text-center text-[11px] text-white/40">
+                        {m.matchNumber > 0 && (
+                          <span className="text-gold/70">Trận {m.matchNumber}</span>
+                        )}
+                        {m.date && ` · ${viDay(m.date)} · ${viTime(m.date)}`}
+                      </p>
                       <div className="flex items-center justify-between gap-2 text-sm">
                         <div className="flex-1 text-right">
                           <span className="font-medium">{m.home}</span>
@@ -530,6 +531,9 @@ export default function GiaiTabs({
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-2">
                         <span className="text-[11px] text-white/30">
+                          {m.match_no ? (
+                            <span className="text-gold/60">Trận {m.match_no} · </span>
+                          ) : null}
                           {formatKickoff(m.kickoff_time)}
                         </span>
                         {m.winners.length > 0 && (

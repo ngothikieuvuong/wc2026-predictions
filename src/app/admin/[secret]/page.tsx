@@ -157,7 +157,10 @@ function AdminPanel() {
       const res = await fetch("/api/sync", { cache: "no-store" });
       const j = await res.json();
       setBanner(
-        j.ok ? `✅ Đã cập nhật ${j.updated.length} trận từ FIFA.` : "Lỗi: " + (j.error ?? "")
+        j.ok
+          ? `✅ Đã cập nhật ${j.updated.length} trận từ FIFA` +
+            (j.imported > 0 ? ` · thêm ${j.imported} trận vòng loại.` : ".")
+          : "Lỗi: " + (j.error ?? "")
       );
       if (j.ok) refresh();
     } catch {

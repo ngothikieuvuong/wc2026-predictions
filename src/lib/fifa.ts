@@ -171,6 +171,7 @@ export type SyncResult = {
   fetched: number;
   updated: { team1: string; team2: string; home_score: number; away_score: number }[];
   skippedUnmatched: number;
+  imported: number; // knockout matches newly added to the DB
 };
 
 export async function syncFifaResults(): Promise<SyncResult> {
@@ -186,6 +187,47 @@ export async function syncFifaResults(): Promise<SyncResult> {
   if (!res.ok) throw new Error(`FIFA API ${res.status}`);
   const json = await res.json();
   const results: FifaMatch[] = json.Results ?? [];
+
+  // Import knockout matches whose two teams are now decided, so they can be
+  // opened for prediction (the DB is seeded with group-stage matches only).
+  const { data: existing } = await supabase.from("matches").select("team1, team2");
+  const have = new Set(
+    ((existing as { team1: string; team2: string }[]) ?? []).map((m) =>
+      pairKey(m.team1, m.team2)
+    )
+  );
+  const toInsert: {
+    team1: string;
+    team2: string;
+    kickoff_time: string;
+    status: string;
+    match_no: number | null;
+  }[] = [];
+  for (const fm of results as any[]) {
+    const stage = fm.StageName?.[0]?.Description as string | undefined;
+    if (!stage || stage === "First Stage") continue; // knockout only
+    const hc = fm.Home?.IdCountry;
+    const ac = fm.Away?.IdCountry;
+    if (!hc || !ac || !fm.Date) continue; // teams not decided yet
+    const hVI = CODE_TO_VI[hc];
+    const aVI = CODE_TO_VI[ac];
+    if (!hVI || !aVI) continue;
+    const key = pairKey(hVI, aVI);
+    if (have.has(key)) continue;
+    have.add(key);
+    toInsert.push({
+      team1: hVI,
+      team2: aVI,
+      kickoff_time: fm.Date,
+      status: "upcoming",
+      match_no: fm.MatchNumber ?? null,
+    });
+  }
+  let imported = 0;
+  if (toInsert.length) {
+    const { error } = await supabase.from("matches").insert(toInsert);
+    if (!error) imported = toInsert.length;
+  }
 
   // Only matches we haven't finalised yet — never clobber an already-finished match.
   const { data } = await supabase.from("matches").select("*").eq("status", "upcoming");
@@ -228,5 +270,5 @@ export async function syncFifaResults(): Promise<SyncResult> {
     if (!error) updated.push({ team1: m.team1, team2: m.team2, home_score, away_score });
   }
 
-  return { fetched: results.length, updated, skippedUnmatched };
+  return { fetched: results.length, updated, skippedUnmatched, imported };
 }

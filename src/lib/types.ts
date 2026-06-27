@@ -7,6 +7,7 @@ export type Match = {
   away_score: number | null;
   status: "upcoming" | "finished";
   is_open: boolean;
+  match_no: number | null; // FIFA match number (knockout matches)
   created_at: string;
 };
 

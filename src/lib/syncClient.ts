@@ -7,7 +7,7 @@ export function autoSync(): Promise<boolean> {
   if (!p) {
     p = fetch("/api/sync", { cache: "no-store" })
       .then((r) => r.json())
-      .then((j) => !!j?.ok && Array.isArray(j.updated) && j.updated.length > 0)
+      .then((j) => !!j?.ok && ((Array.isArray(j.updated) && j.updated.length > 0) || j.imported > 0))
       .catch(() => false);
   }
   return p;
@@ -18,7 +18,7 @@ export function autoSync(): Promise<boolean> {
 export function runSync(): Promise<boolean> {
   p = fetch("/api/sync", { cache: "no-store" })
     .then((r) => r.json())
-    .then((j) => !!j?.ok && Array.isArray(j.updated) && j.updated.length > 0)
+    .then((j) => !!j?.ok && ((Array.isArray(j.updated) && j.updated.length > 0) || j.imported > 0))
     .catch(() => false);
   return p;
 }

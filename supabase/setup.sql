@@ -14,6 +14,7 @@ create table if not exists matches (
   away_score    int,
   status        text not null default 'upcoming', -- 'upcoming' | 'finished'
   is_open       boolean not null default false,   -- admin opened it for predictions
+  match_no      int,                              -- FIFA match number (knockout)
   created_at    timestamptz not null default now()
 );
 

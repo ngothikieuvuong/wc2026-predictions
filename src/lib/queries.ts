@@ -555,6 +555,7 @@ export async function getMatchResults(): Promise<
     home_score: number;
     away_score: number;
     kickoff_time: string;
+    match_no: number | null;
     winners: string[];
   }[]
 > {
@@ -585,6 +586,7 @@ export async function getMatchResults(): Promise<
     home_score: m.home_score!,
     away_score: m.away_score!,
     kickoff_time: m.kickoff_time,
+    match_no: m.match_no ?? null,
     winners: winnersByMatch.get(m.id) ?? [],
   }));
 }

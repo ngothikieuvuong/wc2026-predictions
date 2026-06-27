@@ -387,9 +387,14 @@ export default function MatchDetails({
     };
   }, [team1, team2]);
 
-  // This match's group (group-stage only — knockout matches have none).
+  // This match's group — only when BOTH teams are in the SAME group (a real
+  // group-stage match). Knockout ties are cross-group, so no BXH tab there.
   const myGroup =
-    groups?.find((g) => g.rows.some((r) => inMatch(r.name, team1, team2))) ?? null;
+    groups?.find(
+      (g) =>
+        g.rows.some((r) => gnorm(r.name) === gnorm(team1)) &&
+        g.rows.some((r) => gnorm(r.name) === gnorm(team2))
+    ) ?? null;
 
   const tabs = [
     { id: "form" as const, label: "Phong độ" },
