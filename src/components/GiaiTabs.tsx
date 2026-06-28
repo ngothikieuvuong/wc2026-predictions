@@ -181,7 +181,10 @@ export default function GiaiTabs({
 
   // Group upcoming group-stage fixtures by day (already sorted), filtered.
   const fxGroups: { day: string; items: Fixture[] }[] = [];
-  for (const f of groupFixtures) {
+  const sortedFx = [...groupFixtures].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0
+  );
+  for (const f of sortedFx) {
     if (!hit(f.home, f.away)) continue;
     const day = viDay(f.date);
     const last = fxGroups[fxGroups.length - 1];
