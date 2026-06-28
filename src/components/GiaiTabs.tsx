@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { GroupTable, BracketRound, Fixture } from "@/lib/tournament";
+import type { Scorer, Assister } from "@/lib/scorers";
 import { getMatchResults, getOpenMatches } from "@/lib/queries";
 import { autoSync } from "@/lib/syncClient";
 import { formatKickoff, matchSlug } from "@/lib/format";
@@ -41,6 +42,7 @@ const TABS = [
   { key: "ketqua", label: "KQ" },
   { key: "bang", label: "BXH" },
   { key: "hang3", label: "Hạng 3" },
+  { key: "ghibanh", label: "Ghi bàn" },
 ] as const;
 
 // WC2026: the 8 best third-placed teams (of 12 groups) advance to the Round of 32.
@@ -81,11 +83,15 @@ export default function GiaiTabs({
   groups,
   groupFixtures,
   rounds,
+  scorers = [],
+  assists = [],
   error,
 }: {
   groups: GroupTable[];
   groupFixtures: Fixture[];
   rounds: BracketRound[];
+  scorers?: Scorer[];
+  assists?: Assister[];
   error?: string;
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("nhanh");
@@ -233,8 +239,8 @@ export default function GiaiTabs({
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 rounded-lg px-2 font-medium transition-all duration-200 ${
-                stuck ? "py-1 text-xs" : "py-2 text-sm"
+              className={`flex-1 whitespace-nowrap rounded-lg px-1.5 font-medium transition-all duration-200 ${
+                stuck ? "py-1 text-[11px]" : "py-2 text-[13px]"
               } ${
                 tab === t.key
                   ? "accent-grad shadow-glow"
@@ -378,6 +384,79 @@ export default function GiaiTabs({
               </p>
             </>
           )}
+        </div>
+      )}
+
+      {/* Top scorers / assists */}
+      {tab === "ghibanh" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="section-title">⚽ Vua phá lưới</h2>
+            {scorers.length === 0 ? (
+              <div className="card text-sm text-white/50">Chưa có bàn thắng.</div>
+            ) : (
+              <div className="card p-0 overflow-hidden">
+                <ul className="divide-y divide-white/5">
+                  {scorers.map((s, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm"
+                    >
+                      <span className="w-5 shrink-0 text-center text-white/40">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="font-semibold">{s.name}</span>
+                        <span className="block text-[11px] text-white/40">{s.team}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <b className="text-neon">{s.goals}</b>
+                        <span className="text-white/40"> bàn</span>
+                        {s.pens > 0 && (
+                          <span className="block text-[10px] text-white/40">
+                            ({s.pens} pen)
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {assists.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="section-title">🅰️ Kiến tạo</h2>
+              <div className="card p-0 overflow-hidden">
+                <ul className="divide-y divide-white/5">
+                  {assists.map((s, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm"
+                    >
+                      <span className="w-5 shrink-0 text-center text-white/40">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="font-semibold">{s.name}</span>
+                        <span className="block text-[11px] text-white/40">{s.team}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <b className="text-grass">{s.assists}</b>
+                        <span className="text-white/40"> kiến tạo</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] text-white/30">
+            Tổng hợp từ các bàn thắng đã ghi nhận (không tính phản lưới).{" "}
+            {assists.length === 0 && "Kiến tạo sẽ hiện khi có dữ liệu."}
+          </p>
         </div>
       )}
 
