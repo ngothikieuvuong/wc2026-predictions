@@ -320,11 +320,11 @@ export default function HomePage() {
                   {g.matches.map((m, i) => (
                     <li
                       key={i}
-                      className={`flex items-baseline justify-between gap-2 border-b border-white/5 py-1 last:border-0 ${
+                      className={`border-b border-white/5 py-1 last:border-0 ${
                         m.treo ? "rounded-lg bg-amber-400/5 px-1.5" : ""
                       }`}
                     >
-                      <span className="min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
                         <span className={m.treo ? "text-amber-300/90" : "text-white/80"}>
                           {m.team1 ? (
                             <>
@@ -335,21 +335,21 @@ export default function HomePage() {
                             "Quỹ treo trước"
                           )}
                         </span>
-                        <span className="block text-[11px] text-white/40">
-                          {m.participants.join(", ") || "—"}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 items-baseline gap-1.5">
-                        {m.treo && (
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-amber-300/80">
-                            treo
+                        <span className="flex shrink-0 items-baseline gap-1.5">
+                          {m.treo && (
+                            <span className="text-[10px] font-medium uppercase tracking-wider text-amber-300/80">
+                              treo
+                            </span>
+                          )}
+                          <span
+                            className={`font-semibold ${m.treo ? "text-amber-300" : ""}`}
+                          >
+                            <Money value={m.pot} />
                           </span>
-                        )}
-                        <span
-                          className={`font-semibold ${m.treo ? "text-amber-300" : ""}`}
-                        >
-                          <Money value={m.pot} />
                         </span>
+                      </div>
+                      <span className="block text-[11px] text-white/40">
+                        {m.participants.join(", ") || "—"}
                       </span>
                     </li>
                   ))}
