@@ -8,7 +8,7 @@ const nm = (arr: { Description?: string }[] | undefined) => arr?.[0]?.Descriptio
 const liveUrl = (stage: string, match: string) =>
   `https://api.fifa.com/api/v3/live/football/17/285023/${stage}/${match}?language=en`;
 
-export type LineupPlayer = { num: number; name: string; captain: boolean };
+export type LineupPlayer = { num: number; name: string; captain: boolean; id: string };
 export type TeamLineup = {
   name: string;
   xi: LineupPlayer[];
@@ -186,6 +186,7 @@ export async function getMatchInfo(team1: string, team2: string): Promise<MatchI
       num: p.ShirtNumber ?? 0,
       name: playerName(p),
       captain: !!p.Captain,
+      id: p.IdPlayer ?? "",
     });
     const byNum = (a: LineupPlayer, b: LineupPlayer) => a.num - b.num;
     const xi = players.filter((p) => p.Status === 1).map(mk).sort(byNum);

@@ -16,6 +16,7 @@ import { matchHint, teamRank } from "@/lib/strength";
 import { getOdds, findOdds } from "@/lib/oddsClient";
 import { predictMatch, type Prediction as ScorePrediction } from "@/lib/predict";
 import TeamInfoButton from "@/components/TeamInfoButton";
+import StarAlert from "@/components/StarAlert";
 import Modal from "@/components/Modal";
 import PageHeader from "@/components/PageHeader";
 import { useProfile } from "@/components/Profile";
@@ -619,6 +620,8 @@ export default function PredictPage() {
             </select>
           )}
         </div>
+
+        {selected && <StarAlert team1={selected.team1} team2={selected.team2} />}
 
         {/* Score input — right under the match dropdown */}
         {selected && (

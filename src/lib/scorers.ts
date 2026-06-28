@@ -13,8 +13,8 @@ const liveUrl = (stage: string, match: string) =>
   `https://api.fifa.com/api/v3/live/football/${COMP}/${SEASON}/${stage}/${match}?language=en`;
 const UA = { "User-Agent": "Mozilla/5.0" };
 
-export type Scorer = { name: string; team: string; goals: number; pens: number };
-export type Assister = { name: string; team: string; assists: number };
+export type Scorer = { id: string; name: string; team: string; goals: number; pens: number };
+export type Assister = { id: string; name: string; team: string; assists: number };
 
 const desc = (a: { Description?: string }[] | undefined) => a?.[0]?.Description ?? "";
 
@@ -60,14 +60,14 @@ export async function getTopScorers(): Promise<{
           if (g.Type === 3) continue; // own goal — not credited to a scorer
           const e =
             goals.get(g.IdPlayer) ??
-            ({ name: nameById.get(g.IdPlayer) ?? "?", team, goals: 0, pens: 0 } as Scorer);
+            ({ id: g.IdPlayer, name: nameById.get(g.IdPlayer) ?? "?", team, goals: 0, pens: 0 } as Scorer);
           e.goals++;
           if (g.Type === 1) e.pens++; // penalty
           goals.set(g.IdPlayer, e);
           if (g.IdAssistPlayer) {
             const a =
               assists.get(g.IdAssistPlayer) ??
-              ({ name: nameById.get(g.IdAssistPlayer) ?? "?", team, assists: 0 } as Assister);
+              ({ id: g.IdAssistPlayer, name: nameById.get(g.IdAssistPlayer) ?? "?", team, assists: 0 } as Assister);
             a.assists++;
             assists.set(g.IdAssistPlayer, a);
           }
@@ -83,4 +83,59 @@ export async function getTopScorers(): Promise<{
     .sort((a, b) => b.assists - a.assists || a.name.localeCompare(b.name))
     .slice(0, 25);
   return { scorers, assists: assistList };
+}
+
+const norm = (s: string) =>
+  s.toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
+export type StarAbsence = {
+  name: string;
+  team: string;
+  stat: string; // "8 bàn" / "5 kiến tạo"
+  reason: string; // treo thẻ / chấn thương / dự bị
+};
+
+// For a match whose lineup is announced, list any TOP-10 scorer/assister of the
+// two teams who is NOT in the starting XI (benched / suspended / out).
+export async function getStarAbsences(
+  team1: string,
+  team2: string
+): Promise<StarAbsence[]> {
+  const { getMatchInfo } = await import("./fifaLineup");
+  const [info, top] = await Promise.all([getMatchInfo(team1, team2), getTopScorers()]);
+  if (!info || "error" in info || !info.lineupReady) return [];
+
+  const lineupByTeam = new Map([
+    [norm(info.home.name), info.home],
+    [norm(info.away.name), info.away],
+  ]);
+  const wanted = new Set([norm(team1), norm(team2)]);
+
+  const out = new Map<string, StarAbsence>(); // by player id (dedupe scorer+assister)
+  const check = (
+    list: { id: string; name: string; team: string }[],
+    stat: (x: any) => string
+  ) => {
+    for (const s of list.slice(0, 10)) {
+      if (!wanted.has(norm(s.team))) continue;
+      const lu = lineupByTeam.get(norm(s.team));
+      if (!lu) continue;
+      if (lu.xi.some((p) => p.id === s.id)) continue; // starting — fine
+      const suspended = lu.suspended.find((x) => norm(x.name) === norm(s.name));
+      const benched = lu.bench.some((p) => p.id === s.id);
+      const reason = suspended
+        ? suspended.reason.includes("vàng")
+          ? "treo thẻ vàng"
+          : "treo thẻ đỏ"
+        : benched
+        ? "dự bị"
+        : "vắng mặt (chấn thương/khác)";
+      if (!out.has(s.id))
+        out.set(s.id, { name: s.name, team: s.team, stat: stat(s), reason });
+    }
+  };
+  check(top.scorers, (s) => `${s.goals} bàn`);
+  check(top.assists, (s) => `${s.assists} kiến tạo`);
+
+  return [...out.values()];
 }

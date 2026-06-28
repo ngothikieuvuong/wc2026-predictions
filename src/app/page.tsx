@@ -20,6 +20,7 @@ import { useRefresh } from "@/components/Refresh";
 import MatchInfoButton from "@/components/MatchInfoButton";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 import JustWonBanner from "@/components/JustWonBanner";
+import StarAlert from "@/components/StarAlert";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 
 export default function HomePage() {
@@ -221,6 +222,8 @@ export default function HomePage() {
                     </div>
                   </MatchInfoButton>
 
+                  <StarAlert team1={m.home} team2={m.away} />
+
                   {winners.length > 0 && (
                     <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
                       {winMessage(m.home + m.away, winners.map((w) => w.name))}
@@ -379,7 +382,8 @@ export default function HomePage() {
                   Ngày {dayLabel(g.day)}
                 </p>
                 {g.matches.map((m) => (
-                  <MatchInfoButton key={m.id} team1={m.team1} team2={m.team2}>
+                  <div key={m.id} className="space-y-1.5">
+                  <MatchInfoButton team1={m.team1} team2={m.team2}>
                     <div
                       className={`relative flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition ${
                         m.is_open
@@ -407,6 +411,8 @@ export default function HomePage() {
                       </div>
                     </div>
                   </MatchInfoButton>
+                  {m.is_open && <StarAlert team1={m.team1} team2={m.team2} />}
+                  </div>
                 ))}
               </div>
             ))}
