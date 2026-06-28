@@ -222,8 +222,6 @@ export default function HomePage() {
                     </div>
                   </MatchInfoButton>
 
-                  <StarAlert team1={m.home} team2={m.away} />
-
                   {winners.length > 0 && (
                     <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
                       {winMessage(m.home + m.away, winners.map((w) => w.name))}

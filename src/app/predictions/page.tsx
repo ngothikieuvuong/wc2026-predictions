@@ -254,7 +254,9 @@ function MatchCard({
         </div>
       </MatchInfoButton>
 
-      {started && <StarAlert team1={match.team1} team2={match.team2} />}
+      {!finished && !started && match.is_open && (
+        <StarAlert team1={match.team1} team2={match.team2} />
+      )}
 
       {liveWinners.length > 0 && (
         <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
