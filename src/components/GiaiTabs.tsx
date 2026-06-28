@@ -40,9 +40,9 @@ function viTime(iso: string): string {
 const TABS = [
   { key: "nhanh", label: "Lịch" },
   { key: "ketqua", label: "KQ" },
+  { key: "ghibanh", label: "Ghi bàn" },
   { key: "bang", label: "BXH" },
   { key: "hang3", label: "Hạng 3" },
-  { key: "ghibanh", label: "Ghi bàn" },
 ] as const;
 
 // WC2026: the 8 best third-placed teams (of 12 groups) advance to the Round of 32.
@@ -100,9 +100,14 @@ export default function GiaiTabs({
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
   const isMatchOpen = (home: string, away: string) =>
     openKeys.has(matchSlug(home, away));
-  // Which round sections are expanded. Default: Vòng bảng open, knockout closed.
+  // Which round sections are expanded. Group stage is finished, so default-open
+  // the current knockout round (first with an unplayed match), Final as fallback.
+  const activeRound =
+    rounds.find((r) => r.matches.some((m) => !m.played))?.name ??
+    rounds[rounds.length - 1]?.name ??
+    "";
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const isOpen = (k: string) => expanded[k] ?? k === "Vòng bảng";
+  const isOpen = (k: string) => expanded[k] ?? k === activeRound;
   const toggle = (k: string) =>
     setExpanded((e) => ({ ...e, [k]: !isOpen(k) }));
   // Whether the predict/tab bar is frozen under the nav → shrink it.
@@ -434,50 +439,9 @@ export default function GiaiTabs({
         </div>
       )}
 
-      {/* Schedule grouped by round (collapsible) */}
+      {/* Schedule — knockout rounds first (group stage finished), group fixtures last */}
       {tab === "nhanh" && (
         <div className="space-y-3">
-          {fxGroups.length > 0 && (
-            <RoundSection
-              title="Vòng bảng"
-              count={fxGroups.reduce((s, g) => s + g.items.length, 0)}
-              open={isOpen("Vòng bảng")}
-              onToggle={() => toggle("Vòng bảng")}
-            >
-              {fxGroups.map((g) => (
-                <div key={g.day} className="space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                    {g.day}
-                  </p>
-                  {g.items.map((m, i) => (
-                    <MatchInfoButton
-                      key={i}
-                      team1={m.home}
-                      team2={m.away}
-                      started={isStarted(m.date)}
-                    >
-                      <div
-                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-white/10 ${
-                          isMatchOpen(m.home, m.away)
-                            ? "bg-grass/10 ring-1 ring-grass/40"
-                            : "bg-black/20"
-                        }`}
-                      >
-                        <span className="w-11 shrink-0 text-xs text-white/40">
-                          {viTime(m.date)}
-                        </span>
-                        <span className="flex-1 text-right font-medium">{m.home}</span>
-                        <span className="text-xs text-white/40">vs</span>
-                        <span className="flex-1 font-medium">{m.away}</span>
-                        {isMatchOpen(m.home, m.away) && <OpenBadge />}
-                      </div>
-                    </MatchInfoButton>
-                  ))}
-                </div>
-              ))}
-            </RoundSection>
-          )}
-
           {rounds.map((round) => {
             const ms = round.matches.filter((m) => hit(m.home, m.away));
             if (nq && ms.length === 0) return null;
@@ -548,6 +512,47 @@ export default function GiaiTabs({
             </RoundSection>
             );
           })}
+
+          {fxGroups.length > 0 && (
+            <RoundSection
+              title="Vòng bảng (đã xong)"
+              count={fxGroups.reduce((s, g) => s + g.items.length, 0)}
+              open={isOpen("Vòng bảng")}
+              onToggle={() => toggle("Vòng bảng")}
+            >
+              {fxGroups.map((g) => (
+                <div key={g.day} className="space-y-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                    {g.day}
+                  </p>
+                  {g.items.map((m, i) => (
+                    <MatchInfoButton
+                      key={i}
+                      team1={m.home}
+                      team2={m.away}
+                      started={isStarted(m.date)}
+                    >
+                      <div
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-white/10 ${
+                          isMatchOpen(m.home, m.away)
+                            ? "bg-grass/10 ring-1 ring-grass/40"
+                            : "bg-black/20"
+                        }`}
+                      >
+                        <span className="w-11 shrink-0 text-xs text-white/40">
+                          {viTime(m.date)}
+                        </span>
+                        <span className="flex-1 text-right font-medium">{m.home}</span>
+                        <span className="text-xs text-white/40">vs</span>
+                        <span className="flex-1 font-medium">{m.away}</span>
+                        {isMatchOpen(m.home, m.away) && <OpenBadge />}
+                      </div>
+                    </MatchInfoButton>
+                  ))}
+                </div>
+              ))}
+            </RoundSection>
+          )}
 
           {fxGroups.length === 0 && rounds.length === 0 && (
             <div className="card text-white/50">Chưa có lịch thi đấu.</div>
