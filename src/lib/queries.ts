@@ -387,12 +387,22 @@ export async function getFundByMatch(): Promise<
   const out = [...byDay.entries()].map(([date, arr]) => ({
     date,
     counted: date <= active,
+    // A day still has money in play (upcoming) if any of its entries isn't treo.
+    pending: arr.some((e) => !e.treo),
     matches: arr
       .sort((a, b) => (a.sort < b.sort ? -1 : 1))
       .map(({ sort, ...m }) => m),
   }));
 
-  return out.sort((x, y) => (x.date < y.date ? 1 : -1)); // newest day on top
+  // Upcoming days first (soonest kickoff on top → further later), then the
+  // treo days (no-winner pots), newest to oldest.
+  const upcoming = out
+    .filter((g) => g.pending)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const treo = out
+    .filter((g) => !g.pending)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  return [...upcoming, ...treo].map(({ pending, ...g }) => g);
 }
 
 // Group-stage standings computed from OUR match results (the game's source of
