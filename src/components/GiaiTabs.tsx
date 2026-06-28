@@ -425,9 +425,13 @@ export default function GiaiTabs({
             )}
           </div>
 
-          {assists.length > 0 && (
-            <div className="space-y-2">
-              <h2 className="section-title">🅰️ Kiến tạo</h2>
+          <div className="space-y-2">
+            <h2 className="section-title">🅰️ Kiến tạo</h2>
+            {assists.length === 0 ? (
+              <div className="card text-sm text-white/50">
+                FIFA chưa cung cấp dữ liệu kiến tạo cho giải này — sẽ tự hiện khi có.
+              </div>
+            ) : (
               <div className="card p-0 overflow-hidden">
                 <ul className="divide-y divide-white/5">
                   {assists.map((s, i) => (
@@ -450,12 +454,11 @@ export default function GiaiTabs({
                   ))}
                 </ul>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <p className="text-[11px] text-white/30">
-            Tổng hợp từ các bàn thắng đã ghi nhận (không tính phản lưới).{" "}
-            {assists.length === 0 && "Kiến tạo sẽ hiện khi có dữ liệu."}
+            Tổng hợp từ các bàn thắng đã ghi nhận (không tính phản lưới).
           </p>
         </div>
       )}
