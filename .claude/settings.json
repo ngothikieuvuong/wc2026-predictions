@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:kqbd.mobi)",
-      "WebFetch(domain:vsbet287.com)"
+      "WebFetch(domain:vsbet287.com)",
+      "WebSearch",
+      "WebFetch(domain:www.api-football.com)"
     ]
   }
 }

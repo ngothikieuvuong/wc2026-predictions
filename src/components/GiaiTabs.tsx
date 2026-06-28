@@ -425,38 +425,6 @@ export default function GiaiTabs({
             )}
           </div>
 
-          <div className="space-y-2">
-            <h2 className="section-title">🅰️ Kiến tạo</h2>
-            {assists.length === 0 ? (
-              <div className="card text-sm text-white/50">
-                FIFA chưa cung cấp dữ liệu kiến tạo cho giải này — sẽ tự hiện khi có.
-              </div>
-            ) : (
-              <div className="card p-0 overflow-hidden">
-                <ul className="divide-y divide-white/5">
-                  {assists.map((s, i) => (
-                    <li
-                      key={i}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm"
-                    >
-                      <span className="w-5 shrink-0 text-center text-white/40">
-                        {i + 1}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="font-semibold">{s.name}</span>
-                        <span className="block text-[11px] text-white/40">{s.team}</span>
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <b className="text-grass">{s.assists}</b>
-                        <span className="text-white/40"> kiến tạo</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
           <p className="text-[11px] text-white/30">
             Tổng hợp từ các bàn thắng đã ghi nhận (không tính phản lưới).
           </p>
