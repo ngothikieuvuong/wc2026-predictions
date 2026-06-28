@@ -443,7 +443,9 @@ export default function GiaiTabs({
       {tab === "nhanh" && (
         <div className="space-y-3">
           {rounds.map((round) => {
-            const ms = round.matches.filter((m) => hit(m.home, m.away));
+            const ms = round.matches
+              .filter((m) => hit(m.home, m.away))
+              .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
             if (nq && ms.length === 0) return null;
             return (
             <RoundSection
