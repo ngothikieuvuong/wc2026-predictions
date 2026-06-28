@@ -180,9 +180,12 @@ export default function HomePage() {
               const allGone =
                 preds.length > 0 && winners.length === 0 && possible.length === 0;
               return (
-                <div key={i} className="space-y-1.5">
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-xl border border-red-500/30 bg-red-500/5"
+                >
                   <MatchInfoButton team1={m.home} team2={m.away} started>
-                    <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 transition hover:border-red-500/50">
+                    <div className="px-4 py-3 transition hover:bg-red-500/10">
                       <div className="flex items-center justify-between gap-3">
                         <div className="font-bold">
                           {m.home} <span className="text-white/40">gặp</span> {m.away}
@@ -222,45 +225,52 @@ export default function HomePage() {
                     </div>
                   </MatchInfoButton>
 
-                  {winners.length > 0 && (
-                    <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
-                      {winMessage(m.home + m.away, winners.map((w) => w.name))}
-                    </p>
-                  )}
+                  {(winners.length > 0 ||
+                    allGone ||
+                    possible.length > 0 ||
+                    gone.length > 0) && (
+                    <div className="space-y-1.5 border-t border-white/10 px-3 py-2.5">
+                      {winners.length > 0 && (
+                        <p className="rounded-lg bg-grass/15 px-3 py-1.5 text-center text-sm font-bold text-grass">
+                          {winMessage(m.home + m.away, winners.map((w) => w.name))}
+                        </p>
+                      )}
 
-                  {allGone && (
-                    <p className="rounded-lg bg-red-500/15 px-3 py-1.5 text-center text-sm font-bold text-red-400">
-                      {allMissMessage(m.home + m.away)}
-                    </p>
-                  )}
+                      {allGone && (
+                        <p className="rounded-lg bg-red-500/15 px-3 py-1.5 text-center text-sm font-bold text-red-400">
+                          {allMissMessage(m.home + m.away)}
+                        </p>
+                      )}
 
-                  {(possible.length > 0 || gone.length > 0) && (
-                    <ul className="space-y-1 px-1">
-                      {possible.map((pr) => (
-                        <li
-                          key={pr.id}
-                          className="flex items-center justify-between gap-2 text-sm text-white/80"
-                        >
-                          <span>🤞 {pr.name} — còn cơ hội</span>
-                          <span className="shrink-0 font-mono font-semibold">
-                            {pr.ph}–{pr.pa}
-                          </span>
-                        </li>
-                      ))}
-                      {gone.map((pr) => (
-                        <li
-                          key={pr.id}
-                          className="flex items-center justify-between gap-2 text-sm text-white/35"
-                        >
-                          <span>
-                            {pr.name} — {loseMessage(pr.id)}
-                          </span>
-                          <span className="shrink-0 font-mono">
-                            {pr.ph}–{pr.pa}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                      {(possible.length > 0 || gone.length > 0) && (
+                        <ul className="space-y-1 px-1">
+                          {possible.map((pr) => (
+                            <li
+                              key={pr.id}
+                              className="flex items-center justify-between gap-2 text-sm text-white/80"
+                            >
+                              <span>🤞 {pr.name} — còn cơ hội</span>
+                              <span className="shrink-0 font-mono font-semibold">
+                                {pr.ph}–{pr.pa}
+                              </span>
+                            </li>
+                          ))}
+                          {gone.map((pr) => (
+                            <li
+                              key={pr.id}
+                              className="flex items-center justify-between gap-2 text-sm text-white/35"
+                            >
+                              <span>
+                                {pr.name} — {loseMessage(pr.id)}
+                              </span>
+                              <span className="shrink-0 font-mono">
+                                {pr.ph}–{pr.pa}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   )}
                 </div>
               );
