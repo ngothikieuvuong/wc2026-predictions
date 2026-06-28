@@ -392,7 +392,7 @@ export async function getFundByMatch(): Promise<
       .map(({ sort, ...m }) => m),
   }));
 
-  return out.sort((x, y) => (x.date < y.date ? -1 : 1));
+  return out.sort((x, y) => (x.date < y.date ? 1 : -1)); // newest day on top
 }
 
 // Group-stage standings computed from OUR match results (the game's source of
