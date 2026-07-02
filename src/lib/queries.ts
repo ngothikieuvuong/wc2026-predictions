@@ -892,6 +892,119 @@ export async function getStats(): Promise<
     .sort((a, b) => b.loiLo - a.loiLo);
 }
 
+// Per-player accuracy: total predictions, exact-score hits, hit-rate, plus money
+// received (how many times, total, biggest single win).
+export async function getPlayerStats(): Promise<
+  {
+    name: string;
+    predictions: number;
+    correct: number;
+    rate: number;
+    winCount: number;
+    won: number;
+    best: number;
+  }[]
+> {
+  const [{ data: players }, { data: preds }, { data: matches }, { data: rewards }] =
+    await Promise.all([
+      supabase.from("players").select("name"),
+      supabase.from("predictions").select("*"),
+      supabase.from("matches").select("*"),
+      supabase.from("rewards").select("player_name, amount"),
+    ]);
+  const byId = new Map(((matches as Match[]) ?? []).map((m) => [m.id, m]));
+
+  const predCount = new Map<string, number>();
+  const correct = new Map<string, number>();
+  for (const p of (preds as Prediction[]) ?? []) {
+    predCount.set(p.player_name, (predCount.get(p.player_name) ?? 0) + 1);
+    const m = byId.get(p.match_id);
+    if (
+      m &&
+      m.status === "finished" &&
+      m.home_score != null &&
+      m.away_score != null &&
+      p.predicted_home === m.home_score &&
+      p.predicted_away === m.away_score
+    ) {
+      correct.set(p.player_name, (correct.get(p.player_name) ?? 0) + 1);
+    }
+  }
+
+  const winCount = new Map<string, number>();
+  const won = new Map<string, number>();
+  const best = new Map<string, number>();
+  for (const r of (rewards as { player_name: string; amount: number }[]) ?? []) {
+    const a = Number(r.amount);
+    winCount.set(r.player_name, (winCount.get(r.player_name) ?? 0) + 1);
+    won.set(r.player_name, (won.get(r.player_name) ?? 0) + a);
+    best.set(r.player_name, Math.max(best.get(r.player_name) ?? 0, a));
+  }
+
+  const names = new Set<string>([
+    ...((players as { name: string }[]) ?? []).map((p) => p.name),
+    ...predCount.keys(),
+  ]);
+
+  return [...names]
+    .map((name) => {
+      const predictions = predCount.get(name) ?? 0;
+      const c = correct.get(name) ?? 0;
+      return {
+        name,
+        predictions,
+        correct: c,
+        rate: predictions ? c / predictions : 0,
+        winCount: winCount.get(name) ?? 0,
+        won: won.get(name) ?? 0,
+        best: best.get(name) ?? 0,
+      };
+    })
+    .filter((s) => s.predictions > 0)
+    .sort((a, b) => b.correct - a.correct || b.rate - a.rate || b.won - a.won);
+}
+
+// Payouts grouped per settlement batch (one "lần chốt" = rewards sharing a
+// created_at), newest first. Each group expands to show who received what.
+export async function getReceipts(): Promise<
+  {
+    time: string;
+    total: number;
+    items: { name: string; amount: number; label: string }[];
+  }[]
+> {
+  const [{ data: rewards }, { data: matches }] = await Promise.all([
+    supabase.from("rewards").select("*").order("created_at", { ascending: false }),
+    supabase.from("matches").select("id, team1, team2"),
+  ]);
+  const label = new Map(
+    ((matches as { id: string; team1: string; team2: string }[]) ?? []).map((m) => [
+      m.id,
+      `${m.team1} – ${m.team2}`,
+    ])
+  );
+  const groups = new Map<
+    string,
+    { time: string; total: number; items: { name: string; amount: number; label: string }[] }
+  >();
+  for (const r of (rewards as Reward[]) ?? []) {
+    const g = groups.get(r.created_at) ?? { time: r.created_at, total: 0, items: [] };
+    const amt = Number(r.amount);
+    g.total += amt;
+    g.items.push({
+      name: r.player_name,
+      amount: amt,
+      label: r.match_id
+        ? label.get(r.match_id) ?? ""
+        : r.pay_date
+        ? `ngày ${dayLabel(r.pay_date)}`
+        : "",
+    });
+    groups.set(r.created_at, g);
+  }
+  return [...groups.values()].sort((a, b) => (a.time < b.time ? 1 : -1));
+}
+
 // All emoji reactions, grouped by the prediction they belong to.
 export async function getReactionsByPrediction(): Promise<
   Map<string, Reaction[]>

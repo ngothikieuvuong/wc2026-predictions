@@ -5,10 +5,11 @@ import Link from "next/link";
 import {
   getJackpot,
   getUpcomingByDay,
-  getLatestWinners,
   getFundByMatch,
   getPredictionsByMatch,
   getStats,
+  getPlayerStats,
+  getReceipts,
 } from "@/lib/queries";
 import { formatKickoff } from "@/lib/format";
 import { Money } from "@/components/Money";
@@ -21,6 +22,8 @@ import MatchInfoButton from "@/components/MatchInfoButton";
 import PendingWinnersBanner from "@/components/PendingWinnersBanner";
 import JustWonBanner from "@/components/JustWonBanner";
 import StarAlert from "@/components/StarAlert";
+import HitRateTable from "@/components/HitRateTable";
+import ReceiptsSection from "@/components/ReceiptsSection";
 import { loseMessage, allMissMessage, winMessage } from "@/lib/tease";
 
 export default function HomePage() {
@@ -31,10 +34,13 @@ export default function HomePage() {
   const [soon, setSoon] = useState<
     Awaited<ReturnType<typeof getUpcomingByDay>>
   >([]);
-  const [winners, setWinners] = useState<
-    Awaited<ReturnType<typeof getLatestWinners>>
-  >([]);
   const [stats, setStats] = useState<Awaited<ReturnType<typeof getStats>>>([]);
+  const [playerStats, setPlayerStats] = useState<
+    Awaited<ReturnType<typeof getPlayerStats>>
+  >([]);
+  const [receipts, setReceipts] = useState<
+    Awaited<ReturnType<typeof getReceipts>>
+  >([]);
   const [live, setLive] = useState<LiveScore[]>([]);
   const [predRows, setPredRows] = useState<
     Awaited<ReturnType<typeof getPredictionsByMatch>>
@@ -58,23 +64,25 @@ export default function HomePage() {
 
   async function loadData() {
     const seq = ++loadSeq.current;
-    const [j, f, s, w, lv, pr, st] = await Promise.all([
+    const [j, f, s, lv, pr, st, ps, rc] = await Promise.all([
       getJackpot(),
       getFundByMatch(),
       getUpcomingByDay(),
-      getLatestWinners(4),
       getLive(),
       getPredictionsByMatch(),
       getStats(),
+      getPlayerStats(),
+      getReceipts(),
     ]);
     if (seq !== loadSeq.current) return; // a newer refresh superseded this one
     setJackpot(j);
     setFundByMatch(f);
     setSoon(s);
-    setWinners(w);
     setLive(lv);
     setPredRows(pr);
     setStats(st);
+    setPlayerStats(ps);
+    setReceipts(rc);
     setLoading(false);
   }
 
@@ -428,45 +436,6 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Recent winners */}
-      <section className="card">
-        <h2 className="mb-3 section-title">
-          Danh sách đã trúng thưởng
-        </h2>
-        {loading ? (
-          <p className="text-white/40">Đang tải…</p>
-        ) : winners.length === 0 ? (
-          <p className="text-white/50">Chưa có ai trúng — hãy là người đầu tiên!</p>
-        ) : (
-          <>
-            <ul className="divide-y divide-white/10">
-              {winners.map((w, i) => (
-                <li
-                  key={i}
-                  className="flex items-center justify-between gap-3 py-2"
-                >
-                  <div>
-                    <p className="font-bold">🏆 {w.player_name}</p>
-                    {w.pay_date && (
-                      <p className="text-xs text-white/50">
-                        Ngày {w.pay_date.slice(8, 10)}/{w.pay_date.slice(5, 7)}
-                      </p>
-                    )}
-                  </div>
-                  <p className="font-bold text-neon"><Money value={w.amount} /></p>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/history#lich-su-tat-toan"
-              className="btn-ghost mt-3 w-full"
-            >
-              Xem chi tiết
-            </Link>
-          </>
-        )}
-      </section>
-
       {/* Profit/loss summary */}
       <section className="card">
         <h2 className="mb-3 section-title">
@@ -506,6 +475,26 @@ export default function HomePage() {
               Xem chi tiết
             </Link>
           </>
+        )}
+      </section>
+
+      {/* Per-person accuracy / winnings */}
+      <section className="card">
+        <h2 className="mb-3 section-title">📊 Tỉ lệ trúng của mỗi người</h2>
+        {loading ? (
+          <p className="text-white/40">Đang tải…</p>
+        ) : (
+          <HitRateTable rows={playerStats} />
+        )}
+      </section>
+
+      {/* Recent wins — moved to the very bottom, expandable per settlement */}
+      <section className="card">
+        <h2 className="mb-3 section-title">Danh sách đã trúng thưởng</h2>
+        {loading ? (
+          <p className="text-white/40">Đang tải…</p>
+        ) : (
+          <ReceiptsSection receipts={receipts} />
         )}
       </section>
     </div>
