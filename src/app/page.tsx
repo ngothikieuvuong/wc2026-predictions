@@ -46,21 +46,7 @@ export default function HomePage() {
     Awaited<ReturnType<typeof getPredictionsByMatch>>
   >([]);
   const [loading, setLoading] = useState(true);
-  // Pin a compact "Quỹ hiện tại" bar under the tabs once the big one scrolls off.
-  const jackpotRef = useRef<HTMLElement>(null);
   const loadSeq = useRef(0); // ignore stale loads that resolve out of order
-  const [showFundBar, setShowFundBar] = useState(false);
-
-  useEffect(() => {
-    const el = jackpotRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([e]) => setShowFundBar(!e.isIntersecting && e.boundingClientRect.top < 0),
-      { threshold: 0 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [loading]);
 
   async function loadData() {
     const seq = ++loadSeq.current;
@@ -146,27 +132,6 @@ export default function HomePage() {
     <div className="space-y-6">
       {/* Live score bar — freezes under the nav on scroll */}
       <LiveBar live={live} />
-
-      {/* Compact fund bar pinned under the tabs while scrolling (below live bar) */}
-      <div
-        className={`fixed inset-x-0 z-20 transition-all duration-300 ${
-          showFundBar
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none -translate-y-2 opacity-0"
-        }`}
-        style={{ top: "calc(var(--nav-h) + var(--live-h, 0px))" }}
-      >
-        <div className="mx-auto max-w-3xl px-4">
-          <div className="bar-bg flex items-center justify-between rounded-b-xl border border-t-0 border-white/10 px-4 py-1.5 shadow-lux backdrop-blur-xl">
-            <span className="text-[11px] uppercase tracking-wider text-white/50">
-              Quỹ hiện tại
-            </span>
-            <span className="text-sm font-bold text-neon">
-              {jackpot === null ? "…" : <Money value={jackpot} />}
-            </span>
-          </div>
-        </div>
-      </div>
 
       <PendingWinnersBanner />
       <JustWonBanner />
@@ -288,10 +253,7 @@ export default function HomePage() {
       )}
 
       {/* Jackpot — the centerpiece */}
-      <section
-        ref={jackpotRef}
-        className="card relative overflow-hidden text-center shadow-gold ring-1 ring-gold/20"
-      >
+      <section className="card relative overflow-hidden text-center shadow-gold ring-1 ring-gold/20">
         {/* soft golden spotlight behind the number */}
         <div
           aria-hidden

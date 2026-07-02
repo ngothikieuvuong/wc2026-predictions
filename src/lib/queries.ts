@@ -970,7 +970,7 @@ export async function getReceipts(): Promise<
   {
     time: string;
     total: number;
-    items: { name: string; amount: number; label: string }[];
+    items: { name: string; amount: number; label: string; date: string | null }[];
   }[]
 > {
   const [{ data: rewards }, { data: matches }] = await Promise.all([
@@ -985,7 +985,11 @@ export async function getReceipts(): Promise<
   );
   const groups = new Map<
     string,
-    { time: string; total: number; items: { name: string; amount: number; label: string }[] }
+    {
+      time: string;
+      total: number;
+      items: { name: string; amount: number; label: string; date: string | null }[];
+    }
   >();
   for (const r of (rewards as Reward[]) ?? []) {
     const g = groups.get(r.created_at) ?? { time: r.created_at, total: 0, items: [] };
@@ -994,6 +998,7 @@ export async function getReceipts(): Promise<
     g.items.push({
       name: r.player_name,
       amount: amt,
+      date: r.pay_date ?? null,
       label: r.match_id
         ? label.get(r.match_id) ?? ""
         : r.pay_date
