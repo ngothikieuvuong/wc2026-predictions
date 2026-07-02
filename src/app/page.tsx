@@ -11,7 +11,7 @@ import {
   getPlayerStats,
   getReceipts,
 } from "@/lib/queries";
-import { formatKickoff } from "@/lib/format";
+import { formatKickoff, matchSlug } from "@/lib/format";
 import { Money } from "@/components/Money";
 import { dayLabel } from "@/lib/day";
 import { getLive, findLive, type LiveScore } from "@/lib/liveClient";
@@ -333,16 +333,19 @@ export default function HomePage() {
                       }`}
                     >
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className={m.treo ? "text-amber-300/90" : "text-white/80"}>
-                          {m.team1 ? (
-                            <>
-                              {m.team1} <span className="text-white/30">–</span>{" "}
-                              {m.team2}
-                            </>
-                          ) : (
-                            "Quỹ treo trước"
-                          )}
-                        </span>
+                        {m.team1 ? (
+                          <Link
+                            href={`/predictions#${matchSlug(m.team1, m.team2 ?? "")}`}
+                            className={`underline decoration-white/20 underline-offset-2 transition hover:decoration-white/70 ${
+                              m.treo ? "text-amber-300/90" : "text-white/80"
+                            }`}
+                          >
+                            {m.team1} <span className="text-white/30">–</span>{" "}
+                            {m.team2}
+                          </Link>
+                        ) : (
+                          <span className="text-amber-300/90">Quỹ treo trước</span>
+                        )}
                         <span className="flex shrink-0 items-baseline gap-1.5">
                           {m.treo && (
                             <span className="text-[10px] font-medium uppercase tracking-wider text-amber-300/80">
